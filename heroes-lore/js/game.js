@@ -162,7 +162,10 @@
     }
 
     updateTitleButtons() {
-      const hasSave = !!localStorage.getItem(SAVE_KEY);
+      let hasSave = false;
+      try {
+        hasSave = !!localStorage.getItem(SAVE_KEY);
+      } catch (e) {}
       this.el.btnContinue.disabled = !hasSave;
     }
 
@@ -311,9 +314,9 @@
     }
 
     loadGame() {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return;
       try {
+        const raw = localStorage.getItem(SAVE_KEY);
+        if (!raw) return;
         const data = JSON.parse(raw);
         this.hero = data.hero;
         this.currentMapId = data.currentMapId || 'town';
@@ -1847,15 +1850,32 @@
     }
 
     renderTitleBackdrop(ctx) {
-      const grad = ctx.createLinearGradient(0, 0, 0, VIEW_H);
-      grad.addColorStop(0, '#1e2736');
-      grad.addColorStop(1, '#12100e');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-      for (let i = 0; i < 36; i++) {
-        const x = (i * 53 + this.time * 12) % VIEW_W;
-        const y = (i * 29) % VIEW_H;
-        ctx.fillStyle = i % 3 === 0 ? 'rgba(253, 224, 71, 0.45)' : 'rgba(255,255,255,0.22)';
+      const map = DATA.MAPS.town;
+      const waterFrame = Math.floor(this.time * 2.5) % 2;
+      const ox = Math.round(Math.sin(this.time * 0.35) * 32 + 48);
+      const oy = Math.round(Math.cos(this.time * 0.25) * 20 + 36);
+      ctx.save();
+      ctx.translate(-ox, -oy);
+      for (let ty = 0; ty < map.layout.length; ty++) {
+        const row = map.layout[ty];
+        for (let tx = 0; tx < row.length; tx++) {
+          const ch = row[tx], px = tx * TILE, py = ty * TILE;
+          ctx.drawImage(ch === 'c' || ch === 'F' ? this.sprites.tiles.cobble : this.sprites.tiles.grass, px, py, TILE, TILE);
+          const tileMap = {
+            ',': this.sprites.tiles.flower, 'p': this.sprites.tiles.path, 'c': this.sprites.tiles.cobble,
+            '~': waterFrame ? this.sprites.tiles.water1 : this.sprites.tiles.water0,
+            'T': this.sprites.tiles.tree, 'R': this.sprites.tiles.houseRoof,
+            'W': this.sprites.tiles.houseWall, 'd': this.sprites.tiles.houseDoor,
+            'F': waterFrame ? this.sprites.tiles.fountain1 : this.sprites.tiles.fountain0
+          };
+          if (tileMap[ch]) ctx.drawImage(tileMap[ch], px, py, TILE, TILE);
+        }
+      }
+      ctx.restore();
+      for (let i = 0; i < 24; i++) {
+        const x = (i * 53 + this.time * 16) % VIEW_W;
+        const y = (i * 29 + Math.sin(this.time + i) * 6) % VIEW_H;
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(253, 224, 71, 0.55)' : 'rgba(255,255,255,0.35)';
         ctx.fillRect(x, y, 2, 2);
       }
     }
@@ -1950,11 +1970,22 @@
 
       ctx.save();
       if (m.hitFlash > 0) {
-        ctx.filter = 'brightness(2.5)';
-      } else if (m.slowTimer > 0) {
-        ctx.filter = 'hue-rotate(150deg) saturate(1.4)';
+        ctx.globalAlpha = 0.65;
       }
       ctx.drawImage(spr, m.x - drawSize / 2, m.y - drawSize / 2 - 2, drawSize, drawSize);
+      if (m.hitFlash > 0) {
+        ctx.globalAlpha = 0.55;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(m.x, m.y - 2, drawSize * 0.34, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (m.slowTimer > 0) {
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, drawSize * 0.45, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       ctx.restore();
 
       // Overhead mini HP bar for non-boss damaged monsters
@@ -2787,13 +2818,28 @@
     loop(ts) {
       const dt = Math.min(0.05, (ts - this.lastTs) / 1000 || 0.016);
       this.lastTs = ts;
-      this.update(dt);
-      this.render();
+      try {
+        this.update(dt);
+        this.render();
+      } catch (err) {
+        console.error('Frame error:', err);
+      }
       requestAnimationFrame((t) => this.loop(t));
     }
   }
 
-  window.addEventListener('DOMContentLoaded', () => {
-    global.game = new HeroesLoreGame();
-  });
+  function bootGame() {
+    if (global.game) return;
+    try {
+      global.game = new HeroesLoreGame();
+    } catch (err) {
+      console.error('Boot error:', err);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', bootGame);
+  } else {
+    bootGame();
+  }
 })(window);

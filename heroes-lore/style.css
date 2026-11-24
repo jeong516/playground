@@ -51,7 +51,8 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px 8px;
   padding: 7px 12px;
   background: linear-gradient(180deg, #2b241d 0%, #1d1814 100%);
   border: 1px solid var(--border-gold);
@@ -153,18 +154,18 @@ html, body {
 .viewport-wrap {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
-  background: #0d0c0b;
+  background: #1a2433;
   border: 2px solid #0a0908;
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.8);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.6);
   touch-action: none;
 }
 
 canvas#gameCanvas {
   width: 100%;
-  height: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
   display: block;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
@@ -178,7 +179,7 @@ canvas#gameCanvas {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 50% 35%, rgba(36, 27, 20, 0.94), rgba(11, 9, 8, 0.98));
+  background: radial-gradient(circle at 50% 35%, rgba(28, 22, 16, 0.62), rgba(14, 11, 9, 0.84));
   padding: 16px;
   z-index: 20;
   text-align: center;
