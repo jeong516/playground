@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#141210" />
+  <title>영웅서기: 솔티아의 바람 — Mobile Web</title>
+  <meta name="description" content="모바일 터치 최적화 영웅서기 액션 RPG 웹앱. 가상 조이스틱, 피처폰 키패드, 실시간 3연타 콤보, 장비 강화/조합, 보스전을 스마트폰에서 바로 플레이하세요." />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-root">
+    <header class="top-bar">
+      <div class="brand">
+        <div class="brand-crest">⚔️</div>
+        <div>
+          <h1>영웅서기 : 솔티아의 바람</h1>
+          <div class="brand-sub">Heroes Lore Retro Action RPG · Mobile &amp; Web</div>
+        </div>
+      </div>
+      <div class="top-controls">
+        <button id="btnBgm" class="chip-btn active" type="button">🎵 BGM</button>
+        <button id="btnSfx" class="chip-btn active" type="button">🔊 효과</button>
+        <button id="btnSave" class="chip-btn" type="button">💾 저장</button>
+        <button id="btnPadMode" class="chip-btn active" type="button">🕹️ 조이스틱</button>
+      </div>
+    </header>
+
+    <main class="stage-layout">
+      <section class="game-shell" aria-label="게임 화면">
+        <div class="viewport-wrap">
+          <canvas id="gameCanvas" width="480" height="360"></canvas>
+
+          <!-- Title Screen -->
+          <div id="titleScreen" class="overlay-screen">
+            <div class="title-emblem">HEROES LORE · MOBILE WEB</div>
+            <div class="title-logo">영웅서기</div>
+            <div class="title-sub">— 솔티아의 바람 —</div>
+            <div class="title-actions">
+              <button id="btnNewGame" class="rpg-btn" type="button">새 모험 시작</button>
+              <button id="btnContinue" class="rpg-btn secondary" type="button" disabled>이어하기</button>
+            </div>
+            <div class="title-hint">모바일 멀티터치 조이스틱 · 피처폰 키패드 전환 지원</div>
+          </div>
+
+          <!-- Class Selection -->
+          <div id="selectScreen" class="overlay-screen hidden">
+            <div class="title-emblem">SELECT YOUR HERO</div>
+            <h2 style="font-size:18px;color:#fce29a;margin-bottom:4px;">직업을 선택하세요</h2>
+            <div id="classGrid" class="class-grid"></div>
+            <div style="display:flex;gap:8px;">
+              <button id="btnBackTitle" class="rpg-btn secondary" type="button">뒤로</button>
+              <button id="btnStartAdventure" class="rpg-btn" type="button">솔티아로 출발 ⚔️</button>
+            </div>
+          </div>
+
+          <!-- Game Over -->
+          <div id="gameoverScreen" class="overlay-screen hidden">
+            <div class="title-emblem" style="color:#f87171;">DEFEATED</div>
+            <div class="title-logo" style="color:#fda4af;">전투 불능</div>
+            <div class="title-sub">소지금의 10%를 잃고 솔티아 마을에서 다시 일어납니다.</div>
+            <button id="btnRevive" class="rpg-btn" type="button">솔티아 마을에서 부활</button>
+          </div>
+
+          <!-- Victory -->
+          <div id="victoryScreen" class="overlay-screen hidden">
+            <div class="title-emblem">HERO OF SOLTIA</div>
+            <div class="title-logo">솔티아의 영웅</div>
+            <div class="title-sub">심연의 기사 바르가스를 물리치고 대륙에 평화를 되찾았습니다!</div>
+            <button id="btnContinueAfterWin" class="rpg-btn" type="button">자유 모험 계속하기</button>
+          </div>
+
+          <!-- Dialog Box -->
+          <div id="dialogBox" class="dialog-box hidden" role="dialog" aria-live="polite">
+            <div id="dialogSpeaker" class="dialog-speaker"></div>
+            <div id="dialogText" class="dialog-text"></div>
+            <div class="dialog-next">▼ 터치 또는 OK / Space</div>
+          </div>
+
+          <!-- RPG Modal (Menu / Shop / Blacksmith) -->
+          <div id="modalBackdrop" class="modal-backdrop hidden">
+            <div class="rpg-modal">
+              <div class="modal-header">
+                <div id="modalTabs" class="modal-tabs"></div>
+                <button id="modalClose" class="modal-close" type="button">닫기</button>
+              </div>
+              <div id="modalBody" class="modal-body"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Potion & Menu Strip -->
+        <div class="quick-bar">
+          <div id="skillSlots" class="quick-group desktop-skills-only"></div>
+
+          <div class="quick-group">
+            <button id="btnPotHp" class="slot-btn" type="button" title="HP 포션 (Q)">
+              <span class="slot-key">Q</span>
+              <span class="slot-icon">🧪</span>
+              <span id="potHpCount" class="slot-label">x0</span>
+            </button>
+            <button id="btnPotMp" class="slot-btn" type="button" title="MP 포션 (E)">
+              <span class="slot-key">E</span>
+              <span class="slot-icon">💧</span>
+              <span id="potMpCount" class="slot-label">x0</span>
+            </button>
+            <button id="btnScrollTown" class="slot-btn" type="button" title="마을 귀환 (R)">
+              <span class="slot-key">R</span>
+              <span class="slot-icon">📜</span>
+              <span id="scrollCount" class="slot-label">x0</span>
+            </button>
+          </div>
+
+          <div class="menu-strip">
+            <button class="mini-menu-btn" data-open-menu="status" type="button">상태<span id="dotStat" class="notify-dot" style="display:none"></span></button>
+            <button class="mini-menu-btn" data-open-menu="bag" type="button">가방</button>
+            <button class="mini-menu-btn" data-open-menu="skills" type="button">스킬<span id="dotSkill" class="notify-dot" style="display:none"></span></button>
+            <button class="mini-menu-btn" data-open-menu="quest" type="button">퀘스트</button>
+          </div>
+        </div>
+
+        <!-- Mobile Multi-Touch Virtual Gamepad (Analog Stick + Right Action Cluster) -->
+        <div id="mobileGamepad" class="mobile-gamepad" aria-label="모바일 터치 컨트롤러">
+          <div id="stickZone" class="stick-zone">
+            <div class="stick-base">
+              <div class="stick-arrows">
+                <span class="a-up">▲</span>
+                <span class="a-down">▼</span>
+                <span class="a-left">◀</span>
+                <span class="a-right">▶</span>
+              </div>
+              <div id="stickKnob" class="stick-knob"></div>
+            </div>
+          </div>
+
+          <div class="action-cluster">
+            <div id="mobileSkillSlots" class="mobile-skills-row"></div>
+            <div class="primary-actions-row">
+              <button id="btnMobileDash" class="dash-circle-btn" type="button">
+                <span style="font-size:18px;line-height:1;">💨</span>
+                <span>회피</span>
+              </button>
+              <button id="btnMobileAttack" class="attack-circle-btn" type="button">
+                <span id="mobileAtkIcon" class="atk-ico">⚔️</span>
+                <span id="mobileAtkLabel">공격</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Nostalgic Feature-Phone Keypad -->
+      <aside id="phoneKeypad" class="phone-keypad hidden" aria-label="피처폰 키패드">
+        <div class="phone-brand">SOLTIA MOBILE</div>
+        <div class="dpad-area">
+          <div></div>
+          <button id="padUp" class="pad-btn" type="button">▲</button>
+          <div></div>
+          <button id="padLeft" class="pad-btn" type="button">◀</button>
+          <button id="padOk" class="pad-btn ok-btn" type="button">OK</button>
+          <button id="padRight" class="pad-btn" type="button">▶</button>
+          <div></div>
+          <button id="padDown" class="pad-btn" type="button">▼</button>
+          <div></div>
+        </div>
+        <div class="num-grid">
+          <button class="num-btn" data-pad-action="s1" type="button"><strong>1</strong><span>스킬1</span></button>
+          <button class="num-btn" data-pad-action="s2" type="button"><strong>2</strong><span>스킬2</span></button>
+          <button class="num-btn" data-pad-action="s3" type="button"><strong>3</strong><span>스킬3</span></button>
+          <button class="num-btn" data-pad-action="hp" type="button"><strong>4</strong><span>HP포션</span></button>
+          <button class="num-btn" data-pad-action="attack" type="button"><strong>5</strong><span>공격/대화</span></button>
+          <button class="num-btn" data-pad-action="mp" type="button"><strong>6</strong><span>MP포션</span></button>
+          <button class="num-btn" data-pad-action="s4" type="button"><strong>7</strong><span>궁극기</span></button>
+          <button class="num-btn" data-pad-action="dash" type="button"><strong>8</strong><span>회피</span></button>
+          <button class="num-btn" data-pad-action="menu" type="button"><strong>9</strong><span>가방</span></button>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="controls-footer">
+      <span><kbd>WASD</kbd>/<kbd>방향키</kbd> 이동 · <kbd>Space</kbd>/<kbd>Z</kbd> 3연타 공격 &amp; 대화 · <kbd>Shift</kbd>/<kbd>X</kbd> 회피 대시</span>
+      <span><kbd>1</kbd>~<kbd>4</kbd> 스킬 · <kbd>Q</kbd>/<kbd>E</kbd> 포션 · <kbd>R</kbd> 마을귀환 · <kbd>C</kbd>/<kbd>I</kbd>/<kbd>K</kbd>/<kbd>J</kbd> 메뉴</span>
+    </footer>
+  </div>
+
+  <script src="js/audio.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

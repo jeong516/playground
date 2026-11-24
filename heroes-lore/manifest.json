@@ -1,0 +1,10 @@
+{
+  "name": "영웅서기: 솔티아의 바람",
+  "short_name": "영웅서기",
+  "description": "추억의 피처폰 액션 RPG 영웅서기 모바일 웹앱",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#141210",
+  "theme_color": "#141210",
+  "orientation": "portrait"
+}
