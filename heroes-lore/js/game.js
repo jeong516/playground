@@ -731,7 +731,6 @@
           const heldMs = performance.now() - (this.portraitHoldStart || 0);
           this.portraitEasterEggHeld = false;
           this.portraitPointerId = null;
-          portraitRing.classList.remove('egg-active');
           if (heldMs >= 200) {
             this.suppressNextMenuClickUntil = performance.now() + 380;
           }
@@ -741,7 +740,6 @@
           this.portraitEasterEggHeld = true;
           this.portraitPointerId = e.pointerId;
           this.portraitHoldStart = performance.now();
-          portraitRing.classList.add('egg-active');
         });
         portraitRing.addEventListener('contextmenu', (e) => e.preventDefault());
         window.addEventListener('pointerup', releasePortraitHold);

@@ -148,15 +148,6 @@ canvas#gameCanvas {
   box-shadow:
     0 4px 14px rgba(0, 0, 0, 0.6),
     0 0 14px rgba(234, 185, 92, 0.35);
-  transition: transform 0.12s ease, box-shadow 0.16s ease, filter 0.16s ease;
-}
-
-.portrait-ring.egg-active {
-  transform: scale(0.95);
-  background: linear-gradient(145deg, #f5d0fe 0%, #c084fc 45%, #f59e0b 100%);
-  box-shadow:
-    0 0 18px rgba(192, 132, 252, 0.85),
-    0 0 28px rgba(251, 191, 36, 0.55);
 }
 
 canvas#hudPortrait {
