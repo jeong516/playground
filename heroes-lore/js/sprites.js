@@ -1,4 +1,4 @@
-// High-Detail Layered Pixel-Art Tileset, Character & Monster Sprite Renderer (24x24 & 32x32)
+// Modern HD 2D Fantasy Vector & Cel-Shaded Illustration Renderer (Zero Pixel Art)
 (function (global) {
   'use strict';
 
@@ -12,51 +12,96 @@
   function flipH(canvas) {
     const c = makeCanvas(canvas.width, canvas.height);
     const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
     ctx.translate(canvas.width, 0);
     ctx.scale(-1, 1);
     ctx.drawImage(canvas, 0, 0);
     return c;
   }
 
-  function px(ctx, x, y, w, h, col) {
-    ctx.fillStyle = col;
-    ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+  function rrect(ctx, x, y, w, h, r) {
+    const rad = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + rad, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rad);
+    ctx.arcTo(x + w, y + h, x, y + h, rad);
+    ctx.arcTo(x, y + h, x, y, rad);
+    ctx.arcTo(x, y, x + w, y, rad);
+    ctx.closePath();
+  }
+
+  function linGrad(ctx, x0, y0, x1, y1, stops) {
+    const g = ctx.createLinearGradient(x0, y0, x1, y1);
+    stops.forEach(([o, c]) => g.addColorStop(o, c));
+    return g;
+  }
+
+  function radGrad(ctx, x0, y0, r0, x1, y1, r1, stops) {
+    const g = ctx.createRadialGradient(x0, y0, r0, x1, y1, r1);
+    stops.forEach(([o, c]) => g.addColorStop(o, c));
+    return g;
   }
 
   function buildSprites() {
     const sprites = { tiles: {}, heroes: {}, npcs: {}, monsters: {} };
+    const TS = 96; // High-resolution 96x96 smooth painted tiles
 
     // =========================================================
-    // 1. RICH 24x24 ENVIRONMENT TILES
+    // 1. SMOOTH PAINTED SEAMLESS HD ENVIRONMENT TILES (96x96)
     // =========================================================
     const makeGrass = (mode) => {
-      const c = makeCanvas(24, 24);
+      const c = makeCanvas(TS, TS);
       const ctx = c.getContext('2d');
-      const base = mode === 'dark' ? '#2c4f31' : '#43783e';
-      const mid  = mode === 'dark' ? '#254429' : '#3a6b35';
-      const hi   = mode === 'dark' ? '#3a6940' : '#58944c';
-      const hi2  = mode === 'dark' ? '#4a7d4e' : '#70ad5c';
-      px(ctx, 0, 0, 24, 24, base);
-      // Subtle organic dappled patches
-      px(ctx, 2, 4, 6, 4, mid);
-      px(ctx, 14, 13, 7, 5, mid);
-      px(ctx, 11, 2, 5, 3, hi);
-      px(ctx, 3, 16, 6, 4, hi);
-      // Grass blades
-      const blades = [[4,6],[9,11],[17,5],[20,17],[7,20],[15,19]];
-      blades.forEach(([bx, by], i) => {
-        px(ctx, bx, by, 1, 3, i % 2 === 0 ? hi2 : mid);
-        px(ctx, bx + 1, by + 1, 1, 2, hi);
+      const isDark = mode === 'dark';
+      // Uniform edge-seamless base color so adjacent tiles blend with zero grid seams
+      ctx.fillStyle = isDark ? '#28492e' : '#4a8443';
+      ctx.fillRect(0, 0, TS, TS);
+
+      // Soft interior organic dappled light & shade
+      const patches = [
+        [28, 28, 20, 12, isDark ? 'rgba(66,118,74,0.18)' : 'rgba(130,198,100,0.17)'],
+        [66, 62, 22, 13, isDark ? 'rgba(18,36,22,0.18)' : 'rgba(42,84,38,0.13)'],
+        [66, 26, 15, 10, isDark ? 'rgba(66,118,74,0.14)' : 'rgba(155,214,116,0.14)']
+      ];
+      patches.forEach(([x, y, rx, ry, col]) => {
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0.25, 0, Math.PI * 2); ctx.fill();
       });
+
+      // Subtle delicate grass blades (spaced organically, not noisy)
+      const tufts = [[22, 34], [58, 22], [72, 66], [34, 74]];
+      tufts.forEach(([bx, by], i) => {
+        ctx.strokeStyle = i % 2 === 0
+          ? (isDark ? 'rgba(92,148,99,0.42)' : 'rgba(146,214,114,0.48)')
+          : (isDark ? 'rgba(20,42,25,0.38)' : 'rgba(43,88,38,0.34)');
+        ctx.lineWidth = 1.8;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(bx, by + 5); ctx.quadraticCurveTo(bx - 2.5, by, bx - 4.5, by - 3.5);
+        ctx.moveTo(bx + 2, by + 5); ctx.quadraticCurveTo(bx + 3.5, by, bx + 5, by - 2.5);
+        ctx.stroke();
+      });
+
       if (mode === 'flower') {
-        // Warm golden & coral wildflowers with stems
-        px(ctx, 6, 9, 1, 3, '#2d5c2b');
-        px(ctx, 5, 7, 3, 2, '#f6d35e');
-        px(ctx, 6, 6, 1, 3, '#fff5c2');
-        px(ctx, 17, 15, 1, 3, '#2d5c2b');
-        px(ctx, 16, 13, 3, 2, '#f07178');
-        px(ctx, 17, 12, 1, 3, '#ffd4d8');
-        px(ctx, 12, 4, 2, 2, '#e2f1ff');
+        const flowers = [
+          [26, 32, '#fde047', '#fffbeb'],
+          [68, 58, '#fb7185', '#ffe4e6'],
+          [54, 24, '#93c5fd', '#eff6ff'],
+          [34, 72, '#fcd34d', '#ffffff']
+        ];
+        flowers.forEach(([fx, fy, petal, core]) => {
+          ctx.fillStyle = 'rgba(0,0,0,0.14)';
+          ctx.beginPath(); ctx.ellipse(fx, fy + 5, 6, 3, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = petal;
+          for (let a = 0; a < 5; a++) {
+            const ang = (a / 5) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.ellipse(fx + Math.cos(ang) * 4, fy + Math.sin(ang) * 3.2, 3.2, 2.4, ang, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.fillStyle = core;
+          ctx.beginPath(); ctx.arc(fx, fy, 2.4, 0, Math.PI * 2); ctx.fill();
+        });
       }
       return c;
     };
@@ -64,556 +109,1178 @@
     sprites.tiles.flower = makeGrass('flower');
     sprites.tiles.darkGrass = makeGrass('dark');
 
-    // Dirt Path with pebbles & soft warmth
+    // Warm Sunlit Dirt Path (Edge-Seamless)
     {
-      const c = makeCanvas(24, 24);
+      const c = makeCanvas(TS, TS);
       const ctx = c.getContext('2d');
-      px(ctx, 0, 0, 24, 24, '#b59260');
-      px(ctx, 1, 2, 8, 5, '#a68251');
-      px(ctx, 12, 11, 9, 6, '#a68251');
-      px(ctx, 5, 16, 6, 4, '#c4a270');
-      px(ctx, 15, 3, 5, 4, '#c4a270');
-      // Small stones
-      px(ctx, 4, 8, 2, 2, '#8c6b42'); px(ctx, 4, 8, 1, 1, '#d6ba8b');
-      px(ctx, 18, 18, 2, 2, '#8c6b42'); px(ctx, 18, 18, 1, 1, '#d6ba8b');
-      px(ctx, 10, 4, 2, 1, '#8c6b42');
+      ctx.fillStyle = '#bd9966';
+      ctx.fillRect(0, 0, TS, TS);
+      [[26, 30, 20, 11, 'rgba(232,206,162,0.28)'], [66, 64, 22, 12, 'rgba(138,102,58,0.18)'], [68, 26, 16, 9, 'rgba(232,206,162,0.22)']]
+        .forEach(([x, y, rx, ry, col]) => {
+          ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, -0.2, 0, Math.PI * 2); ctx.fill();
+        });
+      [[22, 44, 4, 2.6], [70, 70, 4.8, 3], [46, 22, 3.5, 2.2]].forEach(([px, py, rx, ry]) => {
+        ctx.fillStyle = 'rgba(72,50,28,0.32)';
+        ctx.beginPath(); ctx.ellipse(px + 1, py + 1.5, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#d6bc92';
+        ctx.beginPath(); ctx.ellipse(px, py, rx, ry, 0, 0, Math.PI * 2); ctx.fill();
+      });
       sprites.tiles.path = c;
     }
 
-    // Refined Town Cobblestone (soft beveled warm flagstones)
+    // Smooth Beveled Medieval Flagstone Cobblestone
     {
-      const c = makeCanvas(24, 24);
+      const c = makeCanvas(TS, TS);
       const ctx = c.getContext('2d');
-      px(ctx, 0, 0, 24, 24, '#696259');
+      ctx.fillStyle = '#5e5a54';
+      ctx.fillRect(0, 0, TS, TS);
       const stones = [
-        [1, 1, 10, 7], [12, 1, 11, 7],
-        [1, 9, 6, 6], [8, 9, 9, 6], [18, 9, 5, 6],
-        [1, 16, 11, 7], [13, 16, 10, 7]
+        [3, 3, 42, 27, '#a8a095'], [49, 3, 44, 27, '#9c9488'],
+        [3, 34, 26, 27, '#999186'], [33, 34, 36, 27, '#afa79b'], [73, 34, 20, 27, '#9e968b'],
+        [3, 65, 46, 28, '#a39b90'], [53, 65, 40, 28, '#aba397']
       ];
-      stones.forEach(([x, y, w, h], idx) => {
-        const col = idx % 3 === 0 ? '#9e9588' : (idx % 3 === 1 ? '#92897c' : '#a89f91');
-        px(ctx, x, y, w, h, col);
-        px(ctx, x, y, w, 1, '#bdb4a6');
-        px(ctx, x, y + h - 1, w, 1, '#7c7469');
+      stones.forEach(([x, y, w, h, col]) => {
+        rrect(ctx, x, y, w, h, 7);
+        ctx.fillStyle = linGrad(ctx, x, y, x, y + h, [[0, '#c2bab0'], [0.22, col], [1, '#827a70']]);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,250,242,0.22)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
       });
       sprites.tiles.cobble = c;
     }
 
-    // Animated Shimmering Water (2 frames)
+    // Crystal Clear Shimmering Water (2 frames)
     const makeWater = (f) => {
-      const c = makeCanvas(24, 24);
+      const c = makeCanvas(TS, TS);
       const ctx = c.getContext('2d');
-      px(ctx, 0, 0, 24, 24, '#246291');
-      px(ctx, 0, 3, 24, 5, '#2d75ab');
-      px(ctx, 0, 14, 24, 5, '#2d75ab');
-      const o = f ? 6 : 0;
-      px(ctx, (3 + o) % 20, 5, 5, 1, '#8fd3fa');
-      px(ctx, (13 + o) % 20, 10, 4, 1, '#5caee0');
-      px(ctx, (7 + o) % 20, 16, 6, 1, '#b8e8ff');
-      px(ctx, (17 + o) % 20, 21, 4, 1, '#5caee0');
+      ctx.fillStyle = linGrad(ctx, 0, 0, 0, TS, [[0, '#1f6ba3'], [0.5, '#2980bd'], [1, '#1c5f94']]);
+      ctx.fillRect(0, 0, TS, TS);
+      const shift = f ? 24 : 0;
+      ctx.strokeStyle = 'rgba(186, 236, 255, 0.55)';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 4; i++) {
+        const wy = 14 + i * 24;
+        const wx = ((i * 29 + shift) % 68) + 6;
+        ctx.beginPath();
+        ctx.moveTo(wx, wy);
+        ctx.quadraticCurveTo(wx + 12, wy - 4, wx + 24, wy);
+        ctx.stroke();
+      }
+      ctx.fillStyle = 'rgba(224, 247, 255, 0.35)';
+      ctx.beginPath(); ctx.ellipse(f ? 62 : 34, f ? 30 : 62, 10, 3, 0, 0, Math.PI * 2); ctx.fill();
       return c;
     };
     sprites.tiles.water0 = makeWater(0);
     sprites.tiles.water1 = makeWater(1);
 
-    // Timber Bridge with railings
+    // Crafted Timber Bridge
     {
-      const c = makeCanvas(24, 24);
+      const c = makeCanvas(TS, TS);
       const ctx = c.getContext('2d');
-      px(ctx, 0, 0, 24, 24, '#59391f');
-      for (let y = 1; y < 24; y += 4) {
-        px(ctx, 2, y, 20, 3, '#8f6037');
-        px(ctx, 2, y, 20, 1, '#ab7849');
+      ctx.fillStyle = '#4a2e18';
+      ctx.fillRect(0, 0, TS, TS);
+      for (let y = 4; y < TS; y += 16) {
+        rrect(ctx, 8, y, TS - 16, 13, 3);
+        ctx.fillStyle = linGrad(ctx, 0, y, 0, y + 13, [[0, '#b5804e'], [0.4, '#946337'], [1, '#754b27']]);
+        ctx.fill();
+        ctx.fillStyle = '#3b2412';
+        ctx.beginPath(); ctx.arc(14, y + 6.5, 1.8, 0, Math.PI * 2); ctx.arc(TS - 14, y + 6.5, 1.8, 0, Math.PI * 2); ctx.fill();
       }
-      px(ctx, 0, 0, 2, 24, '#472b15');
-      px(ctx, 22, 0, 2, 24, '#472b15');
-      px(ctx, 0, 2, 2, 4, '#c4945a');
-      px(ctx, 22, 2, 2, 4, '#c4945a');
-      px(ctx, 0, 16, 2, 4, '#c4945a');
-      px(ctx, 22, 16, 2, 4, '#c4945a');
+      // Side rails
+      [0, TS - 9].forEach((rx) => {
+        ctx.fillStyle = linGrad(ctx, rx, 0, rx + 9, 0, [[0, '#694121'], [0.5, '#8c5a30'], [1, '#4a2c15']]);
+        ctx.fillRect(rx, 0, 9, TS);
+        [10, 62].forEach((py) => {
+          rrect(ctx, rx - 1, py, 11, 14, 3);
+          ctx.fillStyle = '#d4a166'; ctx.fill();
+          ctx.strokeStyle = '#523217'; ctx.lineWidth = 1.5; ctx.stroke();
+        });
+      });
       sprites.tiles.bridge = c;
     }
 
-    // Lush Layered Pine Trees (24x24)
+    // Lush Stylized Painted Pine Tree (96x96)
     const makeTree = (dark) => {
-      const c = makeCanvas(24, 24);
+      const c = makeCanvas(TS, TS);
       const ctx = c.getContext('2d');
-      // Soft ground shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.32)';
-      ctx.beginPath(); ctx.ellipse(12, 21, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+      ctx.beginPath(); ctx.ellipse(48, 84, 34, 11, 0, 0, Math.PI * 2); ctx.fill();
+
       // Trunk
-      px(ctx, 10, 16, 4, 6, '#5c3b20');
-      px(ctx, 11, 16, 2, 5, '#7a502d');
-      // 3 Lush Foliage Tiers
-      const cOut = dark ? '#0d1f16' : '#17381f';
-      const cMid = dark ? '#1b3e2c' : '#296331';
-      const cHi  = dark ? '#2f5e45' : '#458f43';
-      const cTop = dark ? '#457a5c' : '#6cb559';
-      const drawTier = (y, w, h) => {
-        const x = 12 - w / 2;
-        px(ctx, x, y + 1, w, h - 1, cOut);
-        px(ctx, x + 1, y, w - 2, h - 1, cMid);
-        px(ctx, x + 2, y, Math.max(2, w - 5), Math.max(2, h - 3), cHi);
-        px(ctx, x + 3, y, Math.max(2, w - 8), 2, cTop);
+      rrect(ctx, 40, 62, 16, 25, 4);
+      ctx.fillStyle = linGrad(ctx, 40, 0, 56, 0, [[0, '#4f321b'], [0.45, '#7c512f'], [1, '#422814']]);
+      ctx.fill();
+
+      const cTop = dark ? '#3f7357' : '#73c260';
+      const cMid = dark ? '#244d38' : '#3a843d';
+      const cBot = dark ? '#12291e' : '#1d4d25';
+
+      const drawCanopy = (cy, rx, ry) => {
+        ctx.beginPath();
+        ctx.moveTo(48, cy - ry);
+        ctx.bezierCurveTo(48 + rx * 0.65, cy - ry * 0.35, 48 + rx, cy + ry * 0.25, 48 + rx * 0.85, cy + ry * 0.72);
+        ctx.quadraticCurveTo(48, cy + ry * 1.05, 48 - rx * 0.85, cy + ry * 0.72);
+        ctx.bezierCurveTo(48 - rx, cy + ry * 0.25, 48 - rx * 0.65, cy - ry * 0.35, 48, cy - ry);
+        ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 48 - rx * 0.4, cy - ry, 48 + rx * 0.4, cy + ry, [[0, cTop], [0.52, cMid], [1, cBot]]);
+        ctx.fill();
+        ctx.strokeStyle = dark ? 'rgba(8,20,14,0.6)' : 'rgba(18,46,22,0.45)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
       };
-      drawTier(11, 20, 7);
-      drawTier(6, 16, 6);
-      drawTier(1, 10, 6);
+      drawCanopy(58, 40, 20);
+      drawCanopy(40, 33, 19);
+      drawCanopy(22, 23, 18);
+      // Soft sunlight glint
+      ctx.fillStyle = dark ? 'rgba(140,210,165,0.16)' : 'rgba(218,255,170,0.28)';
+      ctx.beginPath(); ctx.ellipse(42, 18, 9, 6, -0.4, 0, Math.PI * 2); ctx.fill();
       return c;
     };
     sprites.tiles.tree = makeTree(false);
     sprites.tiles.darkTree = makeTree(true);
 
-    // Medieval Timber House Roof / Wall / Door (Warm & Cozy!)
+    // Medieval Fantasy Cottage Roof / Wall / Door
     {
-      const roof = makeCanvas(24, 24);
+      const roof = makeCanvas(TS, TS);
       const ctx = roof.getContext('2d');
-      px(ctx, 0, 0, 24, 24, '#59231d');
-      for (let y = 1; y < 22; y += 4) {
-        px(ctx, 0, y, 24, 3, '#8a392d');
-        px(ctx, 0, y, 24, 1, '#ab4d3c');
-        for (let x = (y % 8 === 1 ? 0 : 3); x < 24; x += 6) {
-          px(ctx, x, y + 1, 1, 2, '#692a22');
+      ctx.fillStyle = linGrad(ctx, 0, 0, 0, TS, [[0, '#a84436'], [0.85, '#7a2d23'], [1, '#4d1a14']]);
+      ctx.fillRect(0, 0, TS, TS);
+      for (let y = 4; y < TS - 12; y += 18) {
+        const off = (Math.floor(y / 18) % 2) * 12;
+        for (let x = -12 + off; x < TS + 12; x += 24) {
+          rrect(ctx, x + 1, y, 22, 16, 6);
+          ctx.fillStyle = linGrad(ctx, x, y, x, y + 16, [[0, '#c45847'], [0.4, '#943a2e'], [1, '#69241c']]);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(48,14,10,0.5)'; ctx.lineWidth = 1.4; ctx.stroke();
         }
       }
-      px(ctx, 0, 21, 24, 3, '#3d1713');
+      ctx.fillStyle = 'rgba(20,8,6,0.48)'; ctx.fillRect(0, TS - 10, TS, 10);
       sprites.tiles.houseRoof = roof;
 
-      const wall = makeCanvas(24, 24);
+      const wall = makeCanvas(TS, TS);
       const wctx = wall.getContext('2d');
-      px(wctx, 0, 0, 24, 24, '#dfd0b4');
-      px(wctx, 0, 0, 24, 3, '#c4b191'); // Roof eave shadow
-      // Timber beams
-      px(wctx, 0, 0, 3, 24, '#593b22');
-      px(wctx, 21, 0, 3, 24, '#593b22');
-      px(wctx, 0, 20, 24, 4, '#6b645c'); // Stone foundation
-      px(wctx, 0, 20, 24, 1, '#8c847a');
-      // Warm Glowing Window with shutters
-      px(wctx, 6, 5, 12, 11, '#472c18');
-      px(wctx, 7, 6, 10, 9, '#f6cf71');
-      px(wctx, 8, 7, 4, 4, '#fff2bd');
-      px(wctx, 11, 6, 2, 9, '#472c18');
-      px(wctx, 7, 10, 10, 2, '#472c18');
-      px(wctx, 5, 16, 14, 2, '#734b2b'); // Window sill
+      wctx.fillStyle = linGrad(wctx, 0, 0, 0, TS, [[0, '#d9cab0'], [0.2, '#efe3cc'], [0.82, '#e2d3b8'], [1, '#cbb99a']]);
+      wctx.fillRect(0, 0, TS, TS);
+      wctx.fillStyle = 'rgba(40,26,16,0.22)'; wctx.fillRect(0, 0, TS, 11);
+      // Timber framing
+      wctx.fillStyle = '#5c3c22'; wctx.fillRect(0, 0, 10, TS); wctx.fillRect(TS - 10, 0, 10, TS);
+      // Stone base
+      wctx.fillStyle = linGrad(wctx, 0, TS - 18, 0, TS, [[0, '#8d857b'], [1, '#635d56']]);
+      wctx.fillRect(0, TS - 18, TS, 18);
+      // Warm Glowing Window
+      rrect(wctx, 24, 20, 48, 42, 8);
+      wctx.fillStyle = '#472c18'; wctx.fill();
+      rrect(wctx, 29, 25, 38, 32, 5);
+      wctx.fillStyle = radGrad(wctx, 46, 36, 3, 48, 42, 26, [[0, '#fff9d6'], [0.55, '#fcd368'], [1, '#d98c2b']]);
+      wctx.fill();
+      wctx.strokeStyle = '#472c18'; wctx.lineWidth = 4;
+      wctx.beginPath(); wctx.moveTo(48, 24); wctx.lineTo(48, 58); wctx.moveTo(28, 41); wctx.lineTo(68, 41); wctx.stroke();
+      rrect(wctx, 20, 61, 56, 8, 3); wctx.fillStyle = '#754c29'; wctx.fill();
       sprites.tiles.houseWall = wall;
 
-      const door = makeCanvas(24, 24);
+      const door = makeCanvas(TS, TS);
       const dctx = door.getContext('2d');
-      px(dctx, 0, 0, 24, 24, '#dfd0b4');
-      px(dctx, 0, 0, 24, 3, '#c4b191');
-      px(dctx, 0, 20, 24, 4, '#6b645c');
-      // Arched oak door
-      px(dctx, 5, 4, 14, 20, '#3d2412');
-      px(dctx, 6, 5, 12, 19, '#734824');
-      px(dctx, 7, 6, 10, 17, '#8c5a2e');
-      px(dctx, 11, 6, 1, 17, '#5c381b');
-      px(dctx, 7, 11, 10, 1, '#472c17');
-      px(dctx, 15, 13, 2, 2, '#f2c95c'); // Brass handle
+      dctx.fillStyle = '#ebe0ca'; dctx.fillRect(0, 0, TS, TS);
+      dctx.fillStyle = 'rgba(40,26,16,0.2)'; dctx.fillRect(0, 0, TS, 11);
+      dctx.fillStyle = '#756e66'; dctx.fillRect(0, TS - 18, TS, 18);
+      // Arched Oak Door
+      dctx.beginPath();
+      dctx.moveTo(20, TS); dctx.lineTo(20, 38);
+      dctx.arc(48, 38, 28, Math.PI, 0);
+      dctx.lineTo(76, TS); dctx.closePath();
+      dctx.fillStyle = '#3d2412'; dctx.fill();
+      dctx.beginPath();
+      dctx.moveTo(25, TS); dctx.lineTo(25, 40);
+      dctx.arc(48, 40, 23, Math.PI, 0);
+      dctx.lineTo(71, TS); dctx.closePath();
+      dctx.fillStyle = linGrad(dctx, 25, 20, 71, TS, [[0, '#9c6636'], [1, '#6b421f']]); dctx.fill();
+      dctx.strokeStyle = '#4a2b13'; dctx.lineWidth = 2.5;
+      dctx.beginPath(); dctx.moveTo(48, 18); dctx.lineTo(48, TS); dctx.stroke();
+      dctx.fillStyle = '#fbbf24'; dctx.beginPath(); dctx.arc(62, 56, 4.5, 0, Math.PI * 2); dctx.fill();
       sprites.tiles.houseDoor = door;
     }
 
-    // Ruins Floor, Glowing Rune, and Carved Stone Wall
+    // Ancient Ruins Slate Floor, Luminous Arcane Rune, Carved Stone Wall
     {
-      const c = makeCanvas(24, 24);
+      const c = makeCanvas(TS, TS);
       const ctx = c.getContext('2d');
-      px(ctx, 0, 0, 24, 24, '#353842');
-      px(ctx, 1, 1, 10, 10, '#494d59'); px(ctx, 1, 1, 10, 1, '#5d6270');
-      px(ctx, 13, 1, 10, 10, '#444854'); px(ctx, 13, 1, 10, 1, '#575c69');
-      px(ctx, 1, 13, 10, 10, '#444854'); px(ctx, 1, 13, 10, 1, '#575c69');
-      px(ctx, 13, 13, 10, 10, '#494d59'); px(ctx, 13, 13, 10, 1, '#5d6270');
+      ctx.fillStyle = '#2c303b'; ctx.fillRect(0, 0, TS, TS);
+      [[3, 3, 43, 43, '#464b59'], [50, 3, 43, 43, '#3f4452'], [3, 50, 43, 43, '#414654'], [50, 50, 43, 43, '#4a4f5e']]
+        .forEach(([x, y, w, h, col]) => {
+          rrect(ctx, x, y, w, h, 5);
+          ctx.fillStyle = linGrad(ctx, x, y, x, y + h, [[0, '#5a6072'], [0.2, col], [1, '#343844']]);
+          ctx.fill();
+        });
       sprites.tiles.ruinFloor = c;
 
-      const r = makeCanvas(24, 24);
+      const r = makeCanvas(TS, TS);
       const rctx = r.getContext('2d');
       rctx.drawImage(c, 0, 0);
-      rctx.strokeStyle = '#38bdf8';
-      rctx.lineWidth = 1.5;
-      rctx.strokeRect(5, 5, 14, 14);
-      px(rctx, 10, 10, 4, 4, '#bae6fd');
+      rctx.fillStyle = radGrad(rctx, 48, 48, 4, 48, 48, 36, [[0, 'rgba(56,189,248,0.48)'], [1, 'rgba(56,189,248,0)']]);
+      rctx.fillRect(0, 0, TS, TS);
+      rctx.strokeStyle = '#7dd3fc'; rctx.lineWidth = 3;
+      rctx.beginPath(); rctx.arc(48, 48, 24, 0, Math.PI * 2); rctx.stroke();
+      rctx.beginPath();
+      rctx.moveTo(48, 24); rctx.lineTo(70, 48); rctx.lineTo(48, 72); rctx.lineTo(26, 48); rctx.closePath();
+      rctx.stroke();
+      rctx.fillStyle = '#e0f2fe'; rctx.beginPath(); rctx.arc(48, 48, 7, 0, Math.PI * 2); rctx.fill();
       sprites.tiles.ruinRune = r;
 
-      const w = makeCanvas(24, 24);
+      const w = makeCanvas(TS, TS);
       const wctx = w.getContext('2d');
-      px(wctx, 0, 0, 24, 24, '#1f2129');
-      px(wctx, 1, 1, 22, 9, '#5d6270'); px(wctx, 1, 1, 22, 2, '#7d8394');
-      px(wctx, 1, 12, 10, 11, '#4b4f5c'); px(wctx, 1, 12, 10, 1, '#686e7d');
-      px(wctx, 13, 12, 10, 11, '#4b4f5c'); px(wctx, 13, 12, 10, 1, '#686e7d');
+      wctx.fillStyle = '#1d2028'; wctx.fillRect(0, 0, TS, TS);
+      rrect(wctx, 4, 4, 88, 38, 6);
+      wctx.fillStyle = linGrad(wctx, 0, 4, 0, 42, [[0, '#7c8396'], [0.3, '#5d6375'], [1, '#444957']]); wctx.fill();
+      rrect(wctx, 4, 48, 42, 44, 6);
+      wctx.fillStyle = linGrad(wctx, 0, 48, 0, 92, [[0, '#696f82'], [1, '#3d414f']]); wctx.fill();
+      rrect(wctx, 50, 48, 42, 44, 6);
+      wctx.fillStyle = linGrad(wctx, 0, 48, 0, 92, [[0, '#696f82'], [1, '#3d414f']]); wctx.fill();
       sprites.tiles.wall = w;
     }
 
     // Crimson Obsidian Boss Altar
     {
-      const c = makeCanvas(24, 24);
+      const c = makeCanvas(TS, TS);
       const ctx = c.getContext('2d');
-      px(ctx, 0, 0, 24, 24, '#24181e');
-      px(ctx, 1, 1, 22, 22, '#33222a');
-      px(ctx, 2, 2, 20, 1, '#4d313d');
-      px(ctx, 11, 11, 2, 2, '#702c3d');
+      ctx.fillStyle = '#1b1117'; ctx.fillRect(0, 0, TS, TS);
+      rrect(ctx, 4, 4, 88, 88, 8);
+      ctx.fillStyle = linGrad(ctx, 0, 4, 0, 92, [[0, '#3e2531'], [0.5, '#2d1a23'], [1, '#211319']]);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(244,63,94,0.22)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = radGrad(ctx, 48, 48, 1, 48, 48, 14, [[0, 'rgba(244,63,94,0.45)'], [1, 'rgba(244,63,94,0)']]);
+      ctx.beginPath(); ctx.arc(48, 48, 14, 0, Math.PI * 2); ctx.fill();
       sprites.tiles.altarFloor = c;
 
-      const w = makeCanvas(24, 24);
+      const w = makeCanvas(TS, TS);
       const wctx = w.getContext('2d');
-      px(wctx, 0, 0, 24, 24, '#140b0f');
-      px(wctx, 1, 1, 22, 9, '#45242e'); px(wctx, 1, 1, 22, 2, '#992d45');
-      px(wctx, 1, 12, 10, 11, '#30171f'); px(wctx, 13, 12, 10, 11, '#30171f');
+      wctx.fillStyle = '#12080d'; wctx.fillRect(0, 0, TS, TS);
+      rrect(wctx, 4, 4, 88, 40, 6);
+      wctx.fillStyle = linGrad(wctx, 0, 4, 0, 44, [[0, '#88273e'], [0.22, '#4d1f2d'], [1, '#2b121a']]); wctx.fill();
+      rrect(wctx, 4, 50, 42, 42, 6); wctx.fillStyle = '#361722'; wctx.fill();
+      rrect(wctx, 50, 50, 42, 42, 6); wctx.fillStyle = '#361722'; wctx.fill();
       sprites.tiles.altarWall = w;
     }
 
-    // Animated Crystal Healing Fountain (24x24)
+    // Glowing Crystal Healing Fountain (96x96)
     const makeFountain = (f) => {
-      const c = makeCanvas(24, 24);
+      const c = makeCanvas(TS, TS);
       const ctx = c.getContext('2d');
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.beginPath(); ctx.ellipse(12, 20, 11, 4, 0, 0, Math.PI * 2); ctx.fill();
-      // Stone basin
-      px(ctx, 2, 6, 20, 14, '#5a6270');
-      px(ctx, 3, 5, 18, 14, '#9da6b5');
-      px(ctx, 4, 7, 16, 10, '#2a82c4');
-      px(ctx, 5, 8, 14, 8, f ? '#5ec2f7' : '#3ca2e0');
+      ctx.fillStyle = 'rgba(0,0,0,0.32)';
+      ctx.beginPath(); ctx.ellipse(48, 80, 40, 14, 0, 0, Math.PI * 2); ctx.fill();
+      // Stone outer basin
+      ctx.fillStyle = linGrad(ctx, 0, 24, 0, 82, [[0, '#cbd5e1'], [0.5, '#94a3b8'], [1, '#475569']]);
+      ctx.beginPath(); ctx.ellipse(48, 56, 38, 24, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#334155'; ctx.lineWidth = 2.5; ctx.stroke();
+      // Luminous healing water pool
+      ctx.fillStyle = radGrad(ctx, 48, 52, 4, 48, 54, 32, [[0, f ? '#bae6fd' : '#7dd3fc'], [0.6, '#38bdf8'], [1, '#0284c7']]);
+      ctx.beginPath(); ctx.ellipse(48, 54, 31, 17, 0, 0, Math.PI * 2); ctx.fill();
       // Center crystal spire
-      px(ctx, 10, 2, 4, 12, '#cbd5e1');
-      px(ctx, 11, 1, 2, 11, '#ffffff');
-      // Sparkling droplets
-      px(ctx, f ? 6 : 8, f ? 7 : 9, 2, 2, '#e0f7ff');
-      px(ctx, f ? 16 : 14, f ? 12 : 10, 2, 2, '#ffffff');
+      ctx.beginPath();
+      ctx.moveTo(48, 8); ctx.lineTo(58, 36); ctx.lineTo(54, 54); ctx.lineTo(42, 54); ctx.lineTo(38, 36); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 38, 8, 58, 54, [[0, '#ffffff'], [0.45, '#bae6fd'], [1, '#38bdf8']]);
+      ctx.fill();
+      ctx.strokeStyle = '#e0f2fe'; ctx.lineWidth = 1.5; ctx.stroke();
+      // Water arcs
+      ctx.strokeStyle = 'rgba(224,247,255,0.85)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+      const arcR = f ? 20 : 17;
+      ctx.beginPath(); ctx.moveTo(48, 22); ctx.quadraticCurveTo(48 - arcR, 26, 48 - arcR, 52); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(48, 22); ctx.quadraticCurveTo(48 + arcR, 26, 48 + arcR, 52); ctx.stroke();
       return c;
     };
     sprites.tiles.fountain0 = makeFountain(0);
     sprites.tiles.fountain1 = makeFountain(1);
 
-    // Ornate Gold-Trimmed Treasure Chests (24x24)
+    // Ornate Gilded Treasure Chest (96x96)
     const makeChest = (open) => {
-      const c = makeCanvas(24, 24);
+      const c = makeCanvas(TS, TS);
       const ctx = c.getContext('2d');
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.beginPath(); ctx.ellipse(12, 20, 9, 3, 0, 0, Math.PI * 2); ctx.fill();
-      px(ctx, 3, open ? 4 : 6, 18, open ? 15 : 13, '#3b210e');
-      px(ctx, 4, open ? 5 : 7, 16, open ? 5 : 5, open ? '#593316' : '#9c5d26');
-      px(ctx, 4, 12, 16, 6, '#7a471b');
-      if (open) px(ctx, 5, 9, 14, 4, '#1c1008');
-      // Gold bands & lock
-      px(ctx, 4, open ? 5 : 7, 2, 11, '#d9a441');
-      px(ctx, 18, open ? 5 : 7, 2, 11, '#d9a441');
-      px(ctx, 10, 10, 4, 4, '#f5d061');
-      px(ctx, 11, 11, 2, 2, '#fff5b8');
+      ctx.fillStyle = 'rgba(0,0,0,0.34)';
+      ctx.beginPath(); ctx.ellipse(48, 80, 34, 11, 0, 0, Math.PI * 2); ctx.fill();
+      rrect(ctx, 14, open ? 20 : 28, 68, open ? 56 : 48, 10);
+      ctx.fillStyle = linGrad(ctx, 0, 22, 0, 76, [[0, '#b86d2e'], [0.5, '#8c4e1c'], [1, '#542d0e']]);
+      ctx.fill();
+      ctx.strokeStyle = '#381d08'; ctx.lineWidth = 3; ctx.stroke();
+      if (open) {
+        rrect(ctx, 20, 38, 56, 18, 4);
+        ctx.fillStyle = radGrad(ctx, 48, 46, 2, 48, 46, 30, [[0, '#fef08a'], [0.6, '#f59e0b'], [1, '#1e1007']]);
+        ctx.fill();
+      }
+      // Gold straps & clasp
+      ctx.fillStyle = linGrad(ctx, 0, 24, 0, 76, [[0, '#fde68a'], [0.5, '#eab308'], [1, '#a16207']]);
+      ctx.fillRect(22, open ? 20 : 28, 9, open ? 56 : 48);
+      ctx.fillRect(65, open ? 20 : 28, 9, open ? 56 : 48);
+      rrect(ctx, 40, 44, 16, 16, 4); ctx.fill();
+      ctx.strokeStyle = '#713f12'; ctx.lineWidth = 2; ctx.stroke();
       return c;
     };
     sprites.tiles.chestClosed = makeChest(false);
     sprites.tiles.chestOpen = makeChest(true);
 
     // =========================================================
-    // 2. HIGH-DETAIL 28x28 CHIBI HERO SPRITES (WITH WEAPONS!)
+    // 2. EPIC SLEEK ANIME-FANTASY HD HEROES (160x160 + PORTRAITS)
     // =========================================================
-    function makeHero(cfg, walkFrame) {
-      const c = makeCanvas(28, 28);
+    function drawStylizedEye(ctx, x, y, w, h, irisTop, irisBot, side, fierce) {
+      // Eye white
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.ellipse(x, y, w, h * 0.92, 0, 0, Math.PI * 2); ctx.fill();
+      // Rich luminous iris
+      ctx.fillStyle = linGrad(ctx, x, y - h, x, y + h, [[0, irisTop], [0.55, irisBot], [1, '#090d16']]);
+      ctx.beginPath(); ctx.ellipse(x, y + 0.5, w * 0.72, h * 0.84, 0, 0, Math.PI * 2); ctx.fill();
+      // Crisp dark pupil
+      ctx.fillStyle = '#070a12';
+      ctx.beginPath(); ctx.ellipse(x, y + 0.8, w * 0.34, h * 0.42, 0, 0, Math.PI * 2); ctx.fill();
+      // Bright lower iris bounce light
+      ctx.fillStyle = irisTop;
+      ctx.globalAlpha = 0.65;
+      ctx.beginPath(); ctx.ellipse(x, y + h * 0.42, w * 0.42, h * 0.18, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+      // Dual anime specular sparkles
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(x - w * 0.28, y - h * 0.28, w * 0.26, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + w * 0.25, y + h * 0.28, w * 0.13, 0, Math.PI * 2); ctx.fill();
+      // Sleek upper lash
+      ctx.strokeStyle = '#111018';
+      ctx.lineWidth = fierce ? 2.8 : 2.3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x - w - 1, y - h * (fierce && side < 0 ? 0.55 : 0.3));
+      ctx.quadraticCurveTo(x, y - h * 1.15, x + w + 1, y - h * (fierce && side > 0 ? 0.55 : 0.3));
+      ctx.stroke();
+      // Determined angled eyebrow
+      ctx.strokeStyle = '#1a151c';
+      ctx.lineWidth = fierce ? 2.2 : 1.7;
+      ctx.beginPath();
+      ctx.moveTo(x - w * 0.9, y - h * (fierce ? (side < 0 ? 1.55 : 1.1) : 1.35));
+      ctx.lineTo(x + w * 0.9, y - h * (fierce ? (side < 0 ? 1.1 : 1.55) : 1.35));
+      ctx.stroke();
+    }
+
+    function makeHeroHD(classId, walkFrame) {
+      const S = 160;
+      const c = makeCanvas(S, S);
       const ctx = c.getContext('2d');
-      const bob = walkFrame ? -1 : 0;
+      const bob = walkFrame ? -3 : 0;
+      const sway = walkFrame ? 6 : 0;
 
-      // Flowing Cape behind body
-      px(ctx, 7, 13 + bob, 14, 10, cfg.capeDark);
-      px(ctx, 8, 13 + bob, 12, 8, cfg.cape);
+      // Dramatic heroic ground aura glow
+      const auraCol = classId === 'knight' ? 'rgba(251,191,36,0.18)'
+        : (classId === 'rogue' ? 'rgba(16,185,129,0.2)' : 'rgba(99,102,241,0.24)');
+      ctx.fillStyle = radGrad(ctx, 80, 92, 8, 80, 92, 66, [[0, auraCol], [1, 'rgba(0,0,0,0)']]);
+      ctx.beginPath(); ctx.arc(80, 92, 66, 0, Math.PI * 2); ctx.fill();
 
-      // Boots / Legs
-      const lY = walkFrame ? 22 : 23;
-      const rY = walkFrame ? 24 : 23;
-      px(ctx, 9, lY, 4, 4, '#241c17'); px(ctx, 10, lY, 2, 3, cfg.boot);
-      px(ctx, 15, rY, 4, 4, '#241c17'); px(ctx, 16, rY, 2, 3, cfg.boot);
-
-      // Torso Armor + Pauldrons + Belt
-      px(ctx, 8, 14 + bob, 12, 9, '#1a181c');
-      px(ctx, 9, 15 + bob, 10, 7, cfg.armor);
-      px(ctx, 10, 15 + bob, 8, 3, cfg.armorHi);
-      // Tabard / Emblem center
-      px(ctx, 12, 15 + bob, 4, 7, cfg.trim);
-      px(ctx, 9, 20 + bob, 10, 2, '#3d2a18');
-      px(ctx, 13, 20 + bob, 2, 2, '#f5d061'); // Belt buckle
-      // Shoulders
-      px(ctx, 6, 14 + bob, 4, 4, '#1a181c'); px(ctx, 7, 15 + bob, 3, 2, cfg.armorHi);
-      px(ctx, 18, 14 + bob, 4, 4, '#1a181c'); px(ctx, 18, 15 + bob, 3, 2, cfg.armorHi);
-
-      // Expressive Head (Chibi Heroic proportions)
-      px(ctx, 7, 3 + bob, 14, 12, '#1c1816');
-      px(ctx, 8, 4 + bob, 12, 10, cfg.hair);
-      px(ctx, 9, 4 + bob, 10, 4, cfg.hairHi);
-      // Face
-      px(ctx, 9, 8 + bob, 10, 6, '#f7d5b0');
-      px(ctx, 9, 12 + bob, 10, 2, '#e3b68a');
-      // Bangs / Headgear accent
-      px(ctx, 8, 6 + bob, 12, 2, cfg.hair);
-      px(ctx, 10, 7 + bob, 3, 2, cfg.hairHi);
-      if (cfg.headband) px(ctx, 8, 7 + bob, 12, 1, cfg.headband);
-      // Crisp RPG Eyes with highlight
-      px(ctx, 10, 10 + bob, 2, 3, '#1a1a24'); px(ctx, 10, 10 + bob, 1, 1, '#ffffff');
-      px(ctx, 16, 10 + bob, 2, 3, '#1a1a24'); px(ctx, 16, 10 + bob, 1, 1, '#ffffff');
-
-      // Weapon held in Right Hand!
-      if (cfg.weapon === 'sword') {
-        // Knight Broadsword + Shield
-        px(ctx, 4, 15 + bob, 5, 7, '#222630');
-        px(ctx, 5, 16 + bob, 3, 5, '#b82c38');
-        px(ctx, 6, 17 + bob, 1, 3, '#f5d061'); // Shield emblem
-        // Sword upright
-        px(ctx, 21, 7 + bob, 3, 12, '#9aa8bd');
-        px(ctx, 22, 7 + bob, 1, 11, '#eef4fc');
-        px(ctx, 20, 18 + bob, 5, 2, '#d9a441');
-        px(ctx, 21, 20 + bob, 2, 2, '#593b20');
-      } else if (cfg.weapon === 'dagger') {
-        // Dual Twin Daggers
-        px(ctx, 3, 14 + bob, 2, 7, '#d1dce8'); px(ctx, 3, 14 + bob, 1, 5, '#ffffff');
-        px(ctx, 23, 12 + bob, 2, 8, '#d1dce8'); px(ctx, 23, 12 + bob, 1, 6, '#ffffff');
-        px(ctx, 22, 19 + bob, 4, 1, '#d9a441');
+      // --- 1. BILLOWING ASYMMETRIC HERO CAPE / SCARF (behind everything) ---
+      ctx.save();
+      if (classId === 'knight') {
+        // Sweeping royal crimson knight cape billowing dramatically left
+        ctx.beginPath();
+        ctx.moveTo(54, 68 + bob);
+        ctx.bezierCurveTo(26 - sway, 92 + bob, 14 - sway, 124 + bob, 26 - sway, 142 + bob);
+        ctx.quadraticCurveTo(64, 148 + bob, 114 + sway * 0.4, 138 + bob);
+        ctx.bezierCurveTo(122 + sway * 0.4, 116 + bob, 114, 90 + bob, 106, 68 + bob);
+        ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 24, 68, 112, 146, [[0, '#ef4444'], [0.55, '#991b1b'], [1, '#450a0a']]);
+        ctx.fill();
+        ctx.strokeStyle = '#1f080a'; ctx.lineWidth = 2.4; ctx.stroke();
+        // Gold cape filigree hem
+        ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.moveTo(28 - sway, 138 + bob); ctx.quadraticCurveTo(66, 144 + bob, 112 + sway * 0.4, 134 + bob); ctx.stroke();
+      } else if (classId === 'rogue') {
+        // Dramatic windswept assassin scarf tails streaming left!
+        ctx.beginPath();
+        ctx.moveTo(64, 66 + bob);
+        ctx.bezierCurveTo(36 - sway, 66 + bob, 14 - sway, 84 + bob, 10 - sway, 106 + bob);
+        ctx.lineTo(28 - sway, 98 + bob);
+        ctx.lineTo(22 - sway, 122 + bob);
+        ctx.bezierCurveTo(44, 110 + bob, 60, 88 + bob, 72, 74 + bob);
+        ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 10, 66, 72, 122, [[0, '#10b981'], [0.45, '#0f4c45'], [1, '#051f20']]);
+        ctx.fill();
+        ctx.strokeStyle = '#34d399'; ctx.lineWidth = 1.8; ctx.stroke();
+        // Sleek dark coat tails behind legs
+        ctx.beginPath();
+        ctx.moveTo(56, 86 + bob); ctx.lineTo(44 - sway * 0.4, 142 + bob); ctx.lineTo(74, 134 + bob);
+        ctx.lineTo(86, 134 + bob); ctx.lineTo(116 + sway * 0.4, 142 + bob); ctx.lineTo(104, 86 + bob); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 44, 86, 116, 142, [[0, '#1e3a38'], [1, '#071214']]);
+        ctx.fill(); ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.2; ctx.stroke();
       } else {
-        // Glowing Runeblade
-        px(ctx, 21, 6 + bob, 3, 13, '#38bdf8');
-        px(ctx, 22, 6 + bob, 1, 12, '#e0f7ff');
-        px(ctx, 20, 18 + bob, 5, 2, '#f0c451');
-        px(ctx, 21, 20 + bob, 2, 2, '#3b2c59');
+        // Luna's flowing translucent astral cape + LUSH LONG SILVER-VIOLET BACK HAIR (strictly BEHIND armor!)
+        ctx.beginPath();
+        ctx.moveTo(54, 68 + bob);
+        ctx.bezierCurveTo(32 - sway, 98 + bob, 26 - sway, 126 + bob, 36 - sway, 142 + bob);
+        ctx.quadraticCurveTo(80, 148 + bob, 124 + sway * 0.5, 142 + bob);
+        ctx.bezierCurveTo(132 + sway * 0.4, 122 + bob, 124, 96 + bob, 106, 68 + bob);
+        ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 32, 68, 124, 146, [[0, '#4f46e5'], [0.6, '#312e81'], [1, '#1e1b4b']]);
+        ctx.fill();
+        ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2; ctx.stroke();
+
+        // Flowing long silver-lavender back hair behind shoulders
+        ctx.beginPath();
+        ctx.moveTo(50, 36 + bob);
+        ctx.bezierCurveTo(36 - sway * 0.5, 68 + bob, 36 - sway * 0.5, 104 + bob, 48 - sway * 0.3, 122 + bob);
+        ctx.quadraticCurveTo(80, 128 + bob, 112 + sway * 0.3, 122 + bob);
+        ctx.bezierCurveTo(124 + sway * 0.5, 104 + bob, 124 + sway * 0.5, 68 + bob, 110, 36 + bob);
+        ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 42, 36, 118, 126, [[0, '#ede9fe'], [0.45, '#c4b5fd'], [1, '#6d28d9']]);
+        ctx.fill();
+        ctx.strokeStyle = '#1e1b4b'; ctx.lineWidth = 2.4; ctx.stroke();
       }
+      ctx.restore();
+
+      // --- 2. TALLER ARMORED LEGS & GREAVES ---
+      const lFootY = walkFrame ? 131 : 135;
+      const rFootY = walkFrame ? 138 : 135;
+      const drawGreave = (bx, by) => {
+        // Thigh + armored greave
+        rrect(ctx, bx - 9.5, by - 22, 19, 32, 7);
+        ctx.fillStyle = linGrad(ctx, bx - 10, by - 22, bx + 10, by + 10,
+          classId === 'knight' ? [[0, '#e2e8f0'], [0.5, '#64748b'], [1, '#1e293b']]
+          : classId === 'rogue' ? [[0, '#334155'], [0.55, '#1e293b'], [1, '#090d16']]
+          : [[0, '#f8fafc'], [0.45, '#6366f1'], [1, '#1e1b4b']]);
+        ctx.fill();
+        ctx.strokeStyle = '#0f121a'; ctx.lineWidth = 2.3; ctx.stroke();
+        // Metallic knee crest
+        ctx.fillStyle = classId === 'rogue' ? '#34d399' : '#fbbf24';
+        ctx.beginPath(); ctx.moveTo(bx, by - 14); ctx.lineTo(bx + 5, by - 9); ctx.lineTo(bx, by - 4); ctx.lineTo(bx - 5, by - 9); ctx.closePath(); ctx.fill();
+      };
+      drawGreave(66, lFootY);
+      drawGreave(94, rFootY);
+
+      // --- 3. SCULPTED HERO TORSO ARMOR, WAIST & PAULDRONS ---
+      ctx.save();
+      // Tapered athletic torso silhouette
+      ctx.beginPath();
+      ctx.moveTo(52, 68 + bob);
+      ctx.lineTo(108, 68 + bob);
+      ctx.lineTo(99, 118 + bob);
+      ctx.lineTo(61, 118 + bob);
+      ctx.closePath();
+      if (classId === 'knight') {
+        ctx.fillStyle = linGrad(ctx, 52, 68, 108, 118, [[0, '#ffffff'], [0.4, '#cbd5e1'], [0.75, '#64748b'], [1, '#334155']]);
+      } else if (classId === 'rogue') {
+        ctx.fillStyle = linGrad(ctx, 52, 68, 108, 118, [[0, '#2a544e'], [0.5, '#152c2b'], [1, '#091416']]);
+      } else {
+        ctx.fillStyle = linGrad(ctx, 52, 68, 108, 118, [[0, '#6366f1'], [0.45, '#3730a3'], [1, '#1e1b4b']]);
+      }
+      ctx.fill();
+      ctx.strokeStyle = '#0f121a'; ctx.lineWidth = 2.6; ctx.stroke();
+
+      // Class Chestplate / Royal Tabard / Battle Bodice
+      if (classId === 'knight') {
+        // Golden V-breastplate highlight
+        ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2.4;
+        ctx.beginPath(); ctx.moveTo(56, 72 + bob); ctx.lineTo(80, 92 + bob); ctx.lineTo(104, 72 + bob); ctx.stroke();
+        // Crimson royal tabard hanging below belt
+        rrect(ctx, 71, 74 + bob, 18, 49, 4);
+        ctx.fillStyle = linGrad(ctx, 71, 74, 89, 123, [[0, '#ef4444'], [1, '#991b1b']]); ctx.fill();
+        ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 1.8; ctx.stroke();
+        // Radiant Paladin Cross Emblem
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(78, 80 + bob, 4, 15); ctx.fillRect(74, 85 + bob, 12, 4);
+      } else if (classId === 'rogue') {
+        // Crossed Tactical Assassin Straps + Glowing Jade Core Clasp
+        ctx.strokeStyle = '#4a3525'; ctx.lineWidth = 6.5;
+        ctx.beginPath(); ctx.moveTo(57, 71 + bob); ctx.lineTo(99, 108 + bob); ctx.stroke();
+        ctx.strokeStyle = '#34d399'; ctx.lineWidth = 1.8;
+        ctx.beginPath(); ctx.moveTo(57, 71 + bob); ctx.lineTo(99, 108 + bob); ctx.stroke();
+        ctx.fillStyle = '#6ee7b7';
+        ctx.beginPath(); ctx.arc(80, 88 + bob, 4.2, 0, Math.PI * 2); ctx.fill();
+      } else {
+        // Luna's Sleek White-Gold Armored Corset & Astral Pleated Battle Skirt!
+        ctx.beginPath();
+        ctx.moveTo(64, 70 + bob); ctx.lineTo(96, 70 + bob); ctx.lineTo(88, 105 + bob); ctx.lineTo(72, 105 + bob); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 64, 70, 96, 105, [[0, '#ffffff'], [0.6, '#e2e8f0'], [1, '#cbd5e1']]);
+        ctx.fill(); ctx.strokeStyle = '#eab308'; ctx.lineWidth = 1.8; ctx.stroke();
+        // Glowing Sapphire-Cyan Chest Crystal
+        ctx.shadowColor = '#38bdf8'; ctx.shadowBlur = 8;
+        ctx.fillStyle = '#7dd3fc';
+        ctx.beginPath(); ctx.moveTo(80, 76 + bob); ctx.lineTo(86, 85 + bob); ctx.lineTo(80, 94 + bob); ctx.lineTo(74, 85 + bob); ctx.closePath();
+        ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = '#fef08a'; ctx.lineWidth = 1.5; ctx.stroke();
+        // Layered Indigo-Gold Battle Skirt
+        ctx.beginPath();
+        ctx.moveTo(60, 105 + bob); ctx.lineTo(100, 105 + bob); ctx.lineTo(110, 125 + bob);
+        ctx.quadraticCurveTo(80, 130 + bob, 50, 125 + bob); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 50, 105, 110, 128, [[0, '#4f46e5'], [1, '#1e1b4b']]);
+        ctx.fill(); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.stroke();
+      }
+
+      // Armored Belt & Gold Buckle
+      rrect(ctx, 58, 102 + bob, 44, 9, 4);
+      ctx.fillStyle = '#2d1c12'; ctx.fill();
+      ctx.strokeStyle = '#0f121a'; ctx.lineWidth = 2; ctx.stroke();
+      rrect(ctx, 73, 101 + bob, 14, 11, 3);
+      ctx.fillStyle = linGrad(ctx, 73, 101, 87, 112, [[0, '#fef08a'], [1, '#d97706']]); ctx.fill();
+
+      // Sculpted Winged Metallic Pauldrons (Shoulders)
+      const drawPauldron = (sx, flip) => {
+        ctx.save();
+        ctx.translate(sx, 76 + bob);
+        ctx.scale(flip, 1);
+        ctx.beginPath();
+        ctx.moveTo(-20, 4);
+        ctx.quadraticCurveTo(-22, -13, -2, -15);
+        ctx.quadraticCurveTo(15, -11, 13, 8);
+        ctx.quadraticCurveTo(-2, 13, -20, 4);
+        ctx.closePath();
+        ctx.fillStyle = classId === 'knight'
+          ? linGrad(ctx, -20, -14, 14, 10, [[0, '#ffffff'], [0.4, '#cbd5e1'], [1, '#475569']])
+          : classId === 'rogue'
+          ? linGrad(ctx, -20, -14, 14, 10, [[0, '#34d399'], [0.32, '#1f3a37'], [1, '#091416']])
+          : linGrad(ctx, -20, -14, 14, 10, [[0, '#fef08a'], [0.42, '#6366f1'], [1, '#312e81']]);
+        ctx.fill();
+        ctx.strokeStyle = classId === 'rogue' ? '#10b981' : '#eab308';
+        ctx.lineWidth = 2.4; ctx.stroke();
+        ctx.restore();
+      };
+      drawPauldron(49, 1);
+      drawPauldron(111, -1);
+      ctx.restore();
+
+      // --- 4. SLEEK HEROIC ANIME HEAD, EXPRESSIVE EYES & LAYERED HAIR ---
+      ctx.save();
+      const hy = 41 + bob;
+
+      // Neck & Rogue High Shadow Collar
+      ctx.fillStyle = '#eac096';
+      ctx.fillRect(74, hy + 20, 12, 10);
+      if (classId === 'rogue') {
+        ctx.fillStyle = '#0c2625';
+        ctx.beginPath(); ctx.ellipse(80, hy + 26, 25, 10, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#34d399'; ctx.lineWidth = 2; ctx.stroke();
+      }
+
+      // Slim sculpted anime face contour
+      ctx.beginPath();
+      ctx.moveTo(57, hy - 5);
+      ctx.bezierCurveTo(56, hy + 14, 65, hy + 24, 80, hy + 26);
+      ctx.bezierCurveTo(95, hy + 24, 104, hy + 14, 103, hy - 5);
+      ctx.quadraticCurveTo(80, hy - 21, 57, hy - 5);
+      ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 80, hy - 12, 80, hy + 26, [[0, '#fff1e0'], [0.7, '#fed7aa'], [1, '#eeb07c']]);
+      ctx.fill();
+      ctx.strokeStyle = '#291c18'; ctx.lineWidth = 2.3; ctx.stroke();
+
+      // Eyes & Expression
+      if (classId === 'knight') {
+        drawStylizedEye(ctx, 69, hy + 7, 5.6, 6.2, '#38bdf8', '#1d4ed8', -1, true);
+        drawStylizedEye(ctx, 91, hy + 7, 5.6, 6.2, '#38bdf8', '#1d4ed8', 1, true);
+        ctx.strokeStyle = '#7c4a32'; ctx.lineWidth = 1.9; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(76, hy + 18); ctx.quadraticCurveTo(80, hy + 20, 85, hy + 17.5); ctx.stroke();
+      } else if (classId === 'rogue') {
+        drawStylizedEye(ctx, 69, hy + 7, 5.8, 5.2, '#6ee7b7', '#059669', -1, true);
+        drawStylizedEye(ctx, 91, hy + 7, 5.8, 5.2, '#6ee7b7', '#059669', 1, true);
+        // Sleek obsidian stealth lower-face mask
+        ctx.beginPath();
+        ctx.moveTo(57, hy + 12); ctx.quadraticCurveTo(80, hy + 17, 103, hy + 12);
+        ctx.bezierCurveTo(101, hy + 23, 92, hy + 27, 80, hy + 28);
+        ctx.bezierCurveTo(68, hy + 27, 59, hy + 23, 57, hy + 12);
+        ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 57, hy + 12, 103, hy + 28, [[0, '#1e3a38'], [1, '#081214']]);
+        ctx.fill(); ctx.strokeStyle = '#34d399'; ctx.lineWidth = 1.6; ctx.stroke();
+      } else {
+        drawStylizedEye(ctx, 69, hy + 8, 5.9, 6.6, '#f0abfc', '#4f46e5', -1, false);
+        drawStylizedEye(ctx, 91, hy + 8, 5.9, 6.6, '#f0abfc', '#4f46e5', 1, false);
+        ctx.strokeStyle = '#8b4e4e'; ctx.lineWidth = 1.7; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(77, hy + 19); ctx.quadraticCurveTo(80, hy + 20.5, 83, hy + 19); ctx.stroke();
+      }
+
+      // Dynamic Swept Anime Hair + Bangs
+      ctx.beginPath();
+      if (classId === 'knight') {
+        ctx.moveTo(51, hy + 4);
+        ctx.lineTo(45, hy - 13); ctx.lineTo(55, hy - 22); ctx.lineTo(59, hy - 34);
+        ctx.lineTo(73, hy - 27); ctx.lineTo(84, hy - 38); ctx.lineTo(95, hy - 26);
+        ctx.lineTo(109, hy - 31); ctx.lineTo(115, hy - 12); ctx.lineTo(109, hy + 4);
+        ctx.lineTo(101, hy - 5); ctx.lineTo(95, hy + 4); ctx.lineTo(89, hy - 7);
+        ctx.lineTo(80, hy + 5); ctx.lineTo(72, hy - 7); ctx.lineTo(64, hy + 4); ctx.lineTo(58, hy - 5);
+        ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 48, hy - 36, 112, hy + 6, [[0, '#d48b4e'], [0.45, '#8a4f26'], [1, '#47230e']]);
+      } else if (classId === 'rogue') {
+        ctx.moveTo(49, hy + 7);
+        ctx.lineTo(43, hy - 12); ctx.lineTo(56, hy - 28); ctx.lineTo(76, hy - 34);
+        ctx.lineTo(98, hy - 32); ctx.lineTo(114, hy - 18); ctx.lineTo(117, hy + 2);
+        ctx.lineTo(108, hy + 9); ctx.lineTo(102, hy - 4); ctx.lineTo(94, hy + 7);
+        ctx.lineTo(84, hy - 6); ctx.lineTo(71, hy + 9); ctx.lineTo(64, hy - 5); ctx.lineTo(55, hy + 5);
+        ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 44, hy - 34, 116, hy + 9, [[0, '#46736e'], [0.45, '#193234'], [1, '#091215']]);
+      } else {
+        // Luna's sleek silver-lavender bangs + elegant side locks framing jaw
+        ctx.moveTo(49, hy + 20);
+        ctx.quadraticCurveTo(46, hy - 20, 66, hy - 31);
+        ctx.quadraticCurveTo(80, hy - 36, 94, hy - 31);
+        ctx.quadraticCurveTo(114, hy - 20, 111, hy + 20);
+        ctx.lineTo(104, hy + 26); ctx.lineTo(102, hy - 2); ctx.lineTo(94, hy + 4);
+        ctx.lineTo(85, hy - 8); ctx.lineTo(78, hy + 5); ctx.lineTo(70, hy - 7);
+        ctx.lineTo(61, hy + 4); ctx.lineTo(58, hy - 2); ctx.lineTo(56, hy + 26);
+        ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 48, hy - 34, 112, hy + 24, [[0, '#ffffff'], [0.42, '#ddd6fe'], [1, '#8b5cf6']]);
+      }
+      ctx.fill();
+      ctx.strokeStyle = '#14121d'; ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.stroke();
+
+      // Anime Hair Gloss Rim Halo
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 2.8; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(80, hy - 14, 19, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+
+      // Signature Heroic Headgear / Winged Circlet
+      if (classId === 'knight') {
+        ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3.6;
+        ctx.beginPath(); ctx.arc(80, hy - 5, 24, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+        // Winged silver crest sides
+        [-1, 1].forEach((dir) => {
+          ctx.beginPath();
+          ctx.moveTo(80 + dir * 22, hy - 12); ctx.lineTo(80 + dir * 34, hy - 24); ctx.lineTo(80 + dir * 28, hy - 6); ctx.closePath();
+          ctx.fillStyle = '#f8fafc'; ctx.fill(); ctx.strokeStyle = '#eab308'; ctx.lineWidth = 1.5; ctx.stroke();
+        });
+        ctx.fillStyle = '#38bdf8';
+        ctx.beginPath(); ctx.moveTo(80, hy - 26); ctx.lineTo(85, hy - 19); ctx.lineTo(80, hy - 13); ctx.lineTo(75, hy - 19); ctx.closePath();
+        ctx.fill(); ctx.strokeStyle = '#fef08a'; ctx.lineWidth = 1.6; ctx.stroke();
+      } else if (classId === 'rogue') {
+        ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 3.2;
+        ctx.beginPath(); ctx.arc(80, hy - 6, 24, Math.PI * 1.18, Math.PI * 1.82); ctx.stroke();
+        ctx.fillStyle = '#34d399';
+        ctx.beginPath(); ctx.arc(80, hy - 20, 4, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.strokeStyle = '#fde047'; ctx.lineWidth = 2.8;
+        ctx.beginPath(); ctx.moveTo(58, hy - 13); ctx.quadraticCurveTo(80, hy - 25, 102, hy - 13); ctx.stroke();
+        ctx.fillStyle = '#7dd3fc';
+        ctx.beginPath(); ctx.moveTo(80, hy - 31); ctx.lineTo(85, hy - 20); ctx.lineTo(80, hy - 14); ctx.lineTo(75, hy - 20); ctx.closePath();
+        ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.stroke();
+      }
+      ctx.restore();
+
+      // --- 5. EPIC GLOWING HERO WEAPONS & SHIELDS ---
+      ctx.save();
+      if (classId === 'knight') {
+        // Ornate Kite Shield (Left Arm)
+        ctx.save();
+        ctx.translate(34, 98 + bob);
+        ctx.beginPath();
+        ctx.moveTo(-14, -18); ctx.lineTo(14, -18); ctx.lineTo(14, 4);
+        ctx.quadraticCurveTo(10, 21, 0, 27); ctx.quadraticCurveTo(-10, 21, -14, 4);
+        ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, -14, -18, 14, 25, [[0, '#ef4444'], [0.55, '#991b1b'], [1, '#450a0a']]);
+        ctx.fill();
+        ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3.6; ctx.stroke();
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(-2.4, -11, 4.8, 22); ctx.fillRect(-8, -4, 16, 4.8);
+        ctx.restore();
+
+        // Radiant Excalibur-Style Holy Greatsword
+        ctx.save();
+        ctx.translate(128, 92 + bob);
+        ctx.rotate(0.16);
+        ctx.shadowColor = 'rgba(125, 211, 252, 0.85)';
+        ctx.shadowBlur = 14;
+        ctx.beginPath();
+        ctx.moveTo(0, -80); ctx.lineTo(10, -60); ctx.lineTo(7.5, 4); ctx.lineTo(-7.5, 4); ctx.lineTo(-10, -60); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, -10, -80, 10, 4, [[0, '#ffffff'], [0.46, '#e2e8f0'], [0.54, '#94a3b8'], [1, '#475569']]);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = '#7dd3fc'; ctx.lineWidth = 2.6;
+        ctx.beginPath(); ctx.moveTo(0, -68); ctx.lineTo(0, -4); ctx.stroke();
+        // Winged Golden Crossguard
+        ctx.beginPath();
+        ctx.moveTo(-19, 1); ctx.lineTo(-9, 10); ctx.lineTo(9, 10); ctx.lineTo(19, 1); ctx.lineTo(8, 0); ctx.lineTo(-8, 0); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, -18, 1, 18, 10, [[0, '#fef08a'], [0.5, '#f59e0b'], [1, '#b45309']]);
+        ctx.fill(); ctx.strokeStyle = '#451a03'; ctx.lineWidth = 1.6; ctx.stroke();
+        rrect(ctx, -3.5, 10, 7, 15, 3); ctx.fillStyle = '#5c2b16'; ctx.fill();
+        ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(0, 27, 4.5, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.restore();
+
+      } else if (classId === 'rogue') {
+        // Twin Curved Glowing Jade-Edge Assassin Blades!
+        const drawDagger = (dx, dy, rot) => {
+          ctx.save();
+          ctx.translate(dx, dy);
+          ctx.rotate(rot);
+          ctx.shadowColor = 'rgba(52, 211, 153, 0.9)';
+          ctx.shadowBlur = 12;
+          ctx.beginPath();
+          ctx.moveTo(0, -56);
+          ctx.quadraticCurveTo(12, -28, 5.5, 4);
+          ctx.lineTo(-5.5, 4);
+          ctx.quadraticCurveTo(-4, -24, 0, -56);
+          ctx.closePath();
+          ctx.fillStyle = linGrad(ctx, -5, -56, 10, 4, [[0, '#ecfdf5'], [0.38, '#34d399'], [1, '#0f172a']]);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = '#064e3b'; ctx.lineWidth = 1.8; ctx.stroke();
+          rrect(ctx, -10, 2, 20, 5, 2); ctx.fillStyle = '#f59e0b'; ctx.fill();
+          rrect(ctx, -3, 7, 6, 13, 2); ctx.fillStyle = '#1e293b'; ctx.fill();
+          ctx.restore();
+        };
+        drawDagger(28, 94 + bob, -0.48);
+        drawDagger(132, 90 + bob, 0.42);
+
+      } else {
+        // Radiant Floating Crystal Runeblade + Orbiting Mana Shards!
+        ctx.save();
+        ctx.translate(129, 90 + bob);
+        ctx.rotate(0.18);
+        ctx.shadowColor = 'rgba(56, 189, 248, 0.95)';
+        ctx.shadowBlur = 18;
+        ctx.beginPath();
+        ctx.moveTo(0, -82); ctx.lineTo(11, -58); ctx.lineTo(6.5, 4); ctx.lineTo(-6.5, 4); ctx.lineTo(-11, -58); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, -11, -82, 11, 4, [[0, '#ffffff'], [0.35, '#7dd3fc'], [0.7, '#818cf8'], [1, '#4f46e5']]);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#e0f2fe'; ctx.lineWidth = 1.8; ctx.stroke();
+        // Ornate Golden Crescent Guard
+        ctx.strokeStyle = '#fde047'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(0, 0, 14, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+        rrect(ctx, -3, 8, 6, 14, 2); ctx.fillStyle = '#312e81'; ctx.fill();
+        ctx.restore();
+
+        // Orbiting Luminous Crystal Shards
+        const drawShard = (cx, cy, r) => {
+          ctx.save();
+          ctx.translate(cx, cy);
+          ctx.shadowColor = '#a855f7'; ctx.shadowBlur = 10;
+          ctx.beginPath(); ctx.moveTo(0, -r * 1.45); ctx.lineTo(r * 0.82, 0); ctx.lineTo(0, r * 1.45); ctx.lineTo(-r * 0.82, 0); ctx.closePath();
+          ctx.fillStyle = linGrad(ctx, 0, -r, 0, r, [[0, '#ffffff'], [0.45, '#38bdf8'], [1, '#9333ea']]);
+          ctx.fill();
+          ctx.restore();
+        };
+        drawShard(26, 68 + bob, 9.5);
+        drawShard(20, 96 + bob, 6.5);
+        drawShard(34, 114 + bob, 5.5);
+      }
+      ctx.restore();
+
       return c;
     }
 
-    const heroConfigs = {
-      knight:    { hair: '#6b3e22', hairHi: '#9c6239', headband: '#c9d6e8', armor: '#7d8a9e', armorHi: '#cad5e6', trim: '#b82c38', cape: '#9e222d', capeDark: '#5e141b', boot: '#4a3525', weapon: 'sword' },
-      rogue:     { hair: '#1d3b30', hairHi: '#346954', headband: '#d9a441', armor: '#2e4a3f', armorHi: '#4a7564', trim: '#c99334', cape: '#233b32', capeDark: '#13211c', boot: '#2b241f', weapon: 'dagger' },
-      runeblade: { hair: '#2c427a', hairHi: '#5377c9', headband: '#7ce3f5', armor: '#344c8a', armorHi: '#628ae3', trim: '#f0c451', cape: '#283869', capeDark: '#17203d', boot: '#2c2b47', weapon: 'rune' }
-    };
+    function makePortraitHD(classId, fullSprite) {
+      const P = 144;
+      const c = makeCanvas(P, P);
+      const ctx = c.getContext('2d');
+      const bgStops = classId === 'knight'
+        ? [[0, '#591e23'], [0.65, '#1e1929'], [1, '#0e1018']]
+        : classId === 'rogue'
+        ? [[0, '#10453c'], [0.65, '#111f28'], [1, '#0b1016']]
+        : [[0, '#3a2875'], [0.65, '#171a36'], [1, '#0c0e1a']];
+      ctx.fillStyle = radGrad(ctx, P / 2, P * 0.36, 8, P / 2, P / 2, P * 0.72, bgStops);
+      ctx.fillRect(0, 0, P, P);
+      ctx.fillStyle = classId === 'knight' ? 'rgba(251,191,36,0.2)'
+        : (classId === 'rogue' ? 'rgba(52,211,153,0.2)' : 'rgba(167,139,250,0.24)');
+      ctx.beginPath(); ctx.arc(P / 2, P * 0.4, 50, 0, Math.PI * 2); ctx.fill();
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(fullSprite, 12, 0, 136, 136, 0, 2, P, P);
+      return c;
+    }
 
-    Object.entries(heroConfigs).forEach(([id, cfg]) => {
-      const idle = makeHero(cfg, false);
-      const walk = makeHero(cfg, true);
-      sprites.heroes[id] = { idle, walk, idleLeft: flipH(idle), walkLeft: flipH(walk) };
+    ['knight', 'rogue', 'runeblade'].forEach((id) => {
+      const idle = makeHeroHD(id, false);
+      const walk = makeHeroHD(id, true);
+      const portrait = makePortraitHD(id, idle);
+      sprites.heroes[id] = { idle, walk, idleLeft: flipH(idle), walkLeft: flipH(walk), portrait };
     });
 
     // =========================================================
-    // 3. DETAILED 28x28 NPC SPRITES
+    // 3. HD ILLUSTRATED NPCs (140x140)
     // =========================================================
-    function makeNpc(cfg) {
-      const c = makeCanvas(28, 28);
+    function makeNpcHD(kind) {
+      const S = 140;
+      const c = makeCanvas(S, S);
       const ctx = c.getContext('2d');
+      const cx = 70;
+
       // Robe / Outfit
-      px(ctx, 8, 14, 12, 11, '#241a14');
-      px(ctx, 9, 15, 10, 9, cfg.robe);
-      px(ctx, 11, 15, 6, 9, cfg.robeHi);
-      px(ctx, 9, 20, 10, 2, cfg.belt);
+      ctx.beginPath();
+      ctx.moveTo(46, 66); ctx.lineTo(94, 66); ctx.lineTo(102, 124); ctx.lineTo(38, 124); ctx.closePath();
+      ctx.fillStyle = kind === 'elder'
+        ? linGrad(ctx, 40, 66, 100, 124, [[0, '#8c5e3a'], [1, '#4a2f1a']])
+        : kind === 'shop'
+        ? linGrad(ctx, 40, 66, 100, 124, [[0, '#e11d48'], [1, '#881337']])
+        : linGrad(ctx, 40, 66, 100, 124, [[0, '#57534e'], [1, '#292524']]);
+      ctx.fill();
+      ctx.strokeStyle = '#181414'; ctx.lineWidth = 2.6; ctx.stroke();
+
+      // Center Apron / Stole
+      rrect(ctx, 56, 68, 28, 54, 6);
+      ctx.fillStyle = kind === 'elder' ? '#d9a441' : (kind === 'shop' ? '#fff7ed' : '#78350f');
+      ctx.fill();
+
       // Head
-      px(ctx, 8, 4, 12, 11, '#241a14');
-      px(ctx, 9, 5, 10, 9, cfg.hair);
-      px(ctx, 10, 8, 8, 6, '#f7d5b0');
-      px(ctx, 11, 10, 2, 2, '#1a1820');
-      px(ctx, 15, 10, 2, 2, '#1a1820');
-      if (cfg.beard) {
-        px(ctx, 10, 13, 8, 4, '#eef2f7');
-        px(ctx, 11, 16, 6, 2, '#cbd5e1');
-      }
-      if (cfg.prop === 'staff') {
-        px(ctx, 21, 7, 2, 18, '#6e4726');
-        px(ctx, 20, 5, 4, 3, '#f5d061');
-      } else if (cfg.prop === 'hammer') {
-        px(ctx, 21, 11, 2, 12, '#6e4726');
-        px(ctx, 19, 8, 6, 4, '#8d97a6');
-        px(ctx, 19, 8, 6, 1, '#cfd7e3');
-      } else if (cfg.prop === 'ribbon') {
-        px(ctx, 10, 3, 8, 2, '#e04f5f');
-        px(ctx, 13, 2, 2, 3, '#ff9aa5');
+      ctx.beginPath();
+      ctx.arc(cx, 44, 24, 0, Math.PI * 2);
+      ctx.fillStyle = linGrad(ctx, cx, 20, cx, 68, [[0, '#ffedd5'], [1, '#f3ba88']]);
+      ctx.fill(); ctx.strokeStyle = '#291c18'; ctx.lineWidth = 2.5; ctx.stroke();
+
+      // Hair
+      ctx.beginPath();
+      ctx.arc(cx, 38, 25, Math.PI * 0.95, Math.PI * 2.05);
+      ctx.lineTo(94, 46); ctx.quadraticCurveTo(cx, 34, 46, 46); ctx.closePath();
+      ctx.fillStyle = kind === 'elder' ? '#e2e8f0' : (kind === 'shop' ? '#f59e0b' : '#b91c1c');
+      ctx.fill(); ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 2.4; ctx.stroke();
+
+      // Eyes
+      drawStylizedEye(ctx, 60, 48, 4.8, 5.2, kind === 'shop' ? '#fb7185' : '#64748b', '#1e293b', -1, false);
+      drawStylizedEye(ctx, 80, 48, 4.8, 5.2, kind === 'shop' ? '#fb7185' : '#64748b', '#1e293b', 1, false);
+
+      if (kind === 'elder') {
+        // Flowing sage beard
+        ctx.beginPath();
+        ctx.moveTo(52, 56); ctx.quadraticCurveTo(cx, 88, 88, 56); ctx.quadraticCurveTo(cx, 62, 52, 56); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, cx, 56, cx, 84, [[0, '#f8fafc'], [1, '#cbd5e1']]); ctx.fill();
+        ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.8; ctx.stroke();
+        // Glowing amber staff
+        ctx.strokeStyle = '#6b4226'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(108, 34); ctx.lineTo(108, 122); ctx.stroke();
+        ctx.fillStyle = radGrad(ctx, 108, 28, 2, 108, 28, 13, [[0, '#fffbeb'], [0.5, '#fbbf24'], [1, '#b45309']]);
+        ctx.beginPath(); ctx.arc(108, 28, 10, 0, Math.PI * 2); ctx.fill();
+      } else if (kind === 'shop') {
+        // Crimson Ribbon Bow
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath(); ctx.ellipse(58, 17, 10, 5, -0.35, 0, Math.PI * 2); ctx.ellipse(82, 17, 10, 5, 0.35, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fda4af'; ctx.beginPath(); ctx.arc(cx, 18, 5, 0, Math.PI * 2); ctx.fill();
+        // Glowing Potion Flask
+        ctx.fillStyle = radGrad(ctx, 108, 88, 2, 108, 90, 12, [[0, '#fda4af'], [0.6, '#e11d48'], [1, '#881337']]);
+        ctx.beginPath(); ctx.arc(108, 90, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#fecdd3'; ctx.lineWidth = 1.8; ctx.stroke();
+      } else {
+        // Master Blacksmith Forge Hammer
+        ctx.strokeStyle = '#713f12'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(108, 54); ctx.lineTo(108, 118); ctx.stroke();
+        rrect(ctx, 92, 40, 32, 18, 5);
+        ctx.fillStyle = linGrad(ctx, 92, 40, 124, 58, [[0, '#cbd5e1'], [0.5, '#64748b'], [1, '#1e293b']]);
+        ctx.fill(); ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.stroke();
       }
       return c;
     }
 
-    sprites.npcs.elder = makeNpc({ hair: '#d8e0eb', robe: '#6e472b', robeHi: '#966541', belt: '#d9a441', beard: true, prop: 'staff' });
-    sprites.npcs.shop  = makeNpc({ hair: '#d99838', robe: '#b53c4a', robeHi: '#f5efe6', belt: '#5c2c2c', prop: 'ribbon' });
-    sprites.npcs.smith = makeNpc({ hair: '#9e2a2a', robe: '#524b47', robeHi: '#756d67', belt: '#c99334', prop: 'hammer' });
+    sprites.npcs.elder = makeNpcHD('elder');
+    sprites.npcs.shop  = makeNpcHD('shop');
+    sprites.npcs.smith = makeNpcHD('smith');
 
     // =========================================================
-    // 4. RICH LAYERED MONSTER & BOSS SPRITES
+    // 4. HD ILLUSTRATED MONSTERS & EPIC BOSSES (128px ~ 200px)
     // =========================================================
-    const makeSlime = (dark, mid, hi, f) => {
-      const c = makeCanvas(24, 24);
-      const ctx = c.getContext('2d');
-      const sy = f ? 2 : 0;
-      const w = f ? 18 : 16;
-      const x = 12 - w / 2;
-      px(ctx, x, 9 + sy, w, 11 - sy, '#152418');
-      px(ctx, x + 1, 8 + sy, w - 2, 11 - sy, mid);
-      px(ctx, x + 2, 7 + sy, w - 4, 3, mid);
-      px(ctx, x + 1, 15, w - 2, 4, dark);
-      // Glossy translucent highlight
-      px(ctx, x + 3, 9 + sy, 4, 2, hi);
-      px(ctx, x + 3, 11 + sy, 2, 1, '#ffffff');
-      // Cute retro eyes
-      px(ctx, 8, 13 + sy, 2, 3, '#111'); px(ctx, 8, 13 + sy, 1, 1, '#fff');
-      px(ctx, 14, 13 + sy, 2, 3, '#111'); px(ctx, 14, 13 + sy, 1, 1, '#fff');
+    const makeSlimeHD = (hi, mid, dark, f) => {
+      const S = 128, c = makeCanvas(S, S), ctx = c.getContext('2d');
+      const sq = f ? 6 : 0;
+      ctx.beginPath();
+      ctx.moveTo(22 - sq, 92);
+      ctx.bezierCurveTo(18 - sq, 46 + sq, 40, 26 + sq, 64, 26 + sq);
+      ctx.bezierCurveTo(88, 26 + sq, 110 + sq, 46 + sq, 106 + sq, 92);
+      ctx.quadraticCurveTo(64, 108, 22 - sq, 92);
+      ctx.closePath();
+      ctx.fillStyle = radGrad(ctx, 50, 48 + sq, 8, 64, 72, 54, [[0, hi], [0.55, mid], [1, dark]]);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(10, 25, 18, 0.72)'; ctx.lineWidth = 3.2; ctx.stroke();
+      // Glossy specular bubble
+      ctx.fillStyle = 'rgba(255,255,255,0.62)';
+      ctx.beginPath(); ctx.ellipse(46, 48 + sq, 13, 7, -0.45, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(36, 62 + sq, 4, 0, Math.PI * 2); ctx.fill();
+      // Glossy Eyes
+      [48, 80].forEach((ex) => {
+        ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.ellipse(ex, 68 + sq * 0.6, 5.5, 7.5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(ex - 2, 65 + sq * 0.6, 2.3, 0, Math.PI * 2); ctx.fill();
+      });
       return c;
     };
-    sprites.monsters.slime_green = [makeSlime('#277833', '#49c458', '#b8f7b0', 0), makeSlime('#277833', '#49c458', '#b8f7b0', 1)];
-    sprites.monsters.slime_blue  = [makeSlime('#1d568f', '#3b9be8', '#b5e3ff', 0), makeSlime('#1d568f', '#3b9be8', '#b5e3ff', 1)];
+    sprites.monsters.slime_green = [makeSlimeHD('#bbf7d0', '#22c55e', '#14532d', 0), makeSlimeHD('#bbf7d0', '#22c55e', '#14532d', 1)];
+    sprites.monsters.slime_blue  = [makeSlimeHD('#bae6fd', '#38bdf8', '#0c4a6e', 0), makeSlimeHD('#bae6fd', '#38bdf8', '#0c4a6e', 1)];
 
-    const makeBoar = (f) => {
-      const c = makeCanvas(26, 26);
-      const ctx = c.getContext('2d');
-      const y = f ? 1 : 0;
-      px(ctx, 4, 8 + y, 18, 11, '#26170e');
-      px(ctx, 5, 9 + y, 16, 9, '#7a4d32');
-      px(ctx, 6, 9 + y, 14, 3, '#9c6644');
-      px(ctx, 8, 7 + y, 10, 2, '#4a2c1a'); // Bristles
-      // Snout & Ivory Tusks
-      px(ctx, 9, 13 + y, 8, 4, '#d4907d');
-      px(ctx, 11, 14 + y, 1, 2, '#4a251c'); px(ctx, 14, 14 + y, 1, 2, '#4a251c');
-      px(ctx, 6, 13 + y, 2, 4, '#fff8e3'); px(ctx, 18, 13 + y, 2, 4, '#fff8e3');
-      // Angry eyes
-      px(ctx, 8, 11 + y, 2, 2, '#140c0c'); px(ctx, 16, 11 + y, 2, 2, '#140c0c');
-      // Hooves
-      px(ctx, 6, 19 + (f ? 0 : 1), 3, 3, '#26170e');
-      px(ctx, 17, 19 + (f ? 1 : 0), 3, 3, '#26170e');
+    const makeBoarHD = (f) => {
+      const S = 128, c = makeCanvas(S, S), ctx = c.getContext('2d');
+      const b = f ? 4 : 0;
+      // Muscular fur body
+      ctx.beginPath(); ctx.ellipse(64, 68 + b, 44, 30, 0, 0, Math.PI * 2);
+      ctx.fillStyle = linGrad(ctx, 24, 38, 104, 98, [[0, '#a1623b'], [0.55, '#6b3e24'], [1, '#3b2012']]);
+      ctx.fill(); ctx.strokeStyle = '#1f1008'; ctx.lineWidth = 3; ctx.stroke();
+      // Spiky dark mane crest
+      ctx.fillStyle = '#3b2012';
+      ctx.beginPath(); ctx.moveTo(40, 42 + b); ctx.lineTo(52, 24 + b); ctx.lineTo(64, 36 + b); ctx.lineTo(76, 24 + b); ctx.lineTo(88, 42 + b); ctx.closePath(); ctx.fill();
+      // Snout
+      ctx.fillStyle = '#e5a493'; ctx.beginPath(); ctx.ellipse(64, 76 + b, 17, 11, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#4a251c'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#3b1812'; ctx.beginPath(); ctx.ellipse(58, 76 + b, 2.8, 4, 0, 0, Math.PI * 2); ctx.ellipse(70, 76 + b, 2.8, 4, 0, 0, Math.PI * 2); ctx.fill();
+      // Curved Ivory Tusks
+      [-1, 1].forEach((dir) => {
+        ctx.beginPath(); ctx.moveTo(64 + dir * 18, 80 + b); ctx.quadraticCurveTo(64 + dir * 32, 74 + b, 64 + dir * 28, 56 + b);
+        ctx.quadraticCurveTo(64 + dir * 22, 68 + b, 64 + dir * 14, 72 + b); ctx.closePath();
+        ctx.fillStyle = '#fffbeb'; ctx.fill(); ctx.strokeStyle = '#78350f'; ctx.lineWidth = 1.8; ctx.stroke();
+      });
+      // Fierce red-amber eyes
+      [46, 82].forEach((ex) => {
+        ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(ex, 58 + b, 4.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.arc(ex - 1, 57 + b, 1.8, 0, Math.PI * 2); ctx.fill();
+      });
       return c;
     };
-    sprites.monsters.boar = [makeBoar(0), makeBoar(1)];
+    sprites.monsters.boar = [makeBoarHD(0), makeBoarHD(1)];
 
-    const makeGoblin = (shaman, f) => {
-      const c = makeCanvas(28, 28);
-      const ctx = c.getContext('2d');
-      const b = f ? -1 : 0;
-      px(ctx, 9, 14 + b, 10, 9, '#1c1814');
-      px(ctx, 10, 15 + b, 8, 7, shaman ? '#7d283e' : '#755033');
-      // Ears + Head
-      px(ctx, 5, 7 + b, 4, 3, '#4c8532'); px(ctx, 19, 7 + b, 4, 3, '#4c8532');
-      px(ctx, 8, 5 + b, 12, 10, '#182414');
-      px(ctx, 9, 6 + b, 10, 8, '#5ea140');
+    const makeGoblinHD = (shaman, f) => {
+      const S = 136, c = makeCanvas(S, S), ctx = c.getContext('2d');
+      const b = f ? -4 : 0;
+      // Torso armor/cloak
+      rrect(ctx, 44, 66 + b, 48, 42, 12);
+      ctx.fillStyle = shaman
+        ? linGrad(ctx, 44, 66, 92, 108, [[0, '#9f1239'], [1, '#4c0519']])
+        : linGrad(ctx, 44, 66, 92, 108, [[0, '#85583a'], [1, '#422818']]);
+      ctx.fill(); ctx.strokeStyle = '#181414'; ctx.lineWidth = 2.8; ctx.stroke();
+      // Pointed Goblin Ears
+      [-1, 1].forEach((dir) => {
+        ctx.beginPath(); ctx.moveTo(68 + dir * 20, 40 + b); ctx.lineTo(68 + dir * 44, 30 + b); ctx.lineTo(68 + dir * 22, 52 + b); ctx.closePath();
+        ctx.fillStyle = '#4d8b31'; ctx.fill(); ctx.strokeStyle = '#182414'; ctx.lineWidth = 2.2; ctx.stroke();
+      });
+      // Head
+      ctx.beginPath(); ctx.ellipse(68, 46 + b, 24, 21, 0, 0, Math.PI * 2);
+      ctx.fillStyle = linGrad(ctx, 68, 25, 68, 67, [[0, '#84cc16'], [0.6, '#4d8b31'], [1, '#2f591c']]);
+      ctx.fill(); ctx.strokeStyle = '#182414'; ctx.lineWidth = 2.6; ctx.stroke();
       if (shaman) {
-        px(ctx, 7, 3 + b, 14, 5, '#8f2940');
-        px(ctx, 9, 2 + b, 10, 3, '#b83956');
+        ctx.beginPath(); ctx.moveTo(40, 40 + b); ctx.quadraticCurveTo(68, 8 + b, 96, 40 + b); ctx.closePath();
+        ctx.fillStyle = '#9f1239'; ctx.fill(); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.stroke();
       }
       // Glowing eyes
-      px(ctx, 10, 9 + b, 2, 2, shaman ? '#ffe052' : '#ff4747');
-      px(ctx, 16, 9 + b, 2, 2, shaman ? '#ffe052' : '#ff4747');
-      // Legs
-      px(ctx, 10, 22, 3, 4, '#4c8532'); px(ctx, 15, 22 + (f ? -1 : 0), 3, 4, '#4c8532');
+      [58, 78].forEach((ex) => {
+        ctx.fillStyle = shaman ? '#fde047' : '#ef4444';
+        ctx.beginPath(); ctx.ellipse(ex, 46 + b, 5, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+      });
       // Weapon
       if (shaman) {
-        px(ctx, 21, 9 + b, 2, 14, '#6e4726');
-        px(ctx, 20, 6 + b, 4, 4, '#38bdf8'); px(ctx, 21, 7 + b, 2, 2, '#e0f7ff');
+        ctx.strokeStyle = '#5c3a1e'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(106, 36 + b); ctx.lineTo(106, 114 + b); ctx.stroke();
+        ctx.fillStyle = radGrad(ctx, 106, 28 + b, 2, 106, 28 + b, 14, [[0, '#e0f2fe'], [0.5, '#38bdf8'], [1, '#0284c7']]);
+        ctx.beginPath(); ctx.arc(106, 28 + b, 11, 0, Math.PI * 2); ctx.fill();
       } else {
-        px(ctx, 21, 10 + b, 3, 10, '#9aa5b5'); px(ctx, 22, 10 + b, 1, 9, '#e2eaf5');
+        ctx.beginPath(); ctx.moveTo(104, 88 + b); ctx.quadraticCurveTo(122, 54 + b, 106, 28 + b); ctx.lineTo(98, 44 + b); ctx.lineTo(98, 88 + b); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 98, 28, 120, 88, [[0, '#f1f5f9'], [1, '#64748b']]); ctx.fill();
+        ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2; ctx.stroke();
       }
       return c;
     };
-    sprites.monsters.goblin = [makeGoblin(false, 0), makeGoblin(false, 1)];
-    sprites.monsters.goblin_shaman = [makeGoblin(true, 0), makeGoblin(true, 1)];
+    sprites.monsters.goblin = [makeGoblinHD(false, 0), makeGoblinHD(false, 1)];
+    sprites.monsters.goblin_shaman = [makeGoblinHD(true, 0), makeGoblinHD(true, 1)];
 
-    const makeSkeleton = (f) => {
-      const c = makeCanvas(28, 28);
-      const ctx = c.getContext('2d');
-      const b = f ? -1 : 0;
-      px(ctx, 9, 14 + b, 10, 9, '#232630');
-      px(ctx, 10, 15 + b, 8, 7, '#585f73');
-      px(ctx, 11, 16 + b, 6, 1, '#e6eaf2'); px(ctx, 11, 18 + b, 6, 1, '#e6eaf2'); // Ribs
+    const makeSkeletonHD = (f) => {
+      const S = 136, c = makeCanvas(S, S), ctx = c.getContext('2d');
+      const b = f ? -4 : 0;
+      rrect(ctx, 46, 66 + b, 44, 44, 10);
+      ctx.fillStyle = linGrad(ctx, 46, 66, 90, 110, [[0, '#475569'], [1, '#1e293b']]);
+      ctx.fill(); ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.6; ctx.stroke();
+      // Ribcage stripes
+      ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 3.5;
+      [76, 84, 92].forEach((ry) => { ctx.beginPath(); ctx.moveTo(54, ry + b); ctx.lineTo(82, ry + b); ctx.stroke(); });
       // Skull
-      px(ctx, 8, 4 + b, 12, 10, '#1e2029');
-      px(ctx, 9, 5 + b, 10, 8, '#e8ecf5');
-      px(ctx, 10, 8 + b, 2, 3, '#14121a'); px(ctx, 16, 8 + b, 2, 3, '#14121a');
-      px(ctx, 11, 9 + b, 1, 1, '#ff4d5a'); px(ctx, 17, 9 + b, 1, 1, '#ff4d5a');
-      // Legs & Rusty Sword
-      px(ctx, 10, 23, 2, 4, '#cfd6e3'); px(ctx, 16, 23 + (f ? -1 : 0), 2, 4, '#cfd6e3');
-      px(ctx, 21, 8 + b, 3, 12, '#8b95a6'); px(ctx, 22, 8 + b, 1, 11, '#dce3f0');
+      ctx.beginPath(); ctx.arc(68, 42 + b, 23, 0, Math.PI * 2);
+      ctx.fillStyle = linGrad(ctx, 68, 19, 68, 65, [[0, '#f8fafc'], [1, '#cbd5e1']]);
+      ctx.fill(); ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2.8; ctx.stroke();
+      [58, 78].forEach((ex) => {
+        ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.ellipse(ex, 44 + b, 6, 7, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fb7185'; ctx.beginPath(); ctx.arc(ex, 44 + b, 2.6, 0, Math.PI * 2); ctx.fill();
+      });
+      // Cursed Broadsword
+      ctx.beginPath(); ctx.moveTo(108, 22 + b); ctx.lineTo(116, 36 + b); ctx.lineTo(113, 96 + b); ctx.lineTo(103, 96 + b); ctx.lineTo(100, 36 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 100, 22, 116, 96, [[0, '#e2e8f0'], [1, '#475569']]); ctx.fill();
+      ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.stroke();
       return c;
     };
-    sprites.monsters.skeleton = [makeSkeleton(0), makeSkeleton(1)];
+    sprites.monsters.skeleton = [makeSkeletonHD(0), makeSkeletonHD(1)];
 
-    const makeGolem = (f) => {
-      const c = makeCanvas(32, 32);
-      const ctx = c.getContext('2d');
-      const b = f ? 1 : 0;
-      px(ctx, 6, 10 + b, 20, 14, '#24272e');
-      px(ctx, 7, 11 + b, 18, 12, '#737a87');
-      px(ctx, 8, 11 + b, 16, 3, '#979fad');
-      // Head stone
-      px(ctx, 10, 4 + b, 12, 8, '#24272e');
-      px(ctx, 11, 5 + b, 10, 6, '#848c99');
-      px(ctx, 12, 7 + b, 3, 2, '#fbbf24'); px(ctx, 17, 7 + b, 3, 2, '#fbbf24');
-      // Glowing Rune Core
-      px(ctx, 13, 15 + b, 6, 5, '#2dd4bf');
-      px(ctx, 14, 16 + b, 4, 3, '#ccfbf1');
-      // Heavy Fists & Legs
-      px(ctx, 2, 13 + b, 5, 11, '#585e69'); px(ctx, 25, 13 + b, 5, 11, '#585e69');
-      px(ctx, 8, 24, 6, 6, '#484d57'); px(ctx, 18, 24, 6, 6, '#484d57');
+    const makeGolemHD = (f) => {
+      const S = 152, c = makeCanvas(S, S), ctx = c.getContext('2d');
+      const b = f ? 3 : 0;
+      // Massive sculpted stone shoulders & torso
+      ctx.beginPath();
+      ctx.moveTo(30, 50 + b); ctx.lineTo(122, 50 + b); ctx.lineTo(108, 116 + b); ctx.lineTo(44, 116 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 30, 50, 122, 116, [[0, '#94a3b8'], [0.5, '#64748b'], [1, '#334155']]);
+      ctx.fill(); ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 3.5; ctx.stroke();
+      // Heavy Floating Fists
+      [20, 132].forEach((fx) => {
+        rrect(ctx, fx - 14, 68 + b, 28, 42, 10);
+        ctx.fillStyle = linGrad(ctx, fx - 14, 68, fx + 14, 110, [[0, '#94a3b8'], [1, '#334155']]);
+        ctx.fill(); ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3; ctx.stroke();
+      });
+      // Monolith Head
+      rrect(ctx, 50, 18 + b, 52, 36, 10);
+      ctx.fillStyle = linGrad(ctx, 50, 18, 102, 54, [[0, '#cbd5e1'], [1, '#475569']]);
+      ctx.fill(); ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 3; ctx.stroke();
+      // Amber Rune Eyes
+      ctx.fillStyle = '#fbbf24';
+      rrect(ctx, 58, 30 + b, 13, 6, 3); ctx.fill();
+      rrect(ctx, 81, 30 + b, 13, 6, 3); ctx.fill();
+      // Glowing Turquoise Core
+      ctx.shadowColor = '#2dd4bf'; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.moveTo(76, 62 + b); ctx.lineTo(92, 82 + b); ctx.lineTo(76, 102 + b); ctx.lineTo(60, 82 + b); ctx.closePath();
+      ctx.fillStyle = radGrad(ctx, 76, 82 + b, 2, 76, 82 + b, 20, [[0, '#ffffff'], [0.4, '#5eead4'], [1, '#0d9488']]);
+      ctx.fill(); ctx.shadowBlur = 0;
       return c;
     };
-    sprites.monsters.golem = [makeGolem(0), makeGolem(1)];
+    sprites.monsters.golem = [makeGolemHD(0), makeGolemHD(1)];
 
-    const makeDarkMage = (f) => {
-      const c = makeCanvas(28, 28);
-      const ctx = c.getContext('2d');
-      const b = f ? -1 : 0;
-      px(ctx, 7, 12 + b, 14, 13, '#17121f');
-      px(ctx, 8, 13 + b, 12, 11, '#2f253d');
-      px(ctx, 12, 13 + b, 4, 11, '#c99334');
-      // Hood
-      px(ctx, 7, 3 + b, 14, 11, '#17121f');
-      px(ctx, 8, 4 + b, 12, 9, '#3e3152');
-      px(ctx, 10, 7 + b, 8, 5, '#0b0812');
-      px(ctx, 11, 9 + b, 2, 2, '#ff3b5c'); px(ctx, 15, 9 + b, 2, 2, '#ff3b5c');
-      // Orbiting dark orb
-      px(ctx, 22, 9 + (f ? -2 : 1), 4, 4, '#f43f5e');
-      px(ctx, 23, 10 + (f ? -2 : 1), 2, 2, '#ffe4e6');
+    const makeDarkMageHD = (f) => {
+      const S = 136, c = makeCanvas(S, S), ctx = c.getContext('2d');
+      const b = f ? -4 : 0;
+      // Midnight Violet Cultist Robes
+      ctx.beginPath(); ctx.moveTo(44, 60 + b); ctx.lineTo(92, 60 + b); ctx.lineTo(106, 122 + b); ctx.lineTo(30, 122 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 40, 60, 96, 122, [[0, '#4c1d95'], [0.6, '#2e1065'], [1, '#0f0720']]);
+      ctx.fill(); ctx.strokeStyle = '#090514'; ctx.lineWidth = 2.8; ctx.stroke();
+      // Gold Rune Stole
+      rrect(ctx, 60, 64 + b, 16, 54, 4); ctx.fillStyle = '#d97706'; ctx.fill();
+      // Deep Shadow Hood
+      ctx.beginPath(); ctx.moveTo(38, 56 + b); ctx.quadraticCurveTo(68, 4 + b, 98, 56 + b); ctx.quadraticCurveTo(68, 72 + b, 38, 56 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 40, 14, 96, 66, [[0, '#5b21b6'], [1, '#1e0a3c']]);
+      ctx.fill(); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#090412'; ctx.beginPath(); ctx.ellipse(68, 46 + b, 17, 13, 0, 0, Math.PI * 2); ctx.fill();
+      // Burning Crimson Eyes
+      ctx.shadowColor = '#f43f5e'; ctx.shadowBlur = 8;
+      ctx.fillStyle = '#fb7185';
+      ctx.beginPath(); ctx.arc(60, 46 + b, 4, 0, Math.PI * 2); ctx.arc(76, 46 + b, 4, 0, Math.PI * 2); ctx.fill();
+      // Orbiting Crimson Dark Orb
+      ctx.fillStyle = radGrad(ctx, 112, 54 + (f ? -6 : 4), 2, 112, 54 + (f ? -6 : 4), 14, [[0, '#fff1f2'], [0.45, '#f43f5e'], [1, '#881337']]);
+      ctx.beginPath(); ctx.arc(112, 54 + (f ? -6 : 4), 11, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
       return c;
     };
-    sprites.monsters.dark_mage = [makeDarkMage(0), makeDarkMage(1)];
+    sprites.monsters.dark_mage = [makeDarkMageHD(0), makeDarkMageHD(1)];
 
-    // Mini Boss: Goblin Chief (36x36)
-    const makeChief = (f) => {
-      const c = makeCanvas(36, 36);
-      const ctx = c.getContext('2d');
-      const b = f ? -1 : 0;
-      // Red warlord cape
-      px(ctx, 7, 15 + b, 22, 16, '#6e1919');
-      px(ctx, 9, 15 + b, 18, 14, '#b82828');
-      // Armor & muscular shoulders
-      px(ctx, 9, 15 + b, 18, 13, '#211913');
-      px(ctx, 10, 16 + b, 16, 11, '#6e4a2e');
-      px(ctx, 14, 16 + b, 8, 11, '#d9a441');
-      // Horned Helm & Face
-      px(ctx, 6, 4 + b, 4, 6, '#f5ebd1'); px(ctx, 26, 4 + b, 4, 6, '#f5ebd1');
-      px(ctx, 10, 5 + b, 16, 12, '#1b2416');
-      px(ctx, 11, 6 + b, 14, 5, '#687080');
-      px(ctx, 11, 10 + b, 14, 6, '#509438');
-      px(ctx, 13, 12 + b, 3, 2, '#ff3b3b'); px(ctx, 20, 12 + b, 3, 2, '#ff3b3b');
-      // Massive Battle Axe
-      px(ctx, 28, 8 + b, 3, 20, '#59391f');
-      px(ctx, 26, 7 + b, 8, 9, '#9ba6b8'); px(ctx, 31, 8 + b, 3, 7, '#e6edf7');
-      // Boots
-      px(ctx, 11, 28, 5, 6, '#382415'); px(ctx, 20, 28 + (f ? -1 : 0), 5, 6, '#382415');
+    // Mini Boss: Horned Goblin Warlord Chief (176x176)
+    const makeChiefHD = (f) => {
+      const S = 176, c = makeCanvas(S, S), ctx = c.getContext('2d');
+      const b = f ? -5 : 0;
+      // Crimson Warlord Cape
+      ctx.beginPath(); ctx.moveTo(44, 72 + b); ctx.lineTo(24, 152 + b); ctx.lineTo(152, 152 + b); ctx.lineTo(132, 72 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 30, 72, 146, 152, [[0, '#dc2626'], [1, '#450a0a']]); ctx.fill();
+      // Broad Armored Torso
+      rrect(ctx, 48, 74 + b, 80, 64, 16);
+      ctx.fillStyle = linGrad(ctx, 48, 74, 128, 138, [[0, '#784e30'], [1, '#362112']]);
+      ctx.fill(); ctx.strokeStyle = '#140c08'; ctx.lineWidth = 3.5; ctx.stroke();
+      rrect(ctx, 74, 76 + b, 28, 60, 6); ctx.fillStyle = '#eab308'; ctx.fill();
+      // Horned War Helm & Face
+      [-1, 1].forEach((dir) => {
+        ctx.beginPath(); ctx.moveTo(88 + dir * 24, 38 + b); ctx.quadraticCurveTo(88 + dir * 56, 30 + b, 88 + dir * 48, 10 + b);
+        ctx.quadraticCurveTo(88 + dir * 38, 22 + b, 88 + dir * 22, 26 + b); ctx.closePath();
+        ctx.fillStyle = '#fef3c7'; ctx.fill(); ctx.strokeStyle = '#78350f'; ctx.lineWidth = 2.5; ctx.stroke();
+      });
+      ctx.beginPath(); ctx.ellipse(88, 52 + b, 30, 26, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#4d8b31'; ctx.fill(); ctx.strokeStyle = '#182414'; ctx.lineWidth = 3; ctx.stroke();
+      // Iron Helm Dome
+      ctx.beginPath(); ctx.arc(88, 46 + b, 31, Math.PI, 0); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 57, 15, 119, 46, [[0, '#cbd5e1'], [1, '#475569']]); ctx.fill(); ctx.stroke();
+      [74, 102].forEach((ex) => { ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(ex, 56 + b, 5, 0, Math.PI * 2); ctx.fill(); });
+      // Giant Crescent Battleaxe
+      ctx.strokeStyle = '#5c3a1e'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(142, 34 + b); ctx.lineTo(142, 142 + b); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(140, 32 + b); ctx.bezierCurveTo(172, 24 + b, 174, 78 + b, 140, 74 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 140, 30, 170, 74, [[0, '#f8fafc'], [0.6, '#94a3b8'], [1, '#334155']]); ctx.fill();
+      ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.5; ctx.stroke();
       return c;
     };
-    sprites.monsters.goblin_chief = [makeChief(0), makeChief(1)];
+    sprites.monsters.goblin_chief = [makeChiefHD(0), makeChiefHD(1)];
 
-    // Final Boss: Abyssal Knight Vargas (40x40)
-    const makeVargas = (f) => {
-      const c = makeCanvas(40, 40);
-      const ctx = c.getContext('2d');
-      const b = f ? -1 : 0;
-      // Tattered Crimson Mantle
-      px(ctx, 6, 14 + b, 28, 20, '#591120');
-      px(ctx, 8, 15 + b, 24, 18, '#9e1c36');
-      // Obsidian Plate Armor
-      px(ctx, 10, 14 + b, 20, 16, '#101118');
-      px(ctx, 11, 15 + b, 18, 14, '#323747');
-      px(ctx, 12, 15 + b, 16, 4, '#4d546b');
-      px(ctx, 16, 16 + b, 8, 12, '#c99334');
-      px(ctx, 18, 18 + b, 4, 5, f ? '#ff667a' : '#ff2e4c'); // Abyssal Heart Core
-      // Horned Obsidian Crown Helm
-      px(ctx, 7, 2 + b, 4, 8, '#d4dce8'); px(ctx, 29, 2 + b, 4, 8, '#d4dce8');
-      px(ctx, 11, 4 + b, 18, 12, '#0e0f14');
-      px(ctx, 12, 5 + b, 16, 10, '#2a2e3d');
-      px(ctx, 14, 9 + b, 12, 3, '#100c14');
-      px(ctx, 15, 10 + b, 4, 2, '#ff3352'); px(ctx, 21, 10 + b, 4, 2, '#ff3352');
-      // Massive Runed Greatsword
-      px(ctx, 32, 4 + b, 4, 24, '#363b4d');
-      px(ctx, 33, 5 + b, 2, 22, '#ff4d6a');
-      px(ctx, 30, 26 + b, 8, 3, '#e0aa43');
-      // Greaves
-      px(ctx, 12, 30, 6, 7, '#1d202b'); px(ctx, 22, 30 + (f ? -1 : 0), 6, 7, '#1d202b');
+    // FINAL BOSS: Abyssal Knight Vargas (200x200 — Epic Winged Dark Sovereign!)
+    const makeVargasHD = (f) => {
+      const S = 200, c = makeCanvas(S, S), ctx = c.getContext('2d');
+      const b = f ? -5 : 0;
+
+      // Dark Abyssal Aura Halo
+      ctx.fillStyle = radGrad(ctx, 100, 100, 14, 100, 100, 94, [[0, 'rgba(225,29,72,0.36)'], [0.58, 'rgba(88,28,135,0.18)'], [1, 'rgba(0,0,0,0)']]);
+      ctx.beginPath(); ctx.arc(100, 100, 94, 0, Math.PI * 2); ctx.fill();
+
+      // Sweeping Layered Shadow-Crimson Wings
+      [-1, 1].forEach((dir) => {
+        ctx.beginPath();
+        ctx.moveTo(100 + dir * 22, 74 + b);
+        ctx.bezierCurveTo(100 + dir * 72, 26 + b, 100 + dir * 98, 52 + b, 100 + dir * 88, 114 + b);
+        ctx.lineTo(100 + dir * 68, 98 + b);
+        ctx.lineTo(100 + dir * 60, 132 + b);
+        ctx.lineTo(100 + dir * 42, 108 + b);
+        ctx.lineTo(100 + dir * 28, 124 + b);
+        ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 100, 32, 100 + dir * 92, 132, [[0, '#7f1d1d'], [0.5, '#1e1b4b'], [1, '#09090b']]);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(251,113,133,0.72)'; ctx.lineWidth = 2.2; ctx.stroke();
+      });
+
+      // Jagged Tattered Crimson War-Mantle
+      ctx.beginPath();
+      ctx.moveTo(58, 76 + b);
+      ctx.bezierCurveTo(38, 116 + b, 32, 150 + b, 38, 174 + b);
+      ctx.lineTo(58, 162 + b); ctx.lineTo(76, 178 + b); ctx.lineTo(100, 164 + b);
+      ctx.lineTo(124, 178 + b); ctx.lineTo(142, 162 + b); ctx.lineTo(162, 174 + b);
+      ctx.bezierCurveTo(168, 150 + b, 162, 116 + b, 142, 76 + b);
+      ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 40, 76, 160, 178, [[0, '#be123c'], [0.55, '#881337'], [1, '#260510']]);
+      ctx.fill(); ctx.strokeStyle = '#18050b'; ctx.lineWidth = 2.4; ctx.stroke();
+
+      // Armored Obsidian Greaves
+      [78, 122].forEach((lx) => {
+        rrect(ctx, lx - 12, 140 + b, 24, 34, 6);
+        ctx.fillStyle = linGrad(ctx, lx - 12, 140, lx + 12, 174, [[0, '#475569'], [0.5, '#1e293b'], [1, '#090b12']]);
+        ctx.fill(); ctx.strokeStyle = '#e11d48'; ctx.lineWidth = 1.8; ctx.stroke();
+      });
+
+      // Sculpted Tapered Obsidian Breastplate
+      ctx.beginPath();
+      ctx.moveTo(54, 74 + b); ctx.lineTo(146, 74 + b); ctx.lineTo(132, 144 + b); ctx.lineTo(100, 154 + b); ctx.lineTo(68, 144 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 54, 74, 146, 154, [[0, '#64748b'], [0.42, '#1e293b'], [1, '#090b12']]);
+      ctx.fill(); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2.2; ctx.stroke();
+      // Ribbed dark gold chest lines
+      ctx.strokeStyle = 'rgba(251,191,36,0.55)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(64, 86 + b); ctx.lineTo(100, 102 + b); ctx.lineTo(136, 86 + b); ctx.stroke();
+
+      // Spiked Abyssal Shoulder Pauldrons
+      [-1, 1].forEach((dir) => {
+        ctx.save();
+        ctx.translate(100 + dir * 48, 80 + b);
+        ctx.scale(dir, 1);
+        ctx.beginPath();
+        ctx.moveTo(-16, 12); ctx.lineTo(-10, -14); ctx.lineTo(18, -22); ctx.lineTo(28, -4); ctx.lineTo(16, 16); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, -14, -20, 26, 16, [[0, '#94a3b8'], [0.45, '#1e293b'], [1, '#090b12']]);
+        ctx.fill(); ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 2.4; ctx.stroke();
+        ctx.restore();
+      });
+
+      // Pulsing Crimson Abyssal Heart Core
+      ctx.shadowColor = '#f43f5e'; ctx.shadowBlur = 18;
+      ctx.beginPath(); ctx.moveTo(100, 92 + b); ctx.lineTo(114, 110 + b); ctx.lineTo(100, 128 + b); ctx.lineTo(86, 110 + b); ctx.closePath();
+      ctx.fillStyle = radGrad(ctx, 100, 110 + b, 2, 100, 110 + b, 18, [[0, '#ffffff'], [0.4, f ? '#fda4af' : '#fb7185'], [1, '#be123c']]);
+      ctx.fill(); ctx.shadowBlur = 0;
+
+      // Horned Obsidian Sovereign Crown Helm
+      [-1, 1].forEach((dir) => {
+        ctx.beginPath(); ctx.moveTo(100 + dir * 20, 42 + b); ctx.quadraticCurveTo(100 + dir * 56, 30 + b, 100 + dir * 48, 6 + b);
+        ctx.quadraticCurveTo(100 + dir * 36, 22 + b, 100 + dir * 18, 26 + b); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 100, 6, 100 + dir * 50, 42, [[0, '#f8fafc'], [1, '#64748b']]);
+        ctx.fill(); ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2.4; ctx.stroke();
+      });
+      ctx.beginPath();
+      ctx.moveTo(72, 32 + b); ctx.quadraticCurveTo(100, 12 + b, 128, 32 + b);
+      ctx.lineTo(123, 66 + b); ctx.lineTo(100, 78 + b); ctx.lineTo(77, 66 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 72, 16, 128, 76, [[0, '#64748b'], [0.45, '#1e293b'], [1, '#090b12']]);
+      ctx.fill(); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2.4; ctx.stroke();
+      // Visor Slit & Burning Crimson Eyes
+      ctx.beginPath(); ctx.moveTo(80, 46 + b); ctx.lineTo(120, 46 + b); ctx.lineTo(116, 56 + b); ctx.lineTo(84, 56 + b); ctx.closePath();
+      ctx.fillStyle = '#07040a'; ctx.fill();
+      ctx.shadowColor = '#f43f5e'; ctx.shadowBlur = 12; ctx.fillStyle = '#ff2e55';
+      ctx.beginPath(); ctx.ellipse(90, 51 + b, 6.5, 2.8, 0.2, 0, Math.PI * 2); ctx.ellipse(110, 51 + b, 6.5, 2.8, -0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Colossal Flaming Runed Abyssal Greatsword
+      ctx.save();
+      ctx.translate(166, 104 + b);
+      ctx.rotate(0.12);
+      ctx.shadowColor = '#f43f5e'; ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.moveTo(0, -98); ctx.lineTo(14, -70); ctx.lineTo(10, 26); ctx.lineTo(-10, 26); ctx.lineTo(-14, -70); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, -14, -98, 14, 26, [[0, '#fff1f2'], [0.35, '#fb7185'], [0.68, '#334155'], [1, '#0f172a']]);
+      ctx.fill(); ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#fda4af'; ctx.lineWidth = 2; ctx.stroke();
+      // Winged Abyssal Crossguard
+      ctx.beginPath(); ctx.moveTo(-26, 20); ctx.lineTo(-10, 30); ctx.lineTo(10, 30); ctx.lineTo(26, 20); ctx.lineTo(10, 21); ctx.lineTo(-10, 21); ctx.closePath();
+      ctx.fillStyle = '#eab308'; ctx.fill();
+      rrect(ctx, -5, 30, 10, 22, 3); ctx.fillStyle = '#4c0519'; ctx.fill();
+      ctx.restore();
+
       return c;
     };
-    sprites.monsters.vargas = [makeVargas(0), makeVargas(1)];
+    sprites.monsters.vargas = [makeVargasHD(0), makeVargasHD(1)];
 
     return sprites;
   }

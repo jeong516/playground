@@ -35,7 +35,8 @@
       this.ctx = this.canvas.getContext('2d');
       this.viewW = 480;
       this.viewH = 360;
-      this.ctx.imageSmoothingEnabled = false;
+      this.ctx.imageSmoothingEnabled = true;
+      this.ctx.imageSmoothingQuality = 'high';
 
       this.audio = new global.RetroAudio();
       this.sprites = global.buildSprites();
@@ -104,7 +105,7 @@
       const mapH = 18 * TILE; // 432
       let targetW, targetH;
       if (aspect < 1) {
-        // Portrait modern smartphone (e.g. 19.5:9 / 20:9): fill 100% height up to mapH!
+        // Portrait modern smartphone (e.g. 19.5:9 / 20:9): fill 100% height up to mapH
         targetH = Math.min(mapH - 4, 412);
         targetW = clamp(Math.round(targetH * aspect), 180, mapW);
       } else {
@@ -112,12 +113,16 @@
         targetH = clamp(Math.round(rect.height <= 460 ? 250 : 340), 220, mapH - 4);
         targetW = clamp(Math.round(targetH * aspect), 280, mapW);
       }
-      if (this.viewW !== targetW || this.viewH !== targetH) {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+      const backW = Math.max(320, Math.round(rect.width * dpr));
+      const backH = Math.max(320, Math.round(rect.height * dpr));
+      if (this.viewW !== targetW || this.viewH !== targetH || this.canvas.width !== backW || this.canvas.height !== backH) {
         this.viewW = targetW;
         this.viewH = targetH;
-        this.canvas.width = targetW;
-        this.canvas.height = targetH;
-        this.ctx.imageSmoothingEnabled = false;
+        this.canvas.width = backW;
+        this.canvas.height = backH;
+        this.ctx.imageSmoothingEnabled = true;
+        this.ctx.imageSmoothingQuality = 'high';
         if (this.hero) this.updateCamera(true);
       }
     }
@@ -203,12 +208,13 @@
         card.dataset.classId = cls.id;
 
         const preview = document.createElement('canvas');
-        preview.width = 28;
-        preview.height = 28;
+        preview.width = 144;
+        preview.height = 144;
         preview.className = 'class-preview';
         const pctx = preview.getContext('2d');
-        pctx.imageSmoothingEnabled = false;
-        pctx.drawImage(this.sprites.heroes[cls.id].idle, 0, 0);
+        pctx.imageSmoothingEnabled = true;
+        pctx.imageSmoothingQuality = 'high';
+        pctx.drawImage(this.sprites.heroes[cls.id].portrait || this.sprites.heroes[cls.id].idle, 0, 0, 144, 144);
 
         card.innerHTML = `
           <div class="class-head">
@@ -246,10 +252,14 @@
 
     drawHudPortrait() {
       if (!this.hero || !this.el.hudPortrait) return;
+      const w = this.el.hudPortrait.width || 96;
+      const h = this.el.hudPortrait.height || 96;
       const pctx = this.el.hudPortrait.getContext('2d');
-      pctx.clearRect(0, 0, 28, 28);
-      pctx.imageSmoothingEnabled = false;
-      pctx.drawImage(this.sprites.heroes[this.hero.classId].idle, 0, 0);
+      pctx.clearRect(0, 0, w, h);
+      pctx.imageSmoothingEnabled = true;
+      pctx.imageSmoothingQuality = 'high';
+      const src = this.sprites.heroes[this.hero.classId].portrait || this.sprites.heroes[this.hero.classId].idle;
+      pctx.drawImage(src, 0, 0, w, h);
     }
 
     // --- HERO & STATS ---
@@ -1464,9 +1474,27 @@
       }
     }
 
-    // --- CANVAS RENDERING ---
+    // Helper: smooth rounded pill path (zero sharp pixel boxes)
+    roundPill(ctx, x, y, w, h, r) {
+      const rad = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + rad, y);
+      ctx.arcTo(x + w, y, x + w, y + h, rad);
+      ctx.arcTo(x + w, y + h, x, y + h, rad);
+      ctx.arcTo(x, y + h, x, y, rad);
+      ctx.arcTo(x, y, x + w, y, rad);
+      ctx.closePath();
+    }
+
+    // --- CANVAS RENDERING (FULL RETINA HiDPI) ---
     render() {
       const ctx = this.ctx;
+      const scaleX = this.canvas.width / this.viewW;
+      const scaleY = this.canvas.height / this.viewH;
+      ctx.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
       ctx.fillStyle = '#141922';
       ctx.fillRect(0, 0, this.viewW, this.viewH);
 
@@ -1477,7 +1505,7 @@
       const sy = this.shakeTimer > 0 ? (Math.random() * 2 - 1) * this.shakeMag : 0;
 
       ctx.save();
-      ctx.translate(-Math.round(this.camX + sx), -Math.round(this.camY + sy));
+      ctx.translate(-(this.camX + sx), -(this.camY + sy));
 
       const waterFrame = Math.floor(this.time * 2.5) % 2;
       for (let ty = 0; ty < map.layout.length; ty++) {
@@ -1489,7 +1517,7 @@
           else if (ch === '_' || ch === '*' || ch === '#') base = this.sprites.tiles.ruinFloor;
           else if (ch === 'a' || ch === 'X') base = this.sprites.tiles.altarFloor;
           else if (ch === 'c' || ch === 'F') base = this.sprites.tiles.cobble;
-          ctx.drawImage(base, px, py, TILE, TILE);
+          ctx.drawImage(base, px, py, TILE + 0.4, TILE + 0.4);
 
           const tileMap = {
             ',': this.sprites.tiles.flower, 'p': this.sprites.tiles.path, 'c': this.sprites.tiles.cobble,
@@ -1499,21 +1527,30 @@
             'F': waterFrame ? this.sprites.tiles.fountain1 : this.sprites.tiles.fountain0,
             '#': this.sprites.tiles.wall, '*': this.sprites.tiles.ruinRune, 'X': this.sprites.tiles.altarWall
           };
-          if (tileMap[ch]) ctx.drawImage(tileMap[ch], px, py, TILE, TILE);
+          if (tileMap[ch]) ctx.drawImage(tileMap[ch], px, py, TILE + 0.4, TILE + 0.4);
         }
       }
 
-      // Portals with rotating arcane ring
+      // Portals with luminous arcane ring & sleek glass pill label
       for (const p of map.portals || []) {
         const px = p.tx * TILE, py = p.ty * TILE, pulse = 0.65 + Math.sin(this.time * 4.5) * 0.25;
         ctx.save();
-        ctx.fillStyle = `rgba(96, 165, 250, ${pulse * 0.35})`;
-        ctx.beginPath(); ctx.arc(px, py, 12 + Math.sin(this.time * 4) * 2, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#93c5fd'; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+        const pg = ctx.createRadialGradient(px, py, 2, px, py, 14);
+        pg.addColorStop(0, `rgba(186, 230, 253, ${pulse * 0.7})`);
+        pg.addColorStop(0.6, `rgba(96, 165, 250, ${pulse * 0.35})`);
+        pg.addColorStop(1, 'rgba(96, 165, 250, 0)');
+        ctx.fillStyle = pg;
+        ctx.beginPath(); ctx.arc(px, py, 14, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(147, 197, 253, 0.9)'; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.arc(px, py, 10 + Math.sin(this.time * 4) * 1.5, 0, Math.PI * 2); ctx.stroke();
+
+        ctx.font = '700 8px -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif';
+        ctx.textAlign = 'center';
         const w = ctx.measureText(p.label).width + 10;
-        ctx.fillStyle = 'rgba(14,16,22,0.82)'; ctx.fillRect(px - w / 2, py - 24, w, 13);
-        ctx.fillStyle = '#fde68a'; ctx.fillText(p.label, px, py - 14);
+        this.roundPill(ctx, px - w / 2, py - 24, w, 12, 6);
+        ctx.fillStyle = 'rgba(13, 16, 24, 0.78)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.45)'; ctx.lineWidth = 0.7; ctx.stroke();
+        ctx.fillStyle = '#fef3c7'; ctx.fillText(p.label, px, py - 15.5);
         ctx.restore();
       }
 
@@ -1524,9 +1561,9 @@
       // Target Lock Indicator Ring under nearest enemy in melee reach
       if (this.lockedTarget && this.lockedTarget.hp > 0) {
         const t = this.lockedTarget;
-        const r = t.size * 0.44 + Math.sin(this.time * 8) * 1.5;
+        const r = t.size * 0.48 + Math.sin(this.time * 8) * 1.4;
         ctx.save();
-        ctx.strokeStyle = 'rgba(251, 113, 133, 0.85)';
+        ctx.strokeStyle = 'rgba(251, 113, 133, 0.9)';
         ctx.lineWidth = 1.6;
         ctx.beginPath(); ctx.ellipse(t.x, t.y + t.size * 0.34, r, r * 0.42, 0, 0, Math.PI * 2); ctx.stroke();
         ctx.restore();
@@ -1535,24 +1572,33 @@
       for (const t of this.telegraphs) {
         const prog = 1 - t.timer / t.maxTimer;
         ctx.save();
-        ctx.fillStyle = `rgba(244, 63, 94, ${0.18 + prog * 0.28})`;
+        ctx.fillStyle = `rgba(244, 63, 94, ${0.16 + prog * 0.26})`;
         ctx.beginPath(); ctx.arc(t.x, t.y, t.radius, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#fb7185'; ctx.lineWidth = 1.5; ctx.stroke();
-        ctx.fillStyle = 'rgba(244, 63, 94, 0.35)';
+        ctx.strokeStyle = '#fb7185'; ctx.lineWidth = 1.4; ctx.stroke();
+        ctx.fillStyle = 'rgba(244, 63, 94, 0.34)';
         ctx.beginPath(); ctx.arc(t.x, t.y, t.radius * prog, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }
 
+      // Glowing Gold Coins & Faceted Loot Gems
       for (const d of this.drops) {
         const bob = Math.sin(this.time * 6 + d.x) * 2;
+        ctx.save();
         if (d.kind === 'gold') {
-          ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(d.x, d.y + bob, 4, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = '#fef08a'; ctx.fillRect(d.x - 1, d.y + bob - 2, 2, 2);
+          ctx.fillStyle = 'rgba(251,191,36,0.32)';
+          ctx.beginPath(); ctx.arc(d.x, d.y + bob, 6, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#f59e0b'; ctx.beginPath(); ctx.arc(d.x, d.y + bob, 3.8, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.arc(d.x - 1, d.y + bob - 1, 1.4, 0, Math.PI * 2); ctx.fill();
         } else {
-          ctx.fillStyle = DATA.RARITY[DATA.ITEMS[d.itemId].rarity].color;
-          ctx.fillRect(d.x - 4, d.y + bob - 4, 8, 8);
-          ctx.strokeStyle = '#14161f'; ctx.lineWidth = 1; ctx.strokeRect(d.x - 4, d.y + bob - 4, 8, 8);
+          const col = DATA.RARITY[DATA.ITEMS[d.itemId].rarity].color;
+          ctx.fillStyle = col;
+          ctx.beginPath();
+          ctx.moveTo(d.x, d.y + bob - 5); ctx.lineTo(d.x + 4.5, d.y + bob);
+          ctx.lineTo(d.x, d.y + bob + 5); ctx.lineTo(d.x - 4.5, d.y + bob); ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 0.8; ctx.stroke();
         }
+        ctx.restore();
       }
 
       const renderables = [];
@@ -1568,26 +1614,38 @@
 
       for (const pr of this.projectiles) {
         ctx.save();
+        ctx.shadowColor = pr.color; ctx.shadowBlur = 6;
         ctx.fillStyle = pr.color; ctx.beginPath(); ctx.arc(pr.x, pr.y, pr.radius * 0.78, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(pr.x, pr.y, pr.radius * 0.35, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(pr.x, pr.y, pr.radius * 0.38, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
       }
 
       this.drawEffects(ctx);
 
+      // Smooth Luminous Circular Particles (Zero Square Pixels)
       for (const p of this.particles) {
         ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
-        ctx.fillStyle = p.color; ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(1.2, p.size * 0.55), 0, Math.PI * 2);
+        ctx.fill();
       }
       ctx.globalAlpha = 1;
 
+      // Crisp Outlined Modern Floating Combat Numbers
       for (const ft of this.floatTexts) {
         ctx.save();
         ctx.globalAlpha = clamp(ft.life / ft.maxLife, 0, 1);
-        ctx.font = ft.big ? 'bold 12px sans-serif' : 'bold 10px sans-serif';
+        ctx.font = ft.big
+          ? '900 11.5px -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif'
+          : '800 9.5px -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillText(ft.text, ft.x + 1, ft.y + 1);
-        ctx.fillStyle = ft.color; ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = 2.4;
+        ctx.strokeStyle = 'rgba(10, 12, 18, 0.88)';
+        ctx.strokeText(ft.text, ft.x, ft.y);
+        ctx.fillStyle = ft.color;
+        ctx.fillText(ft.text, ft.x, ft.y);
         ctx.restore();
       }
 
@@ -1608,14 +1666,14 @@
       const map = DATA.MAPS.town, waterFrame = Math.floor(this.time * 2.5) % 2;
       const maxOx = Math.max(0, map.layout[0].length * TILE - this.viewW);
       const maxOy = Math.max(0, map.layout.length * TILE - this.viewH);
-      const ox = Math.round(clamp(maxOx * 0.5 + Math.sin(this.time * 0.35) * Math.min(36, maxOx * 0.45), 0, maxOx));
-      const oy = Math.round(clamp(maxOy * 0.5 + Math.cos(this.time * 0.25) * Math.min(20, maxOy * 0.45), 0, maxOy));
+      const ox = clamp(maxOx * 0.5 + Math.sin(this.time * 0.35) * Math.min(36, maxOx * 0.45), 0, maxOx);
+      const oy = clamp(maxOy * 0.5 + Math.cos(this.time * 0.25) * Math.min(20, maxOy * 0.45), 0, maxOy);
       ctx.save(); ctx.translate(-ox, -oy);
       for (let ty = 0; ty < map.layout.length; ty++) {
         const row = map.layout[ty];
         for (let tx = 0; tx < row.length; tx++) {
           const ch = row[tx], px = tx * TILE, py = ty * TILE;
-          ctx.drawImage(ch === 'c' || ch === 'F' ? this.sprites.tiles.cobble : this.sprites.tiles.grass, px, py, TILE, TILE);
+          ctx.drawImage(ch === 'c' || ch === 'F' ? this.sprites.tiles.cobble : this.sprites.tiles.grass, px, py, TILE + 0.4, TILE + 0.4);
           const tileMap = {
             ',': this.sprites.tiles.flower, 'p': this.sprites.tiles.path, 'c': this.sprites.tiles.cobble,
             '~': waterFrame ? this.sprites.tiles.water1 : this.sprites.tiles.water0,
@@ -1623,39 +1681,49 @@
             'W': this.sprites.tiles.houseWall, 'd': this.sprites.tiles.houseDoor,
             'F': waterFrame ? this.sprites.tiles.fountain1 : this.sprites.tiles.fountain0
           };
-          if (tileMap[ch]) ctx.drawImage(tileMap[ch], px, py, TILE, TILE);
+          if (tileMap[ch]) ctx.drawImage(tileMap[ch], px, py, TILE + 0.4, TILE + 0.4);
         }
       }
       ctx.restore();
+      // Soft glowing firefly motes
       for (let i = 0; i < 24; i++) {
-        const x = (i * 53 + this.time * 16) % this.viewW, y = (i * 29 + Math.sin(this.time + i) * 6) % this.viewH;
-        ctx.fillStyle = i % 2 === 0 ? 'rgba(253, 224, 71, 0.55)' : 'rgba(255,255,255,0.35)';
-        ctx.fillRect(x, y, 2, 2);
+        const x = (i * 53 + this.time * 14) % this.viewW;
+        const y = (i * 29 + Math.sin(this.time + i) * 7) % this.viewH;
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(253, 224, 71, 0.52)' : 'rgba(224, 242, 254, 0.38)';
+        ctx.beginPath(); ctx.arc(x, y, i % 3 === 0 ? 1.8 : 1.1, 0, Math.PI * 2); ctx.fill();
       }
     }
 
     drawNpc(ctx, npc) {
-      const x = npc.tx * TILE, y = npc.ty * TILE, bob = Math.sin(this.time * 3 + x) * 1.1;
-      ctx.fillStyle = 'rgba(0,0,0,0.35)';
-      ctx.beginPath(); ctx.ellipse(x, y + 10, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.drawImage(this.sprites.npcs[npc.sprite], x - 14, y - 16 + bob, 28, 28);
+      const x = npc.tx * TILE, y = npc.ty * TILE, bob = Math.sin(this.time * 3 + x) * 1.0;
+      ctx.fillStyle = 'rgba(0,0,0,0.34)';
+      ctx.beginPath(); ctx.ellipse(x, y + 11, 10, 4.2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.drawImage(this.sprites.npcs[npc.sprite], x - 16, y - 20 + bob, 32, 32);
 
-      ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
-      const nw = ctx.measureText(npc.name).width + 8;
-      ctx.fillStyle = 'rgba(14,16,22,0.72)'; ctx.fillRect(x - nw / 2, y - 28, nw, 12);
-      ctx.fillStyle = '#fef3c7'; ctx.fillText(npc.name, x, y - 19);
+      // Sleek frosted rounded nameplate pill
+      ctx.save();
+      ctx.font = '700 7.5px -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif';
+      ctx.textAlign = 'center';
+      const nw = ctx.measureText(npc.name).width + 9;
+      this.roundPill(ctx, x - nw / 2, y - 30, nw, 11, 5.5);
+      ctx.fillStyle = 'rgba(13, 16, 24, 0.76)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)'; ctx.lineWidth = 0.6; ctx.stroke();
+      ctx.fillStyle = '#fef3c7'; ctx.fillText(npc.name, x, y - 22);
 
       if (npc.role === 'quest') {
         let mark = null, col = '#fde047';
         if (this.hero.questState === 'available') { mark = '!'; col = '#fde047'; }
         else if (this.hero.questState === 'ready') { mark = '?'; col = '#4ade80'; }
         if (mark) {
-          const mb = Math.sin(this.time * 6) * 2.5;
-          ctx.font = 'bold 14px sans-serif';
-          ctx.fillStyle = '#000'; ctx.fillText(mark, x + 1, y - 31 + mb);
-          ctx.fillStyle = col; ctx.fillText(mark, x, y - 32 + mb);
+          const mb = Math.sin(this.time * 6) * 2.2;
+          ctx.fillStyle = 'rgba(13, 16, 24, 0.85)';
+          ctx.beginPath(); ctx.arc(x, y - 38 + mb, 6.5, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = col; ctx.lineWidth = 1.2; ctx.stroke();
+          ctx.font = '900 9.5px -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.fillStyle = col; ctx.fillText(mark, x, y - 34.8 + mb);
         }
       }
+      ctx.restore();
     }
 
     drawHero(ctx) {
@@ -1666,52 +1734,66 @@
         Math.hypot(this.stickX, this.stickY) > 0.12;
       const walkF = moving && Math.floor(h.walkAnim) % 2 === 1;
       const spr = h.dir === 'left' ? (walkF ? set.walkLeft : set.idleLeft) : (walkF ? set.walk : set.idle);
-      const breath = moving ? 0 : Math.sin(this.time * 3.5) * 0.8;
+      const breath = moving ? Math.abs(Math.sin(h.walkAnim * Math.PI)) * -1.2 : Math.sin(this.time * 3.5) * 0.8;
 
-      ctx.fillStyle = 'rgba(0,0,0,0.42)';
-      ctx.beginPath(); ctx.ellipse(h.x, h.y + 10, 9, 4, 0, 0, Math.PI * 2); ctx.fill();
+      // Ground contact shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.beginPath(); ctx.ellipse(h.x, h.y + 11, 11, 4.5, 0, 0, Math.PI * 2); ctx.fill();
 
       if (h.buffDefTimer > 0) {
-        ctx.strokeStyle = 'rgba(96, 165, 250, 0.85)'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(h.x, h.y, 16 + Math.sin(this.time * 8), 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(96, 165, 250, 0.85)'; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.arc(h.x, h.y, 18 + Math.sin(this.time * 8), 0, Math.PI * 2); ctx.stroke();
       }
       if (h.buffSpdTimer > 0) {
-        ctx.strokeStyle = 'rgba(52, 211, 153, 0.85)'; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(h.x, h.y, 18, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.85)'; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.arc(h.x, h.y, 20, 0, Math.PI * 2); ctx.stroke();
       }
 
+      ctx.save();
+      ctx.translate(h.x, h.y - 2 + breath);
+      // Dynamic attack lean & subtle dash squash
+      if (h.attackTimer > 0) {
+        const lean = (h.dir === 'left' ? -1 : 1) * (h.attackTimer / 0.16) * 0.18;
+        ctx.rotate(lean);
+        ctx.scale(1.06, 0.96);
+      }
       if (h.invulnTimer > 0 && Math.floor(this.time * 24) % 2 === 0) ctx.globalAlpha = 0.5;
-      ctx.drawImage(spr, h.x - 14, h.y - 16 + breath, 28, 28);
-      ctx.globalAlpha = 1;
+      ctx.drawImage(spr, -18, -21, 36, 36);
+      ctx.restore();
     }
 
     drawMonster(ctx, m) {
       const def = DATA.MONSTERS[m.typeId], frames = this.sprites.monsters[m.typeId];
       const spr = frames[Math.floor(m.anim) % frames.length];
-      const drawSize = def.isFinalBoss ? 44 : (def.isBoss ? 38 : Math.max(26, def.size + 4));
+      const drawSize = def.isFinalBoss ? 56 : (def.isBoss ? 44 : Math.max(30, def.size + 8));
 
-      ctx.fillStyle = 'rgba(0,0,0,0.4)';
-      ctx.beginPath(); ctx.ellipse(m.x, m.y + drawSize * 0.36, drawSize * 0.34, 4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.38)';
+      ctx.beginPath(); ctx.ellipse(m.x, m.y + drawSize * 0.34, drawSize * 0.32, 4.2, 0, 0, Math.PI * 2); ctx.fill();
 
       ctx.save();
-      if (m.hitFlash > 0) ctx.globalAlpha = 0.65;
-      ctx.drawImage(spr, m.x - drawSize / 2, m.y - drawSize / 2 - 2, drawSize, drawSize);
+      if (m.hitFlash > 0) ctx.globalAlpha = 0.7;
+      ctx.drawImage(spr, m.x - drawSize / 2, m.y - drawSize / 2 - 3, drawSize, drawSize);
       if (m.hitFlash > 0) {
-        ctx.globalAlpha = 0.55; ctx.fillStyle = '#ffffff';
+        ctx.globalAlpha = 0.5; ctx.fillStyle = '#ffffff';
         ctx.beginPath(); ctx.arc(m.x, m.y - 2, drawSize * 0.32, 0, Math.PI * 2); ctx.fill();
       } else if (m.slowTimer > 0) {
-        ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.6;
         ctx.beginPath(); ctx.arc(m.x, m.y, drawSize * 0.42, 0, Math.PI * 2); ctx.stroke();
       }
       ctx.restore();
 
       if (!def.isBoss && m.hp < m.maxHp) {
-        const bw = 24;
-        ctx.fillStyle = 'rgba(10,11,15,0.85)'; ctx.fillRect(m.x - bw / 2, m.y - drawSize / 2 - 6, bw, 4);
-        ctx.fillStyle = '#ef4444'; ctx.fillRect(m.x - bw / 2 + 1, m.y - drawSize / 2 - 5, Math.max(0, (bw - 2) * (m.hp / m.maxHp)), 2);
+        const bw = 26, bh = 3.8, bx = m.x - bw / 2, by = m.y - drawSize / 2 - 5;
+        this.roundPill(ctx, bx, by, bw, bh, 2);
+        ctx.fillStyle = 'rgba(10, 12, 18, 0.82)'; ctx.fill();
+        const fw = Math.max(0, (bw - 1.6) * (m.hp / m.maxHp));
+        if (fw > 0.5) {
+          this.roundPill(ctx, bx + 0.8, by + 0.8, fw, bh - 1.6, 1.5);
+          ctx.fillStyle = '#fb7185'; ctx.fill();
+        }
       }
       if (m.stunTimer > 0) {
-        ctx.fillStyle = '#fde047'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillStyle = '#fde047'; ctx.font = '800 10px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText('★', m.x, m.y - drawSize / 2 - 8);
       }
     }
@@ -1722,19 +1804,30 @@
         ctx.save();
         if (ef.type === 'slash') {
           ctx.translate(ef.x, ef.y); ctx.rotate(ef.angle);
-          ctx.globalAlpha = 1 - p; ctx.strokeStyle = ef.color; ctx.lineWidth = ef.heavy ? 6.5 : 4.5; ctx.lineCap = 'round';
-          const start = -1.1 * ef.flip, end = (-1.1 + 2.2 * Math.min(1, p * 1.45)) * ef.flip;
-          ctx.beginPath(); ctx.arc(0, 0, ef.radius * 0.7, Math.min(start, end), Math.max(start, end)); ctx.stroke();
-          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = ef.heavy ? 2.5 : 1.5;
+          ctx.globalAlpha = 1 - p;
+          ctx.shadowColor = ef.color; ctx.shadowBlur = 8;
+          ctx.strokeStyle = ef.color; ctx.lineWidth = ef.heavy ? 7 : 5; ctx.lineCap = 'round';
+          const start = -1.15 * ef.flip, end = (-1.15 + 2.3 * Math.min(1, p * 1.45)) * ef.flip;
           ctx.beginPath(); ctx.arc(0, 0, ef.radius * 0.72, Math.min(start, end), Math.max(start, end)); ctx.stroke();
+          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = ef.heavy ? 2.6 : 1.7;
+          ctx.beginPath(); ctx.arc(0, 0, ef.radius * 0.74, Math.min(start, end), Math.max(start, end)); ctx.stroke();
         } else if (ef.type === 'ring') {
-          ctx.globalAlpha = 1 - p; ctx.strokeStyle = ef.color; ctx.lineWidth = 3.5;
+          ctx.globalAlpha = 1 - p;
+          ctx.shadowColor = ef.color; ctx.shadowBlur = 8;
+          ctx.strokeStyle = ef.color; ctx.lineWidth = 3.5;
           ctx.beginPath(); ctx.arc(ef.x, ef.y, ef.maxRadius * (0.25 + p * 0.75), 0, Math.PI * 2); ctx.stroke();
         } else if (ef.type === 'pillar' || ef.type === 'levelup') {
           ctx.globalAlpha = 1 - p;
           const w = ef.type === 'levelup' ? 28 : 16;
-          ctx.fillStyle = ef.type === 'levelup' ? '#fde047' : ef.color; ctx.fillRect(ef.x - w / 2, ef.y - 120, w, 130);
-          ctx.fillStyle = '#ffffff'; ctx.fillRect(ef.x - w / 4, ef.y - 120, w / 2, 130);
+          const col = ef.type === 'levelup' ? '#fde047' : ef.color;
+          const grad = ctx.createLinearGradient(ef.x - w / 2, 0, ef.x + w / 2, 0);
+          grad.addColorStop(0, 'rgba(255,255,255,0)');
+          grad.addColorStop(0.35, col);
+          grad.addColorStop(0.5, '#ffffff');
+          grad.addColorStop(0.65, col);
+          grad.addColorStop(1, 'rgba(255,255,255,0)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(ef.x - w / 2, ef.y - 120, w, 130);
         }
         ctx.restore();
       }
