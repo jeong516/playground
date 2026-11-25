@@ -99,9 +99,19 @@
       if (!wrap) return;
       const rect = wrap.getBoundingClientRect();
       if (rect.width < 40 || rect.height < 40) return;
-      // On narrow mobile screens, use zoomed 280px logical width so characters are crisp and maps fill 100% edge-to-edge!
-      const targetW = rect.width <= 520 ? 280 : 480;
-      const targetH = clamp(Math.round(targetW * (rect.height / rect.width)), 220, 408);
+      const aspect = rect.width / rect.height;
+      const mapW = 24 * TILE; // 576
+      const mapH = 18 * TILE; // 432
+      let targetW, targetH;
+      if (aspect < 1) {
+        // Portrait modern smartphone (e.g. 19.5:9 / 20:9): fill 100% height up to mapH!
+        targetH = Math.min(mapH - 4, 412);
+        targetW = clamp(Math.round(targetH * aspect), 180, mapW);
+      } else {
+        // Landscape mobile / tablet / desktop
+        targetH = clamp(Math.round(rect.height <= 460 ? 250 : 340), 220, mapH - 4);
+        targetW = clamp(Math.round(targetH * aspect), 280, mapW);
+      }
       if (this.viewW !== targetW || this.viewH !== targetH) {
         this.viewW = targetW;
         this.viewH = targetH;
@@ -150,21 +160,23 @@
         hudBossName: document.getElementById('hudBossName'),
         hudBossHpTxt: document.getElementById('hudBossHpTxt'),
         hudBossFill: document.getElementById('hudBossFill'),
+        mapBanner: document.getElementById('mapBanner'),
+        mapBannerTitle: document.getElementById('mapBannerTitle'),
+        mapBannerSub: document.getElementById('mapBannerSub'),
+        // Settings popover
+        btnSettings: document.getElementById('btnSettings'),
+        settingsPopover: document.getElementById('settingsPopover'),
+        bgmState: document.getElementById('bgmState'),
+        sfxState: document.getElementById('sfxState'),
         // Controls
         skillSlots: document.getElementById('skillSlots'),
         mobileSkillSlots: document.getElementById('mobileSkillSlots'),
         btnPotHp: document.getElementById('btnPotHp'),
         btnPotMp: document.getElementById('btnPotMp'),
         btnScrollTown: document.getElementById('btnScrollTown'),
-        btnPotHpDesk: document.getElementById('btnPotHpDesk'),
-        btnPotMpDesk: document.getElementById('btnPotMpDesk'),
-        btnScrollTownDesk: document.getElementById('btnScrollTownDesk'),
         potHpCount: document.getElementById('potHpCount'),
         potMpCount: document.getElementById('potMpCount'),
         scrollCount: document.getElementById('scrollCount'),
-        potHpCountDesk: document.getElementById('potHpCountDesk'),
-        potMpCountDesk: document.getElementById('potMpCountDesk'),
-        scrollCountDesk: document.getElementById('scrollCountDesk'),
         dotStat: document.getElementById('dotStat'),
         dotSkill: document.getElementById('dotSkill'),
         btnBgm: document.getElementById('btnBgm'),
@@ -378,7 +390,12 @@
 
       this.bannerText = map.name;
       this.bannerSub = map.subtitle;
-      this.bannerTimer = 2.4;
+      this.bannerTimer = 2.6;
+      if (this.el.mapBanner) {
+        if (this.el.mapBannerTitle) this.el.mapBannerTitle.textContent = map.name;
+        if (this.el.mapBannerSub) this.el.mapBannerSub.textContent = map.subtitle;
+        this.el.mapBanner.classList.add('show');
+      }
       if (this.state === 'playing') this.audio.playBgm(map.bgm);
       this.updateCamera(true);
     }
@@ -468,6 +485,9 @@
 
       this.el.dialogBox.addEventListener('click', () => this.advanceDialog());
       this.el.modalClose.addEventListener('click', () => this.closeModal());
+      this.el.modalBackdrop.addEventListener('click', (e) => {
+        if (e.target === this.el.modalBackdrop) this.closeModal();
+      });
 
       const bindTap = (el, fn) => {
         if (!el) return;
@@ -476,9 +496,6 @@
       bindTap(this.el.btnPotHp, () => this.useQuickPotion('hp'));
       bindTap(this.el.btnPotMp, () => this.useQuickPotion('mp'));
       bindTap(this.el.btnScrollTown, () => this.useReturnScroll());
-      if (this.el.btnPotHpDesk) this.el.btnPotHpDesk.addEventListener('click', () => this.useQuickPotion('hp'));
-      if (this.el.btnPotMpDesk) this.el.btnPotMpDesk.addEventListener('click', () => this.useQuickPotion('mp'));
-      if (this.el.btnScrollTownDesk) this.el.btnScrollTownDesk.addEventListener('click', () => this.useReturnScroll());
 
       if (this.el.hudQuestPill) {
         this.el.hudQuestPill.addEventListener('click', () => {
@@ -488,21 +505,42 @@
 
       document.querySelectorAll('[data-open-menu]').forEach((btn) => {
         btn.addEventListener('click', () => {
+          if (this.el.settingsPopover) this.el.settingsPopover.classList.add('hidden');
           if (this.state === 'playing') this.openHeroModal(btn.dataset.openMenu);
         });
       });
+
+      if (this.el.btnSettings && this.el.settingsPopover) {
+        this.el.btnSettings.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.audio.playSfx('ui');
+          this.el.settingsPopover.classList.toggle('hidden');
+        });
+        document.addEventListener('pointerdown', (e) => {
+          if (!this.el.settingsPopover.classList.contains('hidden') &&
+              !this.el.settingsPopover.contains(e.target) &&
+              !this.el.btnSettings.contains(e.target)) {
+            this.el.settingsPopover.classList.add('hidden');
+          }
+        });
+      }
 
       this.el.btnBgm.addEventListener('click', () => {
         this.audio.init();
         const on = this.audio.toggleBgm();
         this.el.btnBgm.classList.toggle('active', on);
+        if (this.el.bgmState) this.el.bgmState.textContent = on ? 'ON' : 'OFF';
       });
       this.el.btnSfx.addEventListener('click', () => {
         this.audio.init();
         const on = this.audio.toggleSfx();
         this.el.btnSfx.classList.toggle('active', on);
+        if (this.el.sfxState) this.el.sfxState.textContent = on ? 'ON' : 'OFF';
       });
-      this.el.btnSave.addEventListener('click', () => { if (this.hero) this.saveGame(false); });
+      this.el.btnSave.addEventListener('click', () => {
+        if (this.hero) this.saveGame(false);
+        if (this.el.settingsPopover) this.el.settingsPopover.classList.add('hidden');
+      });
       this.el.btnPadMode.addEventListener('click', () => {
         this.audio.playSfx('ui');
         const next = this.padMode === 'joystick' ? 'keypad' : (this.padMode === 'keypad' ? 'off' : 'joystick');
@@ -1156,7 +1194,12 @@
     update(dt) {
       this.time += dt;
       if (this.shakeTimer > 0) this.shakeTimer = Math.max(0, this.shakeTimer - dt);
-      if (this.bannerTimer > 0) this.bannerTimer = Math.max(0, this.bannerTimer - dt);
+      if (this.bannerTimer > 0) {
+        this.bannerTimer = Math.max(0, this.bannerTimer - dt);
+        if (this.bannerTimer === 0 && this.el.mapBanner) {
+          this.el.mapBanner.classList.remove('show');
+        }
+      }
       if (!this.hero) return;
 
       this.syncHtmlHud();
@@ -1550,31 +1593,15 @@
 
       ctx.restore();
 
-      // Subtle atmospheric lighting vignette & map transition banner
-      const vig = ctx.createRadialGradient(this.viewW / 2, this.viewH / 2, this.viewH * 0.35, this.viewW / 2, this.viewH / 2, this.viewW * 0.78);
+      // Aspect-safe subtle atmospheric vignette (no oval ring artifact on portrait phones)
+      const vigOuter = Math.hypot(this.viewW, this.viewH) * 0.56;
+      const vigInner = Math.min(this.viewW, this.viewH) * 0.28;
+      const vig = ctx.createRadialGradient(this.viewW / 2, this.viewH / 2, vigInner, this.viewW / 2, this.viewH / 2, vigOuter);
       vig.addColorStop(0, 'rgba(0,0,0,0)');
-      vig.addColorStop(1, map.id === 'altar' ? 'rgba(35,5,12,0.42)' : (map.id === 'ruins' ? 'rgba(8,14,26,0.38)' : 'rgba(10,12,18,0.22)'));
+      vig.addColorStop(0.68, 'rgba(0,0,0,0)');
+      vig.addColorStop(1, map.id === 'altar' ? 'rgba(35,5,12,0.34)' : (map.id === 'ruins' ? 'rgba(8,14,26,0.3)' : 'rgba(8,10,16,0.18)'));
       ctx.fillStyle = vig;
       ctx.fillRect(0, 0, this.viewW, this.viewH);
-
-      if (this.bannerTimer > 0) {
-        const alpha = clamp(Math.min(1, this.bannerTimer, (2.4 - this.bannerTimer) * 3), 0, 1);
-        const bw = Math.min(232, this.viewW - 24);
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = 'rgba(15, 16, 22, 0.82)';
-        ctx.fillRect(this.viewW / 2 - bw / 2, this.viewH * 0.32, bw, 38);
-        ctx.strokeStyle = 'rgba(229, 188, 101, 0.75)';
-        ctx.strokeRect(this.viewW / 2 - bw / 2 + 0.5, this.viewH * 0.32 + 0.5, bw - 1, 37);
-        ctx.textAlign = 'center';
-        ctx.font = 'bold 13px sans-serif';
-        ctx.fillStyle = '#ffeaad';
-        ctx.fillText(this.bannerText, this.viewW / 2, this.viewH * 0.32 + 17);
-        ctx.font = '10px sans-serif';
-        ctx.fillStyle = '#c7c4ce';
-        ctx.fillText(this.bannerSub, this.viewW / 2, this.viewH * 0.32 + 31);
-        ctx.restore();
-      }
     }
 
     renderTitleBackdrop(ctx) {
@@ -1734,7 +1761,8 @@
         if (this.el.mobileSkillSlots) {
           const mbtn = document.createElement('button');
           mbtn.type = 'button';
-          mbtn.className = 'm-skill-btn' + (lv <= 0 ? ' locked' : '');
+          mbtn.dataset.slot = String(idx);
+          mbtn.className = 'arc-skill-btn' + (lv <= 0 ? ' locked' : '');
           mbtn.innerHTML = `<span class="ms-svg" style="color:${sk.color}">${svg}</span><span class="ms-name">${sk.name}</span><span class="slot-cd hidden" id="mSkillCd_${idx}"></span>`;
           mbtn.addEventListener('pointerdown', (e) => {
             e.preventDefault(); this.audio.init();
