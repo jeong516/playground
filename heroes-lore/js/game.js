@@ -718,8 +718,40 @@
         });
       }
 
+      // Secret Easter Egg: holding down the top-left hero portrait re-enables the classic duplicate-respawn glitch
+      this.portraitEasterEggHeld = false;
+      this.portraitPointerId = null;
+      this.portraitHoldStart = 0;
+      this.suppressNextMenuClickUntil = 0;
+      const portraitRing = this.el.hudPortrait ? this.el.hudPortrait.closest('.portrait-ring') : null;
+      if (portraitRing) {
+        const releasePortraitHold = (e) => {
+          if (!this.portraitEasterEggHeld) return;
+          if (e && this.portraitPointerId !== null && e.pointerId !== undefined && e.pointerId !== this.portraitPointerId) return;
+          const heldMs = performance.now() - (this.portraitHoldStart || 0);
+          this.portraitEasterEggHeld = false;
+          this.portraitPointerId = null;
+          portraitRing.classList.remove('egg-active');
+          if (heldMs >= 200) {
+            this.suppressNextMenuClickUntil = performance.now() + 380;
+          }
+        };
+        portraitRing.addEventListener('pointerdown', (e) => {
+          if (this.state !== 'playing') return;
+          this.portraitEasterEggHeld = true;
+          this.portraitPointerId = e.pointerId;
+          this.portraitHoldStart = performance.now();
+          portraitRing.classList.add('egg-active');
+        });
+        portraitRing.addEventListener('contextmenu', (e) => e.preventDefault());
+        window.addEventListener('pointerup', releasePortraitHold);
+        window.addEventListener('pointercancel', releasePortraitHold);
+        window.addEventListener('blur', () => releasePortraitHold());
+      }
+
       document.querySelectorAll('[data-open-menu]').forEach((btn) => {
         btn.addEventListener('click', () => {
+          if (btn.classList.contains('hero-pill') && performance.now() < this.suppressNextMenuClickUntil) return;
           if (this.el.settingsPopover) this.el.settingsPopover.classList.add('hidden');
           if (this.state === 'playing') this.openHeroModal(btn.dataset.openMenu);
         });
@@ -1473,6 +1505,7 @@
     }
 
     hitMonster(m, rawDmg, knock, ox, oy, forceCrit = false, stunSec = 0, slowSec = 0) {
+      if (!this.portraitEasterEggHeld && (m.hp <= 0 || m._dead)) return;
       const st = this.getHeroStats();
       const isCrit = forceCrit || Math.random() * 100 < st.crit;
       const dmg = Math.max(2, Math.round((rawDmg * (0.9 + Math.random() * 0.2) - m.def * 0.55) * (isCrit ? 1.65 : 1)));
@@ -1502,6 +1535,8 @@
     }
 
     killMonster(m) {
+      if (!this.portraitEasterEggHeld && m._dead) return;
+      m._dead = true;
       const def = DATA.MONSTERS[m.typeId];
       const map = DATA.MAPS[this.currentMapId];
       const expGain = m.exp || def.exp;
