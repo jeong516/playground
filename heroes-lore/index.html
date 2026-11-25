@@ -5,27 +5,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#141210" />
-  <title>영웅서기: 솔티아의 바람 — Mobile Web</title>
-  <meta name="description" content="모바일 터치 최적화 영웅서기 액션 RPG 웹앱. 가상 조이스틱, 피처폰 키패드, 실시간 3연타 콤보, 장비 강화/조합, 보스전을 스마트폰에서 바로 플레이하세요." />
+  <meta name="theme-color" content="#101114" />
+  <title>영웅서기: 솔티아의 바람</title>
+  <meta name="description" content="추억의 피처폰 액션 RPG 영웅서기: 솔티아의 바람 모바일 웹 에디션." />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=2" />
+  <link rel="stylesheet" href="style.css?v=3" />
 </head>
 <body>
   <div class="app-root">
+    <!-- Ultra-Clean Top Utility Strip -->
     <header class="top-bar">
       <div class="brand">
-        <div class="brand-crest">⚔️</div>
-        <div>
-          <h1>영웅서기 : 솔티아의 바람</h1>
-          <div class="brand-sub">Heroes Lore Retro Action RPG · Mobile &amp; Web</div>
-        </div>
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/></svg>
+        </span>
+        <h1>영웅서기 <span class="brand-sep">·</span> <span class="brand-sub-inline">솔티아의 바람</span></h1>
       </div>
       <div class="top-controls">
-        <button id="btnBgm" class="chip-btn active" type="button">🎵 BGM</button>
-        <button id="btnSfx" class="chip-btn active" type="button">🔊 효과</button>
-        <button id="btnSave" class="chip-btn" type="button">💾 저장</button>
-        <button id="btnPadMode" class="chip-btn active" type="button">🕹️ 조이스틱</button>
+        <button id="btnBgm" class="icon-chip active" type="button" title="배경음악">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          <span>BGM</span>
+        </button>
+        <button id="btnSfx" class="icon-chip active" type="button" title="효과음">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          <span>SFX</span>
+        </button>
+        <button id="btnSave" class="icon-chip" type="button" title="저장">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          <span>저장</span>
+        </button>
+        <button id="btnPadMode" class="icon-chip active" type="button" title="조작 전환">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 12h4"/><path d="M8 10v4"/><circle cx="15" cy="13" r="1"/><circle cx="18" cy="11" r="1"/></svg>
+          <span id="padModeLabel">조이스틱</span>
+        </button>
       </div>
     </header>
 
@@ -34,125 +46,210 @@
         <div class="viewport-wrap">
           <canvas id="gameCanvas" width="480" height="360"></canvas>
 
+          <!-- Retina-Sharp In-Game HUD Overlay -->
+          <div id="gameHud" class="hud-layer hidden">
+            <div class="hud-top">
+              <div class="hud-hero-card">
+                <div class="hud-portrait-wrap">
+                  <canvas id="hudPortrait" width="28" height="28"></canvas>
+                  <span id="hudLv" class="hud-lv">1</span>
+                </div>
+                <div class="hud-bars">
+                  <div class="hud-name-row">
+                    <span id="hudName" class="hud-name">기사 케인</span>
+                    <span id="hudGold" class="hud-gold">120 G</span>
+                  </div>
+                  <div class="bar-track hp-track">
+                    <div id="hudHpFill" class="bar-fill hp-fill" style="width:100%"></div>
+                    <span id="hudHpText" class="bar-label">HP 100/100</span>
+                  </div>
+                  <div class="bar-track mp-track">
+                    <div id="hudMpFill" class="bar-fill mp-fill" style="width:100%"></div>
+                    <span id="hudMpText" class="bar-label">MP 50/50</span>
+                  </div>
+                  <div class="bar-track exp-track">
+                    <div id="hudExpFill" class="bar-fill exp-fill" style="width:0%"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="hud-right-col">
+                <div class="hud-map-pill">
+                  <span class="map-dot"></span>
+                  <span id="hudMapName">솔티아 마을</span>
+                </div>
+                <div class="hud-menu-dock">
+                  <button class="hud-dock-btn" data-open-menu="status" type="button" title="상태/스탯 (C)">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span id="dotStat" class="notify-dot" style="display:none"></span>
+                  </button>
+                  <button class="hud-dock-btn" data-open-menu="bag" type="button" title="장비/가방 (I)">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                  </button>
+                  <button class="hud-dock-btn" data-open-menu="skills" type="button" title="스킬 (K)">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    <span id="dotSkill" class="notify-dot" style="display:none"></span>
+                  </button>
+                  <button class="hud-dock-btn" data-open-menu="quest" type="button" title="퀘스트 (J)">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <button id="hudQuestPill" class="hud-quest-pill" type="button">
+              <span class="q-badge">Q</span>
+              <span id="hudQuestText">촌장 엘더와 대화하세요</span>
+            </button>
+
+            <div id="hudBossBar" class="hud-boss-bar hidden">
+              <div class="boss-title-row">
+                <span id="hudBossName">보스</span>
+                <span id="hudBossHpTxt">100%</span>
+              </div>
+              <div class="boss-track">
+                <div id="hudBossFill" class="boss-fill" style="width:100%"></div>
+              </div>
+            </div>
+          </div>
+
           <!-- Title Screen -->
           <div id="titleScreen" class="overlay-screen">
-            <div class="title-emblem">HEROES LORE · MOBILE WEB</div>
-            <div class="title-logo">영웅서기</div>
-            <div class="title-sub">— 솔티아의 바람 —</div>
-            <div class="title-actions">
-              <button id="btnNewGame" class="rpg-btn" type="button">새 모험 시작</button>
-              <button id="btnContinue" class="rpg-btn secondary" type="button" disabled>이어하기</button>
+            <div class="title-card">
+              <div class="title-emblem">HEROES LORE · CHRONICLE</div>
+              <div class="title-logo">영웅서기</div>
+              <div class="title-sub">솔티아의 바람</div>
+              <div class="title-actions">
+                <button id="btnNewGame" class="rpg-btn primary" type="button">새 모험 시작</button>
+                <button id="btnContinue" class="rpg-btn secondary" type="button" disabled>이어하기</button>
+              </div>
             </div>
-            <div class="title-hint">모바일 멀티터치 조이스틱 · 피처폰 키패드 전환 지원</div>
           </div>
 
           <!-- Class Selection -->
           <div id="selectScreen" class="overlay-screen hidden">
-            <div class="title-emblem">SELECT YOUR HERO</div>
-            <h2 style="font-size:18px;color:#fce29a;margin-bottom:4px;">직업을 선택하세요</h2>
-            <div id="classGrid" class="class-grid"></div>
-            <div style="display:flex;gap:8px;">
-              <button id="btnBackTitle" class="rpg-btn secondary" type="button">뒤로</button>
-              <button id="btnStartAdventure" class="rpg-btn" type="button">솔티아로 출발 ⚔️</button>
+            <div class="select-wrap">
+              <div class="title-emblem">SELECT HERO</div>
+              <h2 class="select-heading">영웅을 선택하세요</h2>
+              <div id="classGrid" class="class-grid"></div>
+              <div class="select-footer">
+                <button id="btnBackTitle" class="rpg-btn secondary" type="button">뒤로</button>
+                <button id="btnStartAdventure" class="rpg-btn primary" type="button">솔티아로 출발</button>
+              </div>
             </div>
           </div>
 
           <!-- Game Over -->
           <div id="gameoverScreen" class="overlay-screen hidden">
-            <div class="title-emblem" style="color:#f87171;">DEFEATED</div>
-            <div class="title-logo" style="color:#fda4af;">전투 불능</div>
-            <div class="title-sub">소지금의 10%를 잃고 솔티아 마을에서 다시 일어납니다.</div>
-            <button id="btnRevive" class="rpg-btn" type="button">솔티아 마을에서 부활</button>
+            <div class="title-card">
+              <div class="title-emblem" style="color:#f87171;">DEFEATED</div>
+              <div class="title-logo" style="color:#fda4af;">전투 불능</div>
+              <div class="title-sub">소지금 10%를 잃고 솔티아 마을에서 부활합니다.</div>
+              <button id="btnRevive" class="rpg-btn primary" type="button">솔티아 마을에서 부활</button>
+            </div>
           </div>
 
           <!-- Victory -->
           <div id="victoryScreen" class="overlay-screen hidden">
-            <div class="title-emblem">HERO OF SOLTIA</div>
-            <div class="title-logo">솔티아의 영웅</div>
-            <div class="title-sub">심연의 기사 바르가스를 물리치고 대륙에 평화를 되찾았습니다!</div>
-            <button id="btnContinueAfterWin" class="rpg-btn" type="button">자유 모험 계속하기</button>
+            <div class="title-card">
+              <div class="title-emblem">LEGEND OF SOLTIA</div>
+              <div class="title-logo">솔티아의 영웅</div>
+              <div class="title-sub">심연의 기사 바르가스를 물리치고 평화를 되찾았습니다!</div>
+              <button id="btnContinueAfterWin" class="rpg-btn primary" type="button">자유 모험 계속하기</button>
+            </div>
           </div>
 
           <!-- Dialog Box -->
           <div id="dialogBox" class="dialog-box hidden" role="dialog" aria-live="polite">
             <div id="dialogSpeaker" class="dialog-speaker"></div>
             <div id="dialogText" class="dialog-text"></div>
-            <div class="dialog-next">▼ 터치 또는 OK / Space</div>
+            <div class="dialog-next">터치하여 계속 ▸</div>
           </div>
 
-          <!-- RPG Modal (Menu / Shop / Blacksmith) -->
+          <!-- RPG Modal (Status / Bag / Skills / Quest / Shop / Blacksmith) -->
           <div id="modalBackdrop" class="modal-backdrop hidden">
             <div class="rpg-modal">
               <div class="modal-header">
                 <div id="modalTabs" class="modal-tabs"></div>
-                <button id="modalClose" class="modal-close" type="button">닫기</button>
+                <button id="modalClose" class="modal-close" type="button" aria-label="닫기">✕</button>
               </div>
               <div id="modalBody" class="modal-body"></div>
             </div>
           </div>
         </div>
 
-        <!-- Quick Potion & Menu Strip -->
-        <div class="quick-bar">
-          <div id="skillSlots" class="quick-group desktop-skills-only"></div>
-
+        <!-- Desktop Compact Quick Bar (Hidden when Mobile Gamepad is active on phones) -->
+        <div class="desktop-quick-bar">
+          <div id="skillSlots" class="quick-group"></div>
           <div class="quick-group">
-            <button id="btnPotHp" class="slot-btn" type="button" title="HP 포션 (Q)">
+            <button id="btnPotHpDesk" class="slot-btn" type="button" title="HP 포션 (Q)">
               <span class="slot-key">Q</span>
-              <span class="slot-icon">🧪</span>
-              <span id="potHpCount" class="slot-label">x0</span>
+              <span class="slot-svg hp-col"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 3h6v2l-1 1v3.2l4.2 6.8A3 3 0 0 1 15.6 21H8.4a3 3 0 0 1-2.6-5L10 9.2V6L9 5V3z"/></svg></span>
+              <span id="potHpCountDesk" class="slot-label">0</span>
             </button>
-            <button id="btnPotMp" class="slot-btn" type="button" title="MP 포션 (E)">
+            <button id="btnPotMpDesk" class="slot-btn" type="button" title="MP 포션 (E)">
               <span class="slot-key">E</span>
-              <span class="slot-icon">💧</span>
-              <span id="potMpCount" class="slot-label">x0</span>
+              <span class="slot-svg mp-col"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2.5C12 2.5 5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.5 12 2.5z"/></svg></span>
+              <span id="potMpCountDesk" class="slot-label">0</span>
             </button>
-            <button id="btnScrollTown" class="slot-btn" type="button" title="마을 귀환 (R)">
+            <button id="btnScrollTownDesk" class="slot-btn" type="button" title="귀환 주문서 (R)">
               <span class="slot-key">R</span>
-              <span class="slot-icon">📜</span>
-              <span id="scrollCount" class="slot-label">x0</span>
+              <span class="slot-svg gold-col"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
+              <span id="scrollCountDesk" class="slot-label">0</span>
             </button>
-          </div>
-
-          <div class="menu-strip">
-            <button class="mini-menu-btn" data-open-menu="status" type="button">상태<span id="dotStat" class="notify-dot" style="display:none"></span></button>
-            <button class="mini-menu-btn" data-open-menu="bag" type="button">가방</button>
-            <button class="mini-menu-btn" data-open-menu="skills" type="button">스킬<span id="dotSkill" class="notify-dot" style="display:none"></span></button>
-            <button class="mini-menu-btn" data-open-menu="quest" type="button">퀘스트</button>
           </div>
         </div>
 
-        <!-- Mobile Multi-Touch Virtual Gamepad (Analog Stick + Right Action Cluster) -->
+        <!-- Sculpted Mobile Handheld Controller Deck -->
         <div id="mobileGamepad" class="mobile-gamepad" aria-label="모바일 터치 컨트롤러">
-          <div id="stickZone" class="stick-zone">
-            <div class="stick-base">
-              <div class="stick-arrows">
-                <span class="a-up">▲</span>
-                <span class="a-down">▼</span>
-                <span class="a-left">◀</span>
-                <span class="a-right">▶</span>
-              </div>
-              <div id="stickKnob" class="stick-knob"></div>
-            </div>
+          <!-- Top Slim Consumables Strip Inside Deck -->
+          <div class="deck-consumables">
+            <button id="btnPotHp" class="consumable-pill hp-pill" type="button">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M9 3h6v2l-1 1v3.2l4.2 6.8A3 3 0 0 1 15.6 21H8.4a3 3 0 0 1-2.6-5L10 9.2V6L9 5V3z"/></svg>
+              <span>HP</span>
+              <strong id="potHpCount">0</strong>
+            </button>
+            <button id="btnPotMp" class="consumable-pill mp-pill" type="button">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2.5C12 2.5 5.5 10 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 10 12 2.5 12 2.5z"/></svg>
+              <span>MP</span>
+              <strong id="potMpCount">0</strong>
+            </button>
+            <button id="btnScrollTown" class="consumable-pill town-pill" type="button">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span>마을귀환</span>
+              <strong id="scrollCount">0</strong>
+            </button>
           </div>
 
-          <div class="action-cluster">
-            <div id="mobileSkillSlots" class="mobile-skills-row"></div>
-            <div class="primary-actions-row">
-              <button id="btnMobileDash" class="dash-circle-btn" type="button">
-                <span style="font-size:18px;line-height:1;">💨</span>
-                <span>회피</span>
-              </button>
-              <button id="btnMobileAttack" class="attack-circle-btn" type="button">
-                <span id="mobileAtkIcon" class="atk-ico">⚔️</span>
-                <span id="mobileAtkLabel">공격</span>
-              </button>
+          <div class="deck-main">
+            <!-- Left Thumb: Sculpted Virtual Analog Stick -->
+            <div id="stickZone" class="stick-zone">
+              <div class="stick-ring">
+                <div id="stickKnob" class="stick-knob"></div>
+              </div>
+            </div>
+
+            <!-- Right Thumb: Skill Row + Dash + Primary Attack/Interact Orb -->
+            <div class="action-cluster">
+              <div id="mobileSkillSlots" class="mobile-skills-row"></div>
+              <div class="primary-actions-row">
+                <button id="btnMobileDash" class="dash-orb" type="button" aria-label="회피 대시">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/><path d="M2 8h5"/><path d="M2 16h5"/></svg>
+                  <span>회피</span>
+                </button>
+                <button id="btnMobileAttack" class="attack-orb" type="button" aria-label="공격 및 대화">
+                  <span id="mobileAtkIcon" class="atk-svg">
+                    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/></svg>
+                  </span>
+                  <span id="mobileAtkLabel">공격</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- Nostalgic Feature-Phone Keypad -->
+      <!-- Retro Feature-Phone Keypad Mode -->
       <aside id="phoneKeypad" class="phone-keypad hidden" aria-label="피처폰 키패드">
         <div class="phone-brand">SOLTIA MOBILE</div>
         <div class="dpad-area">
@@ -171,7 +268,7 @@
           <button class="num-btn" data-pad-action="s2" type="button"><strong>2</strong><span>스킬2</span></button>
           <button class="num-btn" data-pad-action="s3" type="button"><strong>3</strong><span>스킬3</span></button>
           <button class="num-btn" data-pad-action="hp" type="button"><strong>4</strong><span>HP포션</span></button>
-          <button class="num-btn" data-pad-action="attack" type="button"><strong>5</strong><span>공격/대화</span></button>
+          <button class="num-btn" data-pad-action="attack" type="button"><strong>5</strong><span>공격</span></button>
           <button class="num-btn" data-pad-action="mp" type="button"><strong>6</strong><span>MP포션</span></button>
           <button class="num-btn" data-pad-action="s4" type="button"><strong>7</strong><span>궁극기</span></button>
           <button class="num-btn" data-pad-action="dash" type="button"><strong>8</strong><span>회피</span></button>
@@ -181,14 +278,14 @@
     </main>
 
     <footer class="controls-footer">
-      <span><kbd>WASD</kbd>/<kbd>방향키</kbd> 이동 · <kbd>Space</kbd>/<kbd>Z</kbd> 3연타 공격 &amp; 대화 · <kbd>Shift</kbd>/<kbd>X</kbd> 회피 대시</span>
-      <span><kbd>1</kbd>~<kbd>4</kbd> 스킬 · <kbd>Q</kbd>/<kbd>E</kbd> 포션 · <kbd>R</kbd> 마을귀환 · <kbd>C</kbd>/<kbd>I</kbd>/<kbd>K</kbd>/<kbd>J</kbd> 메뉴</span>
+      <span><kbd>WASD</kbd>/<kbd>방향키</kbd> 이동 · <kbd>Space</kbd>/<kbd>Z</kbd> 공격 &amp; 대화 · <kbd>Shift</kbd>/<kbd>X</kbd> 회피</span>
+      <span><kbd>1</kbd>~<kbd>4</kbd> 스킬 · <kbd>Q</kbd>/<kbd>E</kbd> 포션 · <kbd>R</kbd> 귀환 · <kbd>C</kbd>/<kbd>I</kbd>/<kbd>K</kbd>/<kbd>J</kbd> 메뉴</span>
     </footer>
   </div>
 
-  <script src="js/audio.js?v=2"></script>
-  <script src="js/sprites.js?v=2"></script>
-  <script src="js/data.js?v=2"></script>
-  <script src="js/game.js?v=2"></script>
+  <script src="js/audio.js?v=3"></script>
+  <script src="js/sprites.js?v=3"></script>
+  <script src="js/data.js?v=3"></script>
+  <script src="js/game.js?v=3"></script>
 </body>
 </html>
