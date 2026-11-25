@@ -361,13 +361,47 @@
       } catch (_) {}
     }
 
+    ensureHeroExtras(h) {
+      if (!h) return;
+      if (typeof h.towerBest !== 'number') h.towerBest = 0;
+      if (typeof h.towerFloor !== 'number') h.towerFloor = 1;
+      if (!h.unlockedMaps) h.unlockedMaps = { town: true, meadow: true };
+      h.unlockedMaps.town = true;
+      h.unlockedMaps.meadow = true;
+      if (!Array.isArray(h.bounties) || h.bounties.length === 0) {
+        h.bounties = this.rollBounties(h);
+      }
+    }
+
+    getStorySeason() {
+      if (!this.hero) return 1;
+      return clamp(Math.floor((this.hero.questIdx || 0) / 20) + 1, 1, 10);
+    }
+
+    rollBounties(h) {
+      const pool = DATA.SIDE_BOUNTY_POOL || [];
+      if (!pool.length) return [];
+      const unlocked = Math.min(pool.length, Math.max(2, Math.floor((h.questIdx || 0) / 3) + 2));
+      const picks = [];
+      const avail = pool.slice(0, unlocked);
+      while (picks.length < Math.min(3, avail.length)) {
+        const cand = avail[Math.floor(Math.random() * avail.length)];
+        if (!picks.some((p) => p.id === cand.id)) {
+          picks.push({ ...cand, progress: 0, uid: 'bn_' + Math.random().toString(36).slice(2, 8) });
+        }
+      }
+      return picks;
+    }
+
     loadGame() {
       try {
         const raw = localStorage.getItem(SAVE_KEY);
         if (!raw) return;
         const data = JSON.parse(raw);
         this.hero = data.hero;
-        this.currentMapId = data.currentMapId || 'town';
+        this.ensureHeroExtras(this.hero);
+        this.currentMapId = (data.currentMapId && DATA.MAPS[data.currentMapId]) ? data.currentMapId : 'town';
+        if (this.currentMapId === 'tower') this.currentMapId = 'town';
         this.loadMap(this.currentMapId, (this.hero.x || 11.5 * TILE) / TILE, (this.hero.y || 11.5 * TILE) / TILE);
         this.drawHudPortrait();
         this.buildSkillSlotUi();
@@ -382,10 +416,20 @@
       }
     }
 
+    enterTowerFloor(floor) {
+      this.ensureHeroExtras(this.hero);
+      const fl = clamp(Math.round(floor || 1), 1, 100);
+      this.hero.towerFloor = fl;
+      this.towerCleared = false;
+      this.loadMap('tower', 11.5, 14.5);
+    }
+
     loadMap(mapId, tx, ty) {
       const map = DATA.MAPS[mapId];
       if (!map) return;
+      this.ensureHeroExtras(this.hero);
       this.currentMapId = mapId;
+      if (!map.isTower) this.hero.unlockedMaps[mapId] = true;
       this.hero.x = tx * TILE;
       this.hero.y = ty * TILE;
       this.hero.vx = 0;
@@ -400,27 +444,61 @@
       this.respawnQueue = [];
       this.lockedTarget = null;
 
-      map.spawns.forEach((sp, idx) => this.spawnMonster(sp.type, sp.tx * TILE, sp.ty * TILE, idx));
+      if (map.isTower) {
+        const fl = this.hero.towerFloor || 1;
+        this.towerCleared = false;
+        const isBossFl = fl % 5 === 0;
+        const flScale = 0.72 + fl * 0.11 + Math.pow(1.032, fl) * 0.25;
+        if (isBossFl) {
+          const bPool = DATA.TOWER_BOSSES || [];
+          const bDef = bPool[Math.floor((fl / 5 - 1) % bPool.length)] || { name: '탑의 수호자', sprite: 'vargas' };
+          this.spawnMonster(bDef.sprite, 11.5 * TILE, 6.5 * TILE, 0, flScale * 0.9, `[${fl}층 보스] ${bDef.name}`, fl + 4);
+        } else {
+          const mobPool = ['slime_blue', 'boar', 'coral_crab', 'pirate_skel', 'goblin', 'goblin_shaman', 'wyvern', 'lava_golem', 'skeleton', 'golem', 'dark_mage', 'fallen_knight', 'abyss_assassin'];
+          const maxIdx = clamp(Math.floor(fl / 7) + 3, 3, mobPool.length);
+          const minIdx = clamp(maxIdx - 5, 0, mobPool.length - 1);
+          const pts = [[6.5, 6.5], [16.5, 6.5], [8.5, 9.5], [14.5, 9.5], [11.5, 5.5]];
+          const count = fl >= 30 ? 5 : 4;
+          for (let i = 0; i < count; i++) {
+            const pick = mobPool[randInt(minIdx, maxIdx - 1)];
+            this.spawnMonster(pick, pts[i][0] * TILE, pts[i][1] * TILE, i, flScale, null, fl + 2);
+          }
+        }
+        this.bannerText = `심연의 탑 · ${fl}층`;
+        this.bannerSub = isBossFl ? `보스전 · ${fl}층 수호자를 격파하세요!` : `몬스터를 모두 처치하면 ${Math.min(100, fl + 1)}층이 열립니다`;
+      } else {
+        const season = this.getStorySeason();
+        const sScale = season > 1 ? Math.pow(1.24, season - 1) : 1;
+        map.spawns.forEach((sp, idx) => this.spawnMonster(sp.type, sp.tx * TILE, sp.ty * TILE, idx, sScale));
+        this.bannerText = season > 1 && !map.safe ? `${map.name} (제${season}부)` : map.name;
+        this.bannerSub = season > 1 && !map.safe ? `제${season}부 각성 구역 · 강화된 마물 출몰` : map.subtitle;
+      }
 
-      this.bannerText = map.name;
-      this.bannerSub = map.subtitle;
       this.bannerTimer = 2.6;
       if (this.el.mapBanner) {
-        if (this.el.mapBannerTitle) this.el.mapBannerTitle.textContent = map.name;
-        if (this.el.mapBannerSub) this.el.mapBannerSub.textContent = map.subtitle;
+        if (this.el.mapBannerTitle) this.el.mapBannerTitle.textContent = this.bannerText;
+        if (this.el.mapBannerSub) this.el.mapBannerSub.textContent = this.bannerSub;
         this.el.mapBanner.classList.add('show');
       }
       if (this.state === 'playing') this.audio.playBgm(map.bgm);
       this.updateCamera(true);
     }
 
-    spawnMonster(typeId, x, y, spawnIdx) {
+    spawnMonster(typeId, x, y, spawnIdx, scale = 1, customName = null, customLv = null) {
       const def = DATA.MONSTERS[typeId];
       if (!def) return;
+      const hp = Math.round(def.hp * scale);
+      const atk = Math.round(def.atk * Math.pow(scale, 0.72));
+      const mdef = Math.round(def.def * Math.pow(scale, 0.65));
+      const exp = Math.round(def.exp * Math.pow(scale, 0.88));
+      const goldMult = Math.pow(scale, 0.78);
       this.monsters.push({
         uid: 'm_' + Math.random().toString(36).slice(2, 9),
         typeId, spawnIdx, homeX: x, homeY: y, x, y, vx: 0, vy: 0,
-        hp: def.hp, maxHp: def.hp, atk: def.atk, def: def.def, speed: def.speed, size: def.size,
+        hp, maxHp: hp, atk, def: mdef, exp,
+        goldMin: Math.round(def.gold[0] * goldMult), goldMax: Math.round(def.gold[1] * goldMult),
+        customName, customLv: customLv || Math.round(def.lv + (scale > 1 ? (this.getStorySeason() - 1) * 10 : 0)),
+        speed: def.speed, size: def.size,
         hitFlash: 0, stunTimer: 0, slowTimer: 0, attackCd: 1.0 + Math.random() * 0.7,
         specialCd: 3.5, wanderTimer: 0, wanderAngle: Math.random() * Math.PI * 2, phase2: false, anim: Math.random() * 10
       });
@@ -818,10 +896,10 @@
         if (h.questState === 'available' || h.questState === 'ready') {
           this.handleElderQuestDialog();
         } else {
-          const actName = q ? q.act : '완결 · 솔티아의 영웅';
+          const actName = q ? `${q.season ? `제${q.season}부 · ` : ''}${q.act}` : '완결 · 영원의 영웅';
           this.openDialog([
             `음유시인 아리아: "바람의 노래로 상처를 치유해 드렸어요. 지금 우리는 [${actName}]의 이야기를 써 내려가고 있답니다."`,
-            q ? `음유시인 아리아: "${q.desc}"` : '음유시인 아리아: "영웅님의 20장 연대기는 솔티아 대륙에서 영원히 노래될 거예요!"'
+            q ? `음유시인 아리아: "${q.desc}"` : '음유시인 아리아: "영웅님의 10부작 200장 대연대기는 솔티아 대륙에서 영원히 노래될 거예요!"'
           ]);
         }
       } else if (npc.role === 'scout') {
@@ -841,8 +919,8 @@
       this.checkCollectQuest();
       if (h.questState === 'all_done') {
         this.openDialog([
-          `촌장 엘더: "${h.name}, 솔티아의 영웅이여! 20장에 걸친 기나긴 사투 끝에 대륙에 평화를 되찾아 주어 고맙네."`,
-          '촌장 엘더: "언제든 대륙 곳곳과 봉인의 제단에 다시 도전해 전설의 장비를 시험해 볼 수 있다네."'
+          `촌장 엘더: "${h.name}, 솔티아의 영원한 영웅이여! 10부작 200장에 걸친 대서사를 완결하고 대륙에 영원한 바람을 되찾아 주어 고맙네."`,
+          '촌장 엘더: "언제든 [월드맵·탑]에서 심연의 탑 100층과 용병 길드 의뢰에 다시 도전해 신화·영원 장비를 시험해 볼 수 있다네."'
         ]);
         return;
       }
@@ -866,9 +944,14 @@
       const h = this.hero;
       if (h.questState !== 'active') return;
       const q = DATA.QUESTS[h.questIdx];
-      if (!q || q.type !== 'collect') return;
-      h.questProgress = Math.min(q.goal, h.bagItems[q.targetItem] || 0);
-      if (h.questProgress >= q.goal) h.questState = 'ready';
+      if (!q) return;
+      if (q.type === 'collect') {
+        h.questProgress = Math.min(q.goal, h.bagItems[q.targetItem] || 0);
+        if (h.questProgress >= q.goal) h.questState = 'ready';
+      } else if (q.type === 'tower') {
+        h.questProgress = Math.min(q.goal, h.towerBest || 0);
+        if (h.questProgress >= q.goal) h.questState = 'ready';
+      }
     }
 
     completeCurrentQuest() {
@@ -876,28 +959,32 @@
       if (!q) return;
       if (q.type === 'collect') h.bagItems[q.targetItem] = Math.max(0, (h.bagItems[q.targetItem] || 0) - q.goal);
       const r = q.reward, rewardsTxt = [];
-      if (r.gold) { h.gold += r.gold; rewardsTxt.push(`${r.gold}G`); }
-      if (r.exp) { this.gainExp(r.exp); rewardsTxt.push(`EXP +${r.exp}`); }
+      if (r.gold) { h.gold += r.gold; rewardsTxt.push(`${r.gold.toLocaleString()}G`); }
+      if (r.exp) { this.gainExp(r.exp); rewardsTxt.push(`EXP +${r.exp.toLocaleString()}`); }
       (r.items || []).forEach((it) => { this.giveItem(it.id, it.qty); rewardsTxt.push(`${DATA.ITEMS[it.id].name} x${it.qty}`); });
       if (r.legendWeapon) {
         const legId = DATA.CLASSES[h.classId].legendWeapon;
         this.giveItem(legId, 1);
         rewardsTxt.push(`★${DATA.ITEMS[legId].name}`);
-        h.title = '솔티아의 영웅';
+        h.title = h.questIdx >= 199 ? '영원의 솔티아 영웅' : '솔티아의 영웅';
       }
       this.audio.playSfx('levelup');
       this.spawnParticles(h.x, h.y, '#fde047', 30);
-      this.addFloatText(h.x, h.y - 24, '퀘스트 완료!', '#fde047', true);
+      this.addFloatText(h.x, h.y - 24, `${q.chapter || (h.questIdx + 1)}장 완료!`, '#fde047', true);
 
       h.questIdx++;
       if (h.questIdx >= DATA.QUESTS.length) {
         h.questState = 'all_done';
-        this.openDialog([`[퀘스트 보상] ${rewardsTxt.join(', ')}`], () => {
+        this.openDialog([`[200장 대서사시 완결 보상] ${rewardsTxt.join(', ')}`], () => {
           this.state = 'victory'; this.el.victoryScreen.classList.remove('hidden');
         });
       } else {
         h.questState = 'available'; h.questProgress = 0;
-        this.openDialog([`[퀘스트 보상] ${rewardsTxt.join(', ')}`]);
+        const nextQ = DATA.QUESTS[h.questIdx];
+        const seasonBanner = (nextQ && q.season && nextQ.season > q.season)
+          ? [`[새로운 부 해금!] ${nextQ.seasonTitle}이(가) 열렸습니다! 대륙의 몬스터들이 각성하며 더 큰 보상을 드롭합니다.`]
+          : [];
+        this.openDialog([`[퀘스트 보상] ${rewardsTxt.join(', ')}`, ...seasonBanner]);
       }
       this.refreshQuickBar();
       this.saveGame(true);
@@ -923,7 +1010,10 @@
       while (h.exp >= h.expNext) {
         h.exp -= h.expNext;
         h.lv++;
-        h.expNext = Math.round(60 * Math.pow(1.42, h.lv - 1));
+        // Smooth RPG leveling curve supporting Lv.1 through Lv.150+ across 200 chapters & 100 tower floors
+        h.expNext = h.lv <= 15
+          ? Math.round(60 * Math.pow(1.32, h.lv - 1))
+          : Math.round(2900 + (h.lv - 15) * 380 + Math.pow(h.lv - 15, 1.55) * 42);
         h.statPoints += 3;
         h.skillPoints += 1;
         DATA.CLASSES[h.classId].skills.forEach((sk, idx) => {
@@ -968,6 +1058,9 @@
 
     getWeaponGlowColor() {
       const enh = this.hero.equip.weapon ? (this.hero.equip.weapon.enh || 0) : 0;
+      if (enh >= 20) return '#38bdf8';
+      if (enh >= 15) return '#fde047';
+      if (enh >= 10) return '#c084fc';
       if (enh >= 7) return '#fb7185';
       if (enh >= 5) return '#fbbf24';
       if (enh >= 3) return '#60a5fa';
@@ -1131,20 +1224,26 @@
 
     killMonster(m) {
       const def = DATA.MONSTERS[m.typeId];
+      const map = DATA.MAPS[this.currentMapId];
+      const expGain = m.exp || def.exp;
+      const gMin = m.goldMin || def.gold[0];
+      const gMax = m.goldMax || def.gold[1];
+
       this.audio.playSfx('kill');
       this.spawnParticles(m.x, m.y, def.isBoss ? '#f43f5e' : '#fbbf24', def.isBoss ? 38 : 16);
-      this.gainExp(def.exp);
-      this.addFloatText(m.x, m.y - 26, `+${def.exp} EXP`, '#fbbf24');
+      this.gainExp(expGain);
+      this.addFloatText(m.x, m.y - 26, `+${expGain} EXP`, '#fbbf24');
 
-      this.drops.push({ kind: 'gold', amount: randInt(def.gold[0], def.gold[1]), x: m.x + randInt(-8, 8), y: m.y + randInt(-8, 8), life: 25 });
+      this.drops.push({ kind: 'gold', amount: randInt(gMin, gMax), x: m.x + randInt(-8, 8), y: m.y + randInt(-8, 8), life: 25 });
       (def.drops || []).forEach((dr) => {
         if (Math.random() <= dr.rate) this.drops.push({ kind: 'item', itemId: dr.id, x: m.x + randInt(-12, 12), y: m.y + randInt(-12, 12), life: 30 });
       });
 
       const h = this.hero;
+      // Main 200-chapter story quest kill tracking
       if (h.questState === 'active') {
         const q = DATA.QUESTS[h.questIdx];
-        if (q && q.type === 'kill_any' && q.targets.includes(m.typeId)) {
+        if (q && q.type === 'kill_any' && q.targets && q.targets.includes(m.typeId)) {
           h.questProgress = Math.min(q.goal, h.questProgress + 1);
           if (h.questProgress >= q.goal) {
             h.questState = 'ready';
@@ -1154,16 +1253,60 @@
         }
       }
 
-      if (def.isFinalBoss) {
+      // Rotating Guild Bounties kill tracking
+      this.ensureHeroExtras(h);
+      h.bounties.forEach((bn) => {
+        if (bn.progress < bn.goal && bn.targets && bn.targets.includes(m.typeId)) {
+          bn.progress = Math.min(bn.goal, bn.progress + 1);
+          if (bn.progress === bn.goal) {
+            this.addFloatText(h.x, h.y - 42, '서브 의뢰 완료!', '#38bdf8');
+          }
+        }
+      });
+
+      // Abyss Tower Floor Clear Check!
+      if (map && map.isTower) {
+        const alive = this.monsters.filter((other) => other !== m && other.hp > 0).length;
+        if (alive === 0 && !this.towerCleared) {
+          this.towerCleared = true;
+          const fl = h.towerFloor || 1;
+          const firstClear = fl > (h.towerBest || 0);
+          if (firstClear) h.towerBest = fl;
+          const bonusGold = Math.round((150 + fl * 45) * (fl % 5 === 0 ? 2 : 1));
+          const bonusExp = Math.round((180 + fl * 55) * (fl % 5 === 0 ? 2 : 1));
+          const enhQty = fl % 5 === 0 ? 3 : 1;
+          h.gold += bonusGold;
+          this.gainExp(bonusExp);
+          this.giveItem('mat_enhance', enhQty);
+          this.checkCollectQuest();
+          this.audio.playSfx('levelup');
+          this.saveGame(true);
+
+          const nextFl = fl < 100 ? fl + 1 : 100;
+          this.openDialog([
+            `[심연의 탑 ${fl}층 돌파!] ${firstClear ? '최초 클리어 달성! ' : ''}${bonusGold.toLocaleString()}G · EXP +${bonusExp.toLocaleString()} · 강화석 x${enhQty}`,
+            fl < 100
+              ? `[안내] 터치하면 즉시 ${nextFl}층으로 올라갑니다! (마을로 돌아가려면 남쪽 포털을 이용하세요)`
+              : '[축하합니다!] 심연의 탑 100층을 모두 정복하셨습니다!'
+          ], () => {
+            if (fl < 100 && this.currentMapId === 'tower') {
+              this.enterTowerFloor(nextFl);
+            }
+          });
+        }
+        return;
+      }
+
+      if (def.isFinalBoss && this.currentMapId === 'altar') {
         h.vargasDefeated = true;
         this.shake(0.4, 8);
         this.openDialog([
           '심연의 기사 바르가스: "크으윽... 솔티아의 바람이 이토록 강할 줄이야...!"',
-          '[알림] 바르가스를 격파했습니다! 마을의 촌장 엘더에게 돌아가 보고하세요.'
+          '[알림] 바르가스를 격파했습니다! 좌상단 황금 퀘스트 배지를 터치해 이야기를 이어가세요.'
         ]);
         this.saveGame(true);
       } else {
-        this.respawnQueue.push({ typeId: m.typeId, spawnIdx: m.spawnIdx, x: m.homeX, y: m.homeY, timer: def.isBoss ? 22 : 11 });
+        this.respawnQueue.push({ typeId: m.typeId, spawnIdx: m.spawnIdx, x: m.homeX, y: m.homeY, timer: def.isBoss ? 20 : 10 });
       }
     }
 
@@ -1186,7 +1329,7 @@
     useQuickPotion(kind) {
       if (!this.hero || this.state !== 'playing') return;
       const h = this.hero, st = this.getHeroStats();
-      const order = kind === 'hp' ? ['pot_hp_l', 'pot_hp_m', 'pot_hp_s'] : ['pot_mp_l', 'pot_mp_s'];
+      const order = kind === 'hp' ? ['pot_hp_xl', 'pot_hp_l', 'pot_hp_m', 'pot_hp_s'] : ['pot_mp_xl', 'pot_mp_l', 'pot_mp_s'];
       const chosen = order.find((id) => (h.bagItems[id] || 0) > 0);
       if (!chosen) { this.addFloatText(h.x, h.y - 16, kind === 'hp' ? 'HP 포션 없음' : 'MP 포션 없음', '#94a3b8'); return; }
       const item = DATA.ITEMS[chosen];
@@ -1530,10 +1673,10 @@
       this.el.hudMpFill.style.width = `${clamp((h.mp / st.maxMp) * 100, 0, 100)}%`;
       this.el.hudMpText.textContent = `${Math.ceil(h.mp)} / ${st.maxMp}`;
       this.el.hudExpFill.style.width = `${clamp((h.exp / h.expNext) * 100, 0, 100)}%`;
-      this.el.hudMapName.textContent = map.name;
+      this.el.hudMapName.textContent = map.isTower ? `심연의 탑 ${h.towerFloor || 1}층` : map.name;
 
       let qText = '', isReady = false;
-      if (h.questState === 'all_done') qText = '완결 · 솔티아의 영웅';
+      if (h.questState === 'all_done') qText = '200장 완결 · 영원의 영웅';
       else {
         const q = DATA.QUESTS[h.questIdx];
         if (q) {
@@ -1545,11 +1688,11 @@
       this.el.hudQuestText.textContent = qText;
       if (this.el.hudQuestPill) this.el.hudQuestPill.classList.toggle('ready', isReady);
 
-      const boss = this.monsters.find((m) => DATA.MONSTERS[m.typeId].isBoss && m.hp > 0);
+      const boss = this.monsters.find((m) => (DATA.MONSTERS[m.typeId].isBoss || m.customName) && m.hp > 0);
       if (boss) {
         const bdef = DATA.MONSTERS[boss.typeId];
         this.el.hudBossBar.classList.remove('hidden');
-        this.el.hudBossName.textContent = `${bdef.name} Lv.${bdef.lv}`;
+        this.el.hudBossName.textContent = `${boss.customName || bdef.name} Lv.${boss.customLv || bdef.lv}`;
         const pct = clamp(Math.round((boss.hp / boss.maxHp) * 100), 0, 100);
         this.el.hudBossHpTxt.textContent = `${pct}%`;
         this.el.hudBossFill.style.width = `${pct}%`;
@@ -2004,8 +2147,8 @@
     refreshQuickBar() {
       if (!this.hero) return;
       const b = this.hero.bagItems;
-      const hpCnt = (b.pot_hp_s || 0) + (b.pot_hp_m || 0) + (b.pot_hp_l || 0);
-      const mpCnt = (b.pot_mp_s || 0) + (b.pot_mp_l || 0);
+      const hpCnt = (b.pot_hp_s || 0) + (b.pot_hp_m || 0) + (b.pot_hp_l || 0) + (b.pot_hp_xl || 0);
+      const mpCnt = (b.pot_mp_s || 0) + (b.pot_mp_l || 0) + (b.pot_mp_xl || 0);
       const scCnt = b.scroll_town || 0;
       this.el.potHpCount.textContent = `${hpCnt}`;
       this.el.potMpCount.textContent = `${mpCnt}`;
@@ -2037,9 +2180,10 @@
     renderHeroModal() {
       this.renderModalTabs([
         { id: 'status', label: `상태${this.hero.statPoints > 0 ? ` (+${this.hero.statPoints})` : ''}` },
-        { id: 'bag', label: '장비/가방' },
+        { id: 'bag', label: '가방' },
         { id: 'skills', label: `스킬${this.hero.skillPoints > 0 ? ` (+${this.hero.skillPoints})` : ''}` },
-        { id: 'quest', label: '퀘스트' }
+        { id: 'quest', label: '연대기' },
+        { id: 'world', label: '월드맵·탑' }
       ], (id) => { this.modalTab = id; this.renderHeroModal(); });
 
       const body = this.el.modalBody;
@@ -2048,6 +2192,7 @@
       else if (this.modalTab === 'bag') this.renderBagTab(body);
       else if (this.modalTab === 'skills') this.renderSkillsTab(body);
       else if (this.modalTab === 'quest') this.renderQuestTab(body);
+      else if (this.modalTab === 'world') this.renderWorldTab(body);
     }
 
     renderModalTabs(tabs, onPick) {
@@ -2184,14 +2329,47 @@
 
     renderQuestTab(body) {
       const h = this.hero;
+      this.ensureHeroExtras(h);
       const doneCount = h.questState === 'all_done' ? DATA.QUESTS.length : h.questIdx;
       const curQ = h.questState === 'all_done' ? null : DATA.QUESTS[h.questIdx];
+      const curSeason = this.getStorySeason();
+      if (!this.selectedChronicleSeason) this.selectedChronicleSeason = curSeason;
+      const selSeason = clamp(this.selectedChronicleSeason, 1, 10);
+
+      // Rotating Guild Side Bounties (infinite bonus quests!)
+      const bountyScale = Math.pow(1.22, curSeason - 1);
+      const bountyHtml = h.bounties.map((bn, bIdx) => {
+        const ready = bn.progress >= bn.goal;
+        const gRew = Math.round(bn.gold * bountyScale);
+        const eRew = Math.round(bn.exp * bountyScale);
+        return `
+          <div class="item-row" style="${ready ? 'border-color:rgba(56,189,248,0.65);' : ''}">
+            <div class="item-info">
+              <div class="item-title">${bn.title} <span class="badge" style="color:${ready ? '#4ade80' : '#60a5fa'}">${bn.progress}/${bn.goal}</span></div>
+              <div class="item-sub">${bn.mapHint} · 보상 ${gRew.toLocaleString()}G · EXP ${eRew.toLocaleString()} · 강화석 1</div>
+            </div>
+            ${ready ? `<div class="item-actions"><button class="rpg-btn primary small" data-claim-bounty="${bIdx}">보상 수령</button></div>` : ''}
+          </div>
+        `;
+      }).join('');
+
+      // 10-Season Filter Pills (1부 ~ 10부 = 200 Chapters!)
+      const seasonPills = Array.from({ length: 10 }, (_, i) => {
+        const s = i + 1;
+        const active = s === selSeason;
+        const unlocked = s <= curSeason || h.questState === 'all_done';
+        return `<button type="button" class="tab-btn${active ? ' active' : ''}" data-pick-season="${s}" style="padding:5px 9px;font-size:11px;${!unlocked ? 'opacity:0.45;' : ''}">${s}부</button>`;
+      }).join('');
+
+      const seasonQuests = DATA.QUESTS.filter((q) => (q.season || 1) === selSeason);
+      const seasonTitle = seasonQuests[0] ? seasonQuests[0].seasonTitle : `제${selSeason}부`;
       let lastAct = '';
-      const rows = DATA.QUESTS.map((q, idx) => {
+      const rows = seasonQuests.map((q) => {
+        const idx = (q.chapter || 1) - 1;
         let actHeader = '';
         if (q.act && q.act !== lastAct) {
           lastAct = q.act;
-          actHeader = `<div style="margin:10px 0 4px;font-size:11px;font-weight:800;letter-spacing:0.06em;color:#f5d07a;">${q.act}</div>`;
+          actHeader = `<div style="margin:10px 0 4px;font-size:11px;font-weight:800;letter-spacing:0.05em;color:#f5d07a;">${q.act}</div>`;
         }
         const isDone = idx < h.questIdx || h.questState === 'all_done';
         const isCur = idx === h.questIdx && h.questState !== 'all_done';
@@ -2209,16 +2387,51 @@
         const actionBtn = isCur && (h.questState === 'available' || h.questState === 'ready')
           ? `<div class="item-actions"><button class="rpg-btn primary small" id="btnStoryProceed">${h.questState === 'available' ? '스토리 시작' : '완료 보고'}</button></div>`
           : '';
-        return `${actHeader}<div class="item-row" style="${isCur ? 'border-color:rgba(251,191,36,0.55);' : (locked ? 'opacity:0.55;' : '')}"><div class="item-info"><div class="item-title">${q.title} <span class="badge" style="color:${col}">${status}</span></div>${bodyTxt}${!locked ? `<div class="item-sub" style="color:#d4b572">보상: ${q.reward.gold}G · EXP ${q.reward.exp}</div>` : ''}</div>${actionBtn}</div>`;
+        return `${actHeader}<div class="item-row" style="${isCur ? 'border-color:rgba(251,191,36,0.55);' : (locked ? 'opacity:0.55;' : '')}"><div class="item-info"><div class="item-title">${q.title} <span class="badge" style="color:${col}">${status}</span></div>${bodyTxt}${!locked ? `<div class="item-sub" style="color:#d4b572">보상: ${q.reward.gold.toLocaleString()}G · EXP ${q.reward.exp.toLocaleString()}</div>` : ''}</div>${actionBtn}</div>`;
       }).join('');
 
       body.innerHTML = `
+        <div class="panel-card" style="margin-bottom:10px;">
+          <h3>용병 길드 서브 의뢰 <span class="badge" style="color:#38bdf8">무한 반복</span></h3>
+          <div class="list-grid">${bountyHtml}</div>
+        </div>
         <div class="panel-card">
-          <h3>솔티아 완전판 연대기 <span class="badge" style="color:#fde047">${doneCount} / ${DATA.QUESTS.length}장</span></h3>
-          ${curQ ? `<div class="item-sub" style="margin-bottom:8px;color:#cbd5e1;">현재 진행: <strong style="color:#fde047">${curQ.act}</strong> · ${curQ.title}</div>` : '<div class="item-sub" style="margin-bottom:8px;color:#4ade80;">모든 20장 대서사시를 완결했습니다!</div>'}
+          <h3>솔티아 200장 대연대기 <span class="badge" style="color:#fde047">${doneCount} / ${DATA.QUESTS.length}장</span></h3>
+          ${curQ ? `<div class="item-sub" style="margin-bottom:8px;color:#cbd5e1;">현재 진행: <strong style="color:#fde047">${curQ.seasonTitle}</strong> · ${curQ.title}</div>` : '<div class="item-sub" style="margin-bottom:8px;color:#4ade80;">모든 10부 200장 대서사시를 완결했습니다!</div>'}
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;">${seasonPills}</div>
+          <div style="font-size:12px;font-weight:800;color:#fff;margin-bottom:4px;">${seasonTitle}</div>
           <div class="list-grid">${rows}</div>
         </div>
       `;
+
+      body.querySelectorAll('[data-pick-season]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          this.audio.playSfx('ui');
+          this.selectedChronicleSeason = Number(btn.dataset.pickSeason);
+          this.renderHeroModal();
+        });
+      });
+
+      body.querySelectorAll('[data-claim-bounty]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const bIdx = Number(btn.dataset.claimBounty);
+          const bn = h.bounties[bIdx];
+          if (!bn || bn.progress < bn.goal) return;
+          const gRew = Math.round(bn.gold * bountyScale);
+          const eRew = Math.round(bn.exp * bountyScale);
+          h.gold += gRew;
+          this.gainExp(eRew);
+          this.giveItem('mat_enhance', 1);
+          this.audio.playSfx('quest');
+          const pool = DATA.SIDE_BOUNTY_POOL || [];
+          const maxPool = Math.min(pool.length, Math.max(2, Math.floor((h.questIdx || 0) / 3) + 2));
+          const fresh = pool[Math.floor(Math.random() * maxPool)];
+          h.bounties[bIdx] = { ...fresh, progress: 0, uid: 'bn_' + Math.random().toString(36).slice(2, 8) };
+          this.saveGame(true);
+          this.renderHeroModal();
+        });
+      });
+
       const proceedBtn = body.querySelector('#btnStoryProceed');
       if (proceedBtn) {
         proceedBtn.addEventListener('click', () => {
@@ -2226,6 +2439,84 @@
           this.handleElderQuestDialog();
         });
       }
+    }
+
+    renderWorldTab(body) {
+      const h = this.hero;
+      this.ensureHeroExtras(h);
+      const season = this.getStorySeason();
+      const nextFl = Math.min(100, (h.towerBest || 0) + 1);
+      const worldOrder = [
+        { id: 'town', tx: 11.5, ty: 11.5 },
+        { id: 'meadow', tx: 11.5, ty: 15.5 },
+        { id: 'coast', tx: 20.5, ty: 8.5 },
+        { id: 'forest', tx: 2.5, ty: 8.5 },
+        { id: 'canyon', tx: 2.5, ty: 8.5 },
+        { id: 'ruins', tx: 11.5, ty: 15.5 },
+        { id: 'citadel', tx: 11.5, ty: 15.5 },
+        { id: 'altar', tx: 11.5, ty: 15.5 }
+      ];
+
+      const mapRows = worldOrder.map((entry) => {
+        const m = DATA.MAPS[entry.id];
+        if (!m) return '';
+        const unlocked = !!h.unlockedMaps[entry.id] || season >= 2;
+        const isHere = this.currentMapId === entry.id;
+        return `
+          <div class="item-row" style="${isHere ? 'border-color:rgba(251,191,36,0.6);' : (!unlocked ? 'opacity:0.5;' : '')}">
+            <div class="item-info">
+              <div class="item-title">${m.name} ${isHere ? '<span class="badge" style="color:#4ade80">현재 위치</span>' : ''}</div>
+              <div class="item-sub">${m.subtitle}</div>
+            </div>
+            <div class="item-actions">
+              <button class="rpg-btn ${isHere ? 'secondary' : 'primary'} small" data-warp-map="${entry.id}" data-wx="${entry.tx}" data-wy="${entry.ty}" ${(!unlocked || isHere) ? 'disabled' : ''}>${unlocked ? (isHere ? '위치 중' : '이동') : '미발견'}</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      body.innerHTML = `
+        <div class="panel-card" style="margin-bottom:10px;border-color:rgba(192,132,252,0.5);">
+          <h3>심연의 탑 (1~100층 도전) <span class="badge" style="color:#c084fc">최고 ${h.towerBest || 0} / 100층</span></h3>
+          <div class="item-sub" style="margin-bottom:10px;">5층마다 강력한 탑 수호 보스가 등장하며, 최초 돌파 시 막대한 골드·경험치·강화석을 획득합니다!</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="rpg-btn primary" id="btnEnterTowerNext">다음 층 도전 (${nextFl}층)</button>
+            ${(h.towerBest || 0) >= 5 ? `<button class="rpg-btn secondary" id="btnEnterTowerBoss">직전 보스층 (${Math.floor((h.towerBest || 5) / 5) * 5}층)</button>` : ''}
+          </div>
+        </div>
+        <div class="panel-card">
+          <h3>솔티아 대륙 빠른 이동 <span class="badge" style="color:#fde047">제${season}부 각성</span></h3>
+          <div class="item-sub" style="margin-bottom:8px;">한 번 방문한 지역(또는 제2부 이후 전 지역)으로 즉시 이동할 수 있습니다.</div>
+          <div class="list-grid">${mapRows}</div>
+        </div>
+      `;
+
+      const nextBtn = body.querySelector('#btnEnterTowerNext');
+      if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+          this.closeModal();
+          this.audio.playSfx('portal');
+          this.enterTowerFloor(nextFl);
+        });
+      }
+      const bossBtn = body.querySelector('#btnEnterTowerBoss');
+      if (bossBtn) {
+        bossBtn.addEventListener('click', () => {
+          this.closeModal();
+          this.audio.playSfx('portal');
+          this.enterTowerFloor(Math.max(5, Math.floor((h.towerBest || 5) / 5) * 5));
+        });
+      }
+      body.querySelectorAll('[data-warp-map]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const mid = btn.dataset.warpMap;
+          const wx = Number(btn.dataset.wx), wy = Number(btn.dataset.wy);
+          this.closeModal();
+          this.audio.playSfx('portal');
+          this.loadMap(mid, wx, wy);
+          this.saveGame(true);
+        });
+      });
     }
 
     openShopModal() {
@@ -2279,23 +2570,25 @@
       const body = this.el.modalBody, h = this.hero, stones = h.bagItems.mat_enhance || 0;
 
       if (this.modalTab === 'enhance') {
-        const rates = [100, 100, 100, 80, 70, 60, 45, 35, 25];
+        const MAX_ENH = 25;
+        const enhRate = (e) => (e < 3 ? 100 : Math.max(20, 92 - e * 3));
+        const enhCost = (e) => 60 + e * 85;
         const rows = ['weapon', 'armor', 'helm', 'accessory'].map((slot) => {
           const eq = h.equip[slot]; if (!eq) return '';
-          const enh = eq.enh || 0, maxed = enh >= 9, rate = maxed ? 0 : rates[enh], costGold = 60 + enh * 75;
+          const enh = eq.enh || 0, maxed = enh >= MAX_ENH, rate = maxed ? 0 : enhRate(enh), costGold = enhCost(enh);
           const canDo = !maxed && stones >= 1 && h.gold >= costGold;
-          return `<div class="item-row"><div class="item-info"><div class="item-title">${this.formatEquipName(eq)} ${maxed ? '<span class="badge">MAX</span>' : `<span class="badge">성공 ${rate}%</span>`}</div><div class="item-sub">${this.formatEquipStats(eq)} ${!maxed ? `· ${costGold}G + 강화석 1` : ''}</div></div><div class="item-actions"><button class="rpg-btn primary small" data-enh-slot="${slot}" ${canDo ? '' : 'disabled'}>${maxed ? '최대' : `+${enh + 1}`}</button></div></div>`;
+          return `<div class="item-row"><div class="item-info"><div class="item-title">${this.formatEquipName(eq)} ${maxed ? '<span class="badge">MAX</span>' : `<span class="badge">성공 ${rate}%</span>`}</div><div class="item-sub">${this.formatEquipStats(eq)} ${!maxed ? `· ${costGold.toLocaleString()}G + 강화석 1` : ''}</div></div><div class="item-actions"><button class="rpg-btn primary small" data-enh-slot="${slot}" ${canDo ? '' : 'disabled'}>${maxed ? '최대' : `+${enh + 1}`}</button></div></div>`;
         }).join('');
-        body.innerHTML = `<div class="panel-card"><h3>대장장이 볼칸 · <span style="color:#fde047">${h.gold.toLocaleString()}G</span> · 강화석 <span style="color:#4ade80">${stones}</span></h3>${feedback ? `<div style="margin-bottom:8px;padding:7px 10px;border-radius:7px;background:rgba(229,188,101,0.12);border:1px solid rgba(229,188,101,0.4);color:#fde047;font-weight:700;">${feedback}</div>` : ''}<div class="item-sub" style="margin-bottom:8px;">실패해도 장비는 파괴되지 않습니다. +3/+5/+7 무기는 검기 색상이 진화합니다.</div><div class="list-grid">${rows}</div></div>`;
+        body.innerHTML = `<div class="panel-card"><h3>대장장이 볼칸 · <span style="color:#fde047">${h.gold.toLocaleString()}G</span> · 강화석 <span style="color:#4ade80">${stones}</span></h3>${feedback ? `<div style="margin-bottom:8px;padding:7px 10px;border-radius:7px;background:rgba(229,188,101,0.12);border:1px solid rgba(229,188,101,0.4);color:#fde047;font-weight:700;">${feedback}</div>` : ''}<div class="item-sub" style="margin-bottom:8px;">최대 +25 초월 강화! 실패해도 장비는 파괴되지 않습니다. +3/+5/+7/+10/+15/+20 무기는 검기 색상이 진화합니다.</div><div class="list-grid">${rows}</div></div>`;
 
         body.querySelectorAll('[data-enh-slot]').forEach((btn) => {
           btn.addEventListener('click', () => {
             const eq = h.equip[btn.dataset.enhSlot];
-            if (!eq || eq.enh >= 9) return;
-            const costGold = 60 + eq.enh * 75;
+            if (!eq || eq.enh >= MAX_ENH) return;
+            const costGold = enhCost(eq.enh);
             if (h.gold < costGold || (h.bagItems.mat_enhance || 0) < 1) return;
             h.gold -= costGold; h.bagItems.mat_enhance--;
-            if (Math.random() * 100 < rates[eq.enh]) {
+            if (Math.random() * 100 < enhRate(eq.enh)) {
               eq.enh++; this.audio.playSfx('enhanceOk');
               this.renderSmithModal(`강화 성공! ${DATA.ITEMS[eq.itemId].name} +${eq.enh}`);
             } else {
