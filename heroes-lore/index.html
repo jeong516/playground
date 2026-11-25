@@ -9,7 +9,7 @@
   <title>영웅서기: 솔티아의 바람</title>
   <meta name="description" content="최신 스마트폰 풀스크린 최적화 액션 RPG 영웅서기: 솔티아의 바람" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=8" />
+  <link rel="stylesheet" href="style.css?v=10" />
 </head>
 <body>
   <div id="appViewport" class="app-viewport">
@@ -76,6 +76,22 @@
         <span class="q-dot"></span>
         <span id="hudQuestText">촌장 엘더와 대화하세요</span>
       </button>
+
+      <!-- Instant Quest Accepted / Detail Briefing Card -->
+      <div id="questBriefCard" class="quest-brief-card hidden" role="dialog" aria-live="polite">
+        <div class="qb-top">
+          <span id="qbBadge" class="badge">퀘스트 수락</span>
+          <button id="btnQbClose" class="qb-close" type="button" aria-label="닫기">✕</button>
+        </div>
+        <div id="qbTitle" class="qb-title">1장. 불길한 바람의 징조</div>
+        <div id="qbDesc" class="qb-desc">목표 내용이 여기에 즉시 표시됩니다.</div>
+        <div id="qbMeta" class="qb-meta"></div>
+        <div id="qbRewards" class="qb-rewards"></div>
+        <div class="qb-actions">
+          <button id="btnQbWarp" class="rpg-btn primary" type="button">목표 지역 바로 이동</button>
+          <button id="btnQbChronicle" class="rpg-btn secondary" type="button">연대기 전체 보기</button>
+        </div>
+      </div>
 
       <!-- Floating Boss Health Bar -->
       <div id="hudBossBar" class="boss-banner hidden">
@@ -193,7 +209,7 @@
         <div class="title-kicker">HEROES LORE · GRAND CHRONICLE</div>
         <h1 class="title-display">영웅서기</h1>
         <p class="title-tagline">솔티아의 바람</p>
-        <div class="title-edition-sub">10부작 200장 대연대기 · 심연의 탑 100층</div>
+        <div class="title-edition-sub">209개 월드맵 · 200장 대연대기 · 직업별 8스킬</div>
       </div>
       <div class="title-bottom-dock">
         <button id="btnNewGame" class="cta-btn primary" type="button">새 모험 시작</button>
@@ -260,10 +276,11 @@
   <!-- Hidden desktop skill container fallback kept empty for compatibility -->
   <div id="skillSlots" style="display:none"></div>
 
-  <script src="js/audio.js?v=9"></script>
-  <script src="js/sprites.js?v=9"></script>
-  <script src="js/data.js?v=9"></script>
-  <script src="js/story.js?v=9"></script>
-  <script src="js/game.js?v=9"></script>
+  <script src="js/audio.js?v=10"></script>
+  <script src="js/sprites.js?v=10"></script>
+  <script src="js/data.js?v=10"></script>
+  <script src="js/story.js?v=10"></script>
+  <script src="js/expansion.js?v=10"></script>
+  <script src="js/game.js?v=10"></script>
 </body>
 </html>

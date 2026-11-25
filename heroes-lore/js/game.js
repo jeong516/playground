@@ -165,6 +165,15 @@
         btnHudFold: document.getElementById('btnHudFold'),
         hudQuestPill: document.getElementById('hudQuestPill'),
         hudQuestText: document.getElementById('hudQuestText'),
+        questBriefCard: document.getElementById('questBriefCard'),
+        qbBadge: document.getElementById('qbBadge'),
+        btnQbClose: document.getElementById('btnQbClose'),
+        qbTitle: document.getElementById('qbTitle'),
+        qbDesc: document.getElementById('qbDesc'),
+        qbMeta: document.getElementById('qbMeta'),
+        qbRewards: document.getElementById('qbRewards'),
+        btnQbWarp: document.getElementById('btnQbWarp'),
+        btnQbChronicle: document.getElementById('btnQbChronicle'),
         hudBossBar: document.getElementById('hudBossBar'),
         hudBossName: document.getElementById('hudBossName'),
         hudBossHpTxt: document.getElementById('hudBossHpTxt'),
@@ -294,12 +303,13 @@
         statPoints: 0, skillPoints: 1, base: { ...cls.base }, hp: 100, mp: 50,
         x: 11.5 * TILE, y: 11.5 * TILE, vx: 0, vy: 0, dir: 'down', facingX: 0, facingY: 1,
         walkAnim: 0, attackTimer: 0, attackCooldown: 0, comboStep: 0, comboResetTimer: 0,
-        dashTimer: 0, dashCd: 0, invulnTimer: 0, buffDefTimer: 0, buffSpdTimer: 0,
-        skillLevels: [1, 0, 0, 0], skillCds: [0, 0, 0, 0],
+        dashTimer: 0, dashCd: 0, invulnTimer: 0, buffAtkTimer: 0, buffDefTimer: 0, buffSpdTimer: 0,
+        skillLevels: [1, 0, 0, 0, 0, 0, 0, 0], skillCds: [0, 0, 0, 0, 0, 0, 0, 0],
+        equippedSkills: [0, 1, 2, 3],
         equip: {
           weapon: { uid: nextUid(), itemId: cls.startWeapon, enh: 0 },
           armor: { uid: nextUid(), itemId: 'ar_leather', enh: 0 },
-          helm: null, accessory: null
+          helm: null, accessory: null,
         },
         bagEquip: [],
         bagItems: { pot_hp_s: 4, pot_mp_s: 3, scroll_town: 2, mat_enhance: 1 },
@@ -335,7 +345,11 @@
         hp: (def.hp || 0) + (def.type === 'armor' ? enh * 12 : def.type === 'accessory' ? enh * 8 : 0),
         mp: (def.mp || 0) + (def.type === 'helm' || def.type === 'accessory' ? enh * 5 : 0),
         str: def.str || 0, agi: def.agi || 0, vit: def.vit || 0, int: def.int || 0,
-        crit: (def.crit || 0) + (def.type === 'weapon' ? Math.floor(enh / 2) : 0)
+        crit: (def.crit || 0) + (def.type === 'weapon' ? Math.floor(enh / 2) : 0),
+        lifesteal: def.lifesteal || 0,
+        spd: def.spd || 0,
+        mpRegen: def.mpRegen || 0,
+        skillDmg: def.skillDmg || 0
       };
     }
 
@@ -343,28 +357,34 @@
       const h = this.hero;
       let str = h.base.str, agi = h.base.agi, vit = h.base.vit, intel = h.base.int;
       let bonusAtk = 0, bonusDef = 0, bonusHp = 0, bonusMp = 0, bonusCrit = 0;
+      let lifesteal = 0, bonusSpd = 0, mpRegen = 0, skillDmg = 0;
 
       Object.values(h.equip).forEach((eq) => {
         if (!eq) return;
         const b = this.getEquipBonus(eq);
         str += b.str; agi += b.agi; vit += b.vit; intel += b.int;
         bonusAtk += b.atk; bonusDef += b.def; bonusHp += b.hp; bonusMp += b.mp; bonusCrit += b.crit;
+        lifesteal += b.lifesteal || 0;
+        bonusSpd += b.spd || 0;
+        mpRegen += b.mpRegen || 0;
+        skillDmg += b.skillDmg || 0;
       });
 
       const maxHp = 70 + vit * 14 + h.lv * 16 + bonusHp;
       const maxMp = 32 + intel * 8 + h.lv * 6 + bonusMp;
-      const atk = Math.round(6 + str * 2.1 + agi * 0.5 + intel * 0.4 + h.lv * 2 + bonusAtk);
-      const magicAtk = Math.round(6 + intel * 2.4 + str * 0.6 + h.lv * 2 + bonusAtk);
+      let atk = Math.round(6 + str * 2.1 + agi * 0.5 + intel * 0.4 + h.lv * 2 + bonusAtk);
+      let magicAtk = Math.round(6 + intel * 2.4 + str * 0.6 + h.lv * 2 + bonusAtk);
+      if (h.buffAtkTimer > 0) { atk = Math.round(atk * 1.35); magicAtk = Math.round(magicAtk * 1.35); }
       let def = Math.round(3 + vit * 1.15 + agi * 0.25 + bonusDef);
-      if (h.buffDefTimer > 0) def = Math.round(def * 1.75);
+      if (h.buffDefTimer > 0) def = Math.round(def * 1.65);
 
-      let crit = clamp(6 + Math.round(agi * 0.85) + bonusCrit, 5, 75);
-      if (h.buffSpdTimer > 0) crit = clamp(crit + 30, 5, 92);
+      let crit = clamp(6 + Math.round(agi * 0.85) + bonusCrit, 5, 80);
+      if (h.buffSpdTimer > 0) crit = clamp(crit + 25, 5, 95);
 
-      let speed = 108 + Math.min(34, agi * 1.15);
+      let speed = 108 + Math.min(34, agi * 1.15) + Math.min(44, bonusSpd);
       if (h.buffSpdTimer > 0) speed *= 1.32;
 
-      return { str, agi, vit, int: intel, maxHp, maxMp, atk, magicAtk, def, crit, speed };
+      return { str, agi, vit, int: intel, maxHp, maxMp, atk, magicAtk, def, crit, speed, lifesteal: Math.min(35, lifesteal), mpRegen, skillDmg };
     }
 
     // --- SAVE / LOAD ---
@@ -384,6 +404,16 @@
       if (!h) return;
       if (typeof h.towerBest !== 'number') h.towerBest = 0;
       if (typeof h.towerFloor !== 'number') h.towerFloor = 1;
+      if (typeof h.buffAtkTimer !== 'number') h.buffAtkTimer = 0;
+      const cls = DATA.CLASSES[h.classId];
+      const skCount = cls ? cls.skills.length : 8;
+      if (!Array.isArray(h.skillLevels)) h.skillLevels = [1];
+      while (h.skillLevels.length < skCount) h.skillLevels.push(0);
+      if (!Array.isArray(h.skillCds)) h.skillCds = [];
+      while (h.skillCds.length < skCount) h.skillCds.push(0);
+      if (!Array.isArray(h.equippedSkills) || h.equippedSkills.length !== 4) {
+        h.equippedSkills = [0, 1, 2, 3];
+      }
       if (!h.unlockedMaps) h.unlockedMaps = { town: true, meadow: true };
       h.unlockedMaps.town = true;
       h.unlockedMaps.meadow = true;
@@ -446,6 +476,7 @@
     loadMap(mapId, tx, ty) {
       const map = DATA.MAPS[mapId];
       if (!map) return;
+      if (DATA.ensureZoneLayout) DATA.ensureZoneLayout(map);
       this.ensureHeroExtras(this.hero);
       this.currentMapId = mapId;
       if (!map.isTower) this.hero.unlockedMaps[mapId] = true;
@@ -488,10 +519,25 @@
         this.bannerSub = isBossFl ? `보스전 · ${fl}층 수호자를 격파하세요!` : `몬스터를 모두 처치하면 ${Math.min(100, fl + 1)}층이 열립니다`;
       } else {
         const season = this.getStorySeason();
-        const sScale = season > 1 ? Math.pow(1.24, season - 1) : 1;
-        map.spawns.forEach((sp, idx) => this.spawnMonster(sp.type, sp.tx * TILE, sp.ty * TILE, idx, sScale));
-        this.bannerText = season > 1 && !map.safe ? `${map.name} (제${season}부)` : map.name;
-        this.bannerSub = season > 1 && !map.safe ? `제${season}부 각성 구역 · 강화된 마물 출몰` : map.subtitle;
+        const sScale = map.zoneScale ? map.zoneScale : (season > 1 ? Math.pow(1.24, season - 1) : 1);
+        map.spawns.forEach((sp, idx) => {
+          this.spawnMonster(sp.type, sp.tx * TILE, sp.ty * TILE, idx, sScale, sp.customName || null, sp.customLv || (map.recLv || null));
+        });
+        this.bannerText = map.zoneNum ? map.name : (season > 1 && !map.safe ? `${map.name} (제${season}부)` : map.name);
+        this.bannerSub = map.zoneNum ? map.subtitle : (season > 1 && !map.safe ? `제${season}부 각성 구역 · 강화된 마물 출몰` : map.subtitle);
+      }
+
+      // Auto-complete 'explore' story quests upon arriving at the target zone!
+      const h = this.hero;
+      if (h && h.questState === 'active') {
+        const q = DATA.QUESTS[h.questIdx];
+        if (q && q.type === 'explore' && q.targetMap === mapId) {
+          h.questProgress = 1;
+          h.questState = 'ready';
+          this.audio.playSfx('quest');
+          this.addFloatText(h.x, h.y - 34, '구역 탐사 완료!', '#4ade80', true);
+          this.saveGame(true);
+        }
       }
 
       this.bannerTimer = 2.6;
@@ -612,13 +658,39 @@
       if (this.el.hudQuestPill) {
         this.el.hudQuestPill.addEventListener('click', () => {
           if (this.state !== 'playing' || !this.hero) return;
+          this.audio.init();
+          this.audio.playSfx('ui');
           if (this.hero.questState === 'available' || this.hero.questState === 'ready') {
-            this.audio.init();
-            this.audio.playSfx('ui');
+            this.hideQuestBrief();
             this.handleElderQuestDialog();
+          } else if (this.hero.questState === 'active') {
+            if (this.el.questBriefCard && !this.el.questBriefCard.classList.contains('hidden')) {
+              this.hideQuestBrief();
+            } else {
+              this.showQuestBrief('detail');
+            }
           } else {
             this.openHeroModal('quest');
           }
+        });
+      }
+
+      if (this.el.btnQbClose) {
+        this.el.btnQbClose.addEventListener('click', () => {
+          this.audio.playSfx('ui');
+          this.hideQuestBrief();
+        });
+      }
+      if (this.el.btnQbWarp) {
+        this.el.btnQbWarp.addEventListener('click', () => {
+          this.audio.playSfx('portal');
+          this.warpToQuestTarget();
+        });
+      }
+      if (this.el.btnQbChronicle) {
+        this.el.btnQbChronicle.addEventListener('click', () => {
+          this.hideQuestBrief();
+          this.openHeroModal('quest');
         });
       }
 
@@ -934,13 +1006,83 @@
       }
     }
 
+    showQuestBrief(mode = 'accepted') {
+      const h = this.hero;
+      if (!h || !this.el.questBriefCard) return;
+      if (h.questState === 'all_done') { this.hideQuestBrief(); return; }
+      const q = DATA.QUESTS[h.questIdx];
+      if (!q) return;
+      this.checkCollectQuest();
+
+      const targetMapObj = q.targetMap ? DATA.MAPS[q.targetMap] : null;
+      const locName = q.targetZoneName || (targetMapObj ? targetMapObj.name : '솔티아 대륙');
+      const rewParts = [];
+      if (q.reward && q.reward.gold) rewParts.push(`${q.reward.gold.toLocaleString()}G`);
+      if (q.reward && q.reward.exp) rewParts.push(`EXP ${q.reward.exp.toLocaleString()}`);
+      ((q.reward && q.reward.items) || []).forEach((it) => {
+        const def = DATA.ITEMS[it.id];
+        if (def) rewParts.push(`${def.name} x${it.qty}`);
+      });
+
+      const progTxt = h.questState === 'ready'
+        ? '목표 달성! (상단 배지를 눌러 완료 보고)'
+        : (q.type === 'talk' ? '대상 NPC와 대화 필요' : `진행도 ${h.questProgress} / ${q.goal}`);
+
+      if (this.el.qbBadge) {
+        this.el.qbBadge.textContent = mode === 'accepted'
+          ? `✦ 새 퀘스트 수락 · 제${q.season || 1}부`
+          : `✦ 진행 중인 퀘스트 · 제${q.season || 1}부`;
+      }
+      if (this.el.qbTitle) this.el.qbTitle.textContent = q.title;
+      if (this.el.qbDesc) this.el.qbDesc.textContent = q.desc;
+      if (this.el.qbMeta) this.el.qbMeta.textContent = `목표 지역: ${locName}  ·  ${progTxt}`;
+      if (this.el.qbRewards) this.el.qbRewards.textContent = `보상: ${rewParts.join(' · ')}`;
+      if (this.el.btnQbWarp) {
+        if (q.targetMap && DATA.MAPS[q.targetMap]) {
+          this.el.btnQbWarp.style.display = '';
+          this.el.btnQbWarp.textContent = q.targetMap === 'tower'
+            ? `심연의 탑 ${q.goal}층 도전`
+            : `${locName.length > 14 ? '목표 지역' : locName} 바로 이동`;
+        } else {
+          this.el.btnQbWarp.style.display = 'none';
+        }
+      }
+      this.el.questBriefCard.classList.remove('hidden');
+    }
+
+    hideQuestBrief() {
+      if (this.el.questBriefCard) this.el.questBriefCard.classList.add('hidden');
+    }
+
+    warpToQuestTarget() {
+      const h = this.hero;
+      if (!h) return;
+      const q = DATA.QUESTS[h.questIdx];
+      this.hideQuestBrief();
+      if (!q || !q.targetMap || !DATA.MAPS[q.targetMap]) return;
+      if (q.targetMap === 'tower') {
+        const targetFl = Math.min(100, Math.max(1, Math.min(q.goal || 1, (h.towerBest || 0) + 1)));
+        this.enterTowerFloor(targetFl);
+      } else if (q.targetMap === 'town') {
+        this.loadMap('town', 11.5, 11.5);
+      } else if (q.targetMap === 'coast') {
+        this.loadMap('coast', 20.5, 8.5);
+      } else if (q.targetMap === 'forest' || q.targetMap === 'canyon') {
+        this.loadMap(q.targetMap, 2.5, 8.5);
+      } else {
+        this.loadMap(q.targetMap, 11.5, 14.8);
+      }
+      this.saveGame(true);
+    }
+
     handleElderQuestDialog() {
       const h = this.hero;
+      this.hideQuestBrief();
       this.checkCollectQuest();
       if (h.questState === 'all_done') {
         this.openDialog([
           `촌장 엘더: "${h.name}, 솔티아의 영원한 영웅이여! 10부작 200장에 걸친 대서사를 완결하고 대륙에 영원한 바람을 되찾아 주어 고맙네."`,
-          '촌장 엘더: "언제든 [월드맵·탑]에서 심연의 탑 100층과 용병 길드 의뢰에 다시 도전해 신화·영원 장비를 시험해 볼 수 있다네."'
+          '촌장 엘더: "언제든 [월드맵·탑]에서 200개 대륙 구역과 심연의 탑 100층에 도전해 신화·영원 장비를 시험해 볼 수 있다네."'
         ]);
         return;
       }
@@ -952,11 +1094,12 @@
           this.audio.playSfx('quest');
           this.addFloatText(h.x, h.y - 24, `${q.title}`, '#fde047');
           this.saveGame(true);
+          this.showQuestBrief('accepted');
         });
       } else if (h.questState === 'active') {
-        this.openDialog(q.dialogProgress);
+        this.showQuestBrief('detail');
       } else if (h.questState === 'ready') {
-        this.openDialog(q.dialogComplete, () => this.completeCurrentQuest());
+        this.openDialog(q.dialogDone || q.dialogComplete || [`${q.title}을(를) 완수했습니다!`], () => this.completeCurrentQuest());
       }
     }
 
@@ -971,6 +1114,9 @@
       } else if (q.type === 'tower') {
         h.questProgress = Math.min(q.goal, h.towerBest || 0);
         if (h.questProgress >= q.goal) h.questState = 'ready';
+      } else if (q.type === 'explore' && this.currentMapId === q.targetMap) {
+        h.questProgress = 1;
+        h.questState = 'ready';
       }
     }
 
@@ -1128,25 +1274,42 @@
     }
 
     useSkill(slotIdx) {
-      const h = this.hero, sk = DATA.CLASSES[h.classId].skills[slotIdx];
+      const h = this.hero;
+      this.ensureHeroExtras(h);
+      const cls = DATA.CLASSES[h.classId];
+      const skillIdx = (h.equippedSkills && typeof h.equippedSkills[slotIdx] === 'number') ? h.equippedSkills[slotIdx] : slotIdx;
+      const sk = cls.skills[skillIdx];
       if (!sk) return;
-      const skLv = h.skillLevels[slotIdx] || 0;
+      const skLv = h.skillLevels[skillIdx] || 0;
       if (skLv <= 0) { this.addFloatText(h.x, h.y - 18, `Lv.${sk.unlockLv} 해금`, '#94a3b8'); return; }
-      if (h.skillCds[slotIdx] > 0) return;
+      if (h.skillCds[skillIdx] > 0) return;
       if (h.mp < sk.mp) { this.addFloatText(h.x, h.y - 18, 'MP 부족', '#60a5fa'); return; }
 
       // Auto-aim directional skills cleanly
-      if (['cone', 'lunge'].includes(sk.type)) this.snapAimToNearestTarget(95);
-      else if (['projectile', 'fireball'].includes(sk.type)) this.snapAimToNearestTarget(175);
+      if (['cone', 'lunge', 'charge_slash'].includes(sk.type)) this.snapAimToNearestTarget(105);
+      else if (['projectile', 'fireball', 'wave_beam', 'fan_knives', 'astral_barrage', 'chain_lightning', 'blink_strike'].includes(sk.type)) this.snapAimToNearestTarget(185);
 
       const st = this.getHeroStats();
       h.mp -= sk.mp;
       h.castTimer = 0.28;
       if (Math.abs(h.facingX) > 0.15) h.lastHorizDir = h.facingX < 0 ? 'left' : 'right';
-      h.skillCds[slotIdx] = Math.max(1.5, sk.cd * (1 - (skLv - 1) * 0.06));
-      const lvBoost = 1 + (skLv - 1) * 0.22;
+      h.skillCds[skillIdx] = Math.max(1.5, sk.cd * (1 - (skLv - 1) * 0.06));
+      const lvBoost = (1 + (skLv - 1) * 0.22) * (1 + (st.skillDmg || 0) / 100);
       const basePower = (h.classId === 'runeblade' ? st.magicAtk : st.atk) * sk.mult * lvBoost;
       const ang = Math.atan2(h.facingY, h.facingX);
+
+      // Track 'skill_cast' scenario quest progress!
+      if (h.questState === 'active') {
+        const q = DATA.QUESTS[h.questIdx];
+        if (q && q.type === 'skill_cast') {
+          h.questProgress = Math.min(q.goal, h.questProgress + 1);
+          if (h.questProgress >= q.goal) {
+            h.questState = 'ready';
+            this.audio.playSfx('quest');
+            this.addFloatText(h.x, h.y - 38, '오의 수련 완료!', '#4ade80', true);
+          }
+        }
+      }
 
       this.audio.playSfx(h.classId === 'runeblade' ? 'magic' : 'skill');
       this.addFloatText(h.x, h.y - 24, sk.name, sk.color);
@@ -1155,10 +1318,21 @@
         this.shake(0.14, 4);
         this.effects.push({ type: 'slash', x: h.x, y: h.y, angle: ang, radius: sk.range + 10, flip: 1, heavy: true, color: sk.color, timer: 0.24, maxTimer: 0.24 });
         this.damageMonstersInArc(h.x, h.y, ang, sk.range + 12, 2.0, basePower, 165, false, 0.9);
-      } else if (sk.type === 'aoe' || sk.type === 'frost') {
+      } else if (sk.type === 'aoe' || sk.type === 'frost' || sk.type === 'poison_nova') {
         this.shake(0.15, 4);
-        this.effects.push({ type: 'ring', x: h.x, y: h.y, maxRadius: sk.radius, color: sk.color, timer: 0.34, maxTimer: 0.34 });
-        this.damageMonstersInRadius(h.x, h.y, sk.radius, basePower, 145, sk.type === 'frost' ? 2.5 : 0);
+        this.effects.push({ type: 'ring', x: h.x, y: h.y, maxRadius: sk.radius, color: sk.color, timer: 0.36, maxTimer: 0.36 });
+        this.spawnParticles(h.x, h.y, sk.color, 18);
+        this.damageMonstersInRadius(h.x, h.y, sk.radius, basePower, 145, sk.type === 'frost' ? 2.5 : (sk.type === 'poison_nova' ? 3.0 : 0));
+      } else if (sk.type === 'quake') {
+        this.shake(0.24, 6.5);
+        this.effects.push({ type: 'ring', x: h.x, y: h.y, maxRadius: sk.radius, color: sk.color, timer: 0.42, maxTimer: 0.42 });
+        this.effects.push({ type: 'ring', x: h.x, y: h.y, maxRadius: sk.radius * 0.58, color: '#fef08a', timer: 0.3, maxTimer: 0.3 });
+        this.spawnParticles(h.x, h.y, '#fb923c', 26);
+        this.monsters.forEach((m) => {
+          if (dist(h.x, h.y, m.x, m.y) <= sk.radius + m.size * 0.5) {
+            this.hitMonster(m, basePower, 210, h.x, h.y, false, 1.4, 0);
+          }
+        });
       } else if (sk.type === 'buff_def') {
         h.buffDefTimer = sk.duration + (skLv - 1);
         const heal = Math.round(st.maxHp * (0.22 + skLv * 0.04));
@@ -1169,11 +1343,41 @@
         h.buffSpdTimer = sk.duration + (skLv - 1);
         this.effects.push({ type: 'ring', x: h.x, y: h.y, maxRadius: 38, color: sk.color, timer: 0.35, maxTimer: 0.35 });
         this.spawnParticles(h.x, h.y, sk.color, 16);
-      } else if (sk.type === 'lunge') {
-        this.moveEntity(h, h.facingX * 42, h.facingY * 42, 1);
-        h.invulnTimer = Math.max(h.invulnTimer, 0.25);
-        this.effects.push({ type: 'slash', x: h.x, y: h.y, angle: ang, radius: 54, flip: 1, heavy: true, color: sk.color, timer: 0.2, maxTimer: 0.2 });
-        this.damageMonstersInArc(h.x, h.y, ang, 60, 1.7, basePower, 115, true);
+      } else if (sk.type === 'astral_shield') {
+        const healHp = Math.round(st.maxHp * 0.28);
+        const healMp = Math.round(st.maxMp * 0.34);
+        h.hp = Math.min(st.maxHp, h.hp + healHp);
+        h.mp = Math.min(st.maxMp, h.mp + healMp);
+        h.buffDefTimer = Math.max(h.buffDefTimer, 6);
+        this.effects.push({ type: 'ring', x: h.x, y: h.y, maxRadius: sk.radius, color: sk.color, timer: 0.38, maxTimer: 0.38 });
+        this.addFloatText(h.x, h.y - 10, `+${healHp}HP +${healMp}MP`, '#7dd3fc');
+        this.damageMonstersInRadius(h.x, h.y, sk.radius, basePower, 200, 1.0);
+      } else if (sk.type === 'lunge' || sk.type === 'charge_slash') {
+        const distMove = sk.type === 'charge_slash' ? 68 : 42;
+        const flipX = (h.lastHorizDir === 'left' || h.dir === 'left') ? -1 : 1;
+        this.dashGhosts.push({ x: h.x, y: h.y, flipX, frameIdx: 2, life: 0.22, maxLife: 0.22 });
+        this.moveEntity(h, h.facingX * distMove, h.facingY * distMove, 1);
+        h.invulnTimer = Math.max(h.invulnTimer, 0.3);
+        this.effects.push({ type: 'slash', x: h.x, y: h.y, angle: ang, radius: sk.type === 'charge_slash' ? 64 : 54, flip: 1, heavy: true, color: sk.color, timer: 0.24, maxTimer: 0.24 });
+        this.damageMonstersInArc(h.x, h.y, ang, sk.type === 'charge_slash' ? 74 : 60, 1.9, basePower, 145, sk.type === 'lunge', sk.type === 'charge_slash' ? 1.0 : 0);
+      } else if (sk.type === 'blink_strike') {
+        const tgt = this.findNearestMonster(sk.range || 165);
+        const flipX = (h.lastHorizDir === 'left' || h.dir === 'left') ? -1 : 1;
+        this.dashGhosts.push({ x: h.x, y: h.y, flipX, frameIdx: 3, life: 0.28, maxLife: 0.28 });
+        this.spawnParticles(h.x, h.y, '#2dd4bf', 14);
+        if (tgt) {
+          const tx = tgt.x + (h.x < tgt.x ? 18 : -18);
+          if (this.canStand(tx, tgt.y, 7)) { h.x = tx; h.y = tgt.y; }
+          else if (this.canStand(tgt.x, tgt.y + 16, 7)) { h.x = tgt.x; h.y = tgt.y + 16; }
+          h.invulnTimer = Math.max(h.invulnTimer, 0.35);
+          this.shake(0.18, 5);
+          this.effects.push({ type: 'slash', x: tgt.x, y: tgt.y, angle: 0.6, radius: 46, flip: 1, heavy: true, color: '#2dd4bf', timer: 0.24, maxTimer: 0.24 });
+          this.effects.push({ type: 'slash', x: tgt.x, y: tgt.y, angle: -0.6, radius: 46, flip: -1, heavy: true, color: '#f43f5e', timer: 0.24, maxTimer: 0.24 });
+          this.hitMonster(tgt, basePower, 120, h.x, h.y, true, 0.7, 0);
+        } else {
+          this.moveEntity(h, h.facingX * 64, h.facingY * 64, 1);
+          this.effects.push({ type: 'ring', x: h.x, y: h.y, maxRadius: 44, color: sk.color, timer: 0.28, maxTimer: 0.28 });
+        }
       } else if (sk.type === 'projectile' || sk.type === 'fireball') {
         this.projectiles.push({
           from: 'hero', x: h.x + h.facingX * 12, y: h.y + h.facingY * 12,
@@ -1181,17 +1385,58 @@
           damage: basePower, color: sk.color, pierce: sk.type === 'projectile', explode: sk.type === 'fireball',
           life: 0.85, hitIds: new Set()
         });
-      } else if (sk.type === 'pillars' || sk.type === 'meteor' || sk.type === 'flurry') {
-        this.shake(0.25, 6);
-        const count = sk.type === 'meteor' ? 5 : 6;
+      } else if (sk.type === 'wave_beam' || sk.type === 'fan_knives' || sk.type === 'astral_barrage') {
+        const count = sk.type === 'wave_beam' ? 3 : 5;
+        const spread = sk.type === 'wave_beam' ? 0.28 : 0.2;
+        const spd = sk.type === 'fan_knives' ? 310 : 275;
+        for (let i = 0; i < count; i++) {
+          const offset = (i - (count - 1) / 2) * spread;
+          const a = ang + offset;
+          this.projectiles.push({
+            from: 'hero', x: h.x + Math.cos(a) * 12, y: h.y + Math.sin(a) * 12,
+            vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+            radius: sk.type === 'wave_beam' ? 11 : 8.5,
+            damage: basePower, color: sk.color,
+            pierce: sk.type !== 'astral_barrage',
+            explode: sk.type === 'astral_barrage',
+            life: 0.78, hitIds: new Set()
+          });
+        }
+      } else if (sk.type === 'chain_lightning') {
+        const targets = this.monsters
+          .filter((m) => m.hp > 0 && dist(h.x, h.y, m.x, m.y) <= (sk.range || 170))
+          .sort((a, b) => dist(h.x, h.y, a.x, a.y) - dist(h.x, h.y, b.x, b.y))
+          .slice(0, 5);
+        this.shake(0.18, 4.5);
+        if (targets.length === 0) {
+          this.effects.push({ type: 'ring', x: h.x, y: h.y, maxRadius: 72, color: sk.color, timer: 0.3, maxTimer: 0.3 });
+        } else {
+          targets.forEach((m) => {
+            this.effects.push({ type: 'pillar', x: m.x, y: m.y, color: '#60a5fa', timer: 0.34, maxTimer: 0.34 });
+            this.spawnParticles(m.x, m.y, '#bae6fd', 12);
+            this.hitMonster(m, basePower, 90, h.x, h.y, false, 0.55, 0);
+          });
+        }
+      } else if (sk.type === 'pillars' || sk.type === 'meteor' || sk.type === 'flurry' || sk.type === 'sanctuary' || sk.type === 'eclipse_cross' || sk.type === 'supernova') {
+        this.shake(0.28, 7);
+        const count = (sk.type === 'sanctuary' || sk.type === 'supernova') ? 8 : (sk.type === 'meteor' ? 5 : 6);
         for (let i = 0; i < count; i++) {
           const a = (Math.PI * 2 * i) / count, r = sk.radius * 0.62;
           const px = h.x + Math.cos(a) * r, py = h.y + Math.sin(a) * r;
-          this.effects.push({ type: 'pillar', x: px, y: py, color: sk.color, timer: 0.48, maxTimer: 0.48 });
-          this.spawnParticles(px, py, sk.color, 10);
+          this.effects.push({ type: 'pillar', x: px, y: py, color: sk.color, timer: 0.52, maxTimer: 0.52 });
+          this.spawnParticles(px, py, sk.color, 12);
         }
-        this.effects.push({ type: 'ring', x: h.x, y: h.y, maxRadius: sk.radius, color: sk.color, timer: 0.42, maxTimer: 0.42 });
-        this.damageMonstersInRadius(h.x, h.y, sk.radius, basePower, 180, 0.5);
+        if (sk.type === 'sanctuary') {
+          const heal = Math.round(st.maxHp * 0.3);
+          h.hp = Math.min(st.maxHp, h.hp + heal);
+          this.addFloatText(h.x, h.y - 14, `+${heal} HP`, '#4ade80');
+        }
+        if (sk.type === 'eclipse_cross') {
+          this.effects.push({ type: 'slash', x: h.x, y: h.y, angle: 0.78, radius: sk.radius * 0.85, flip: 1, heavy: true, color: '#f43f5e', timer: 0.34, maxTimer: 0.34 });
+          this.effects.push({ type: 'slash', x: h.x, y: h.y, angle: -0.78, radius: sk.radius * 0.85, flip: -1, heavy: true, color: '#38bdf8', timer: 0.34, maxTimer: 0.34 });
+        }
+        this.effects.push({ type: 'ring', x: h.x, y: h.y, maxRadius: sk.radius, color: sk.color, timer: 0.45, maxTimer: 0.45 });
+        this.damageMonstersInRadius(h.x, h.y, sk.radius, basePower, 190, 0.7);
       }
       this.refreshQuickBar();
     }
@@ -1242,6 +1487,12 @@
       this.spawnParticles(m.x, m.y, isCrit ? '#fde047' : '#f8fafc', isCrit ? 10 : 5);
       this.addFloatText(m.x, m.y - 14, isCrit ? `${dmg}!` : `${dmg}`, isCrit ? '#fde047' : '#ffffff', isCrit);
 
+      // Lifesteal gear passive!
+      if (st.lifesteal > 0 && this.hero.hp > 0 && this.hero.hp < st.maxHp) {
+        const drain = Math.max(1, Math.round(dmg * (st.lifesteal / 100)));
+        this.hero.hp = Math.min(st.maxHp, this.hero.hp + drain);
+      }
+
       if (m.hp <= 0) this.killMonster(m);
     }
 
@@ -1261,12 +1512,18 @@
       (def.drops || []).forEach((dr) => {
         if (Math.random() <= dr.rate) this.drops.push({ kind: 'item', itemId: dr.id, x: m.x + randInt(-12, 12), y: m.y + randInt(-12, 12), life: 30 });
       });
+      // Continent-specific material drops in the 200 World Zones!
+      if (map && map.matId && DATA.ITEMS[map.matId] && Math.random() < (def.isBoss ? 0.95 : 0.45)) {
+        this.drops.push({ kind: 'item', itemId: map.matId, x: m.x + randInt(-14, 14), y: m.y + randInt(-14, 14), life: 32 });
+      }
 
       const h = this.hero;
-      // Main 200-chapter story quest kill tracking
+      // Main 200-chapter story quest kill & boss_hunt tracking
       if (h.questState === 'active') {
         const q = DATA.QUESTS[h.questIdx];
-        if (q && q.type === 'kill_any' && q.targets && q.targets.includes(m.typeId)) {
+        const isKillMatch = q && q.type === 'kill_any' && ((q.targets && q.targets.includes(m.typeId)) || (q.targetMap && q.targetMap === this.currentMapId));
+        const isBossMatch = q && q.type === 'boss_hunt' && (def.isBoss || (q.targets && q.targets.includes(m.typeId)));
+        if (isKillMatch || isBossMatch) {
           h.questProgress = Math.min(q.goal, h.questProgress + 1);
           if (h.questProgress >= q.goal) {
             h.questState = 'ready';
@@ -1352,7 +1609,9 @@
     useQuickPotion(kind) {
       if (!this.hero || this.state !== 'playing') return;
       const h = this.hero, st = this.getHeroStats();
-      const order = kind === 'hp' ? ['pot_hp_xl', 'pot_hp_l', 'pot_hp_m', 'pot_hp_s'] : ['pot_mp_xl', 'pot_mp_l', 'pot_mp_s'];
+      const order = kind === 'hp'
+        ? ['pot_hp_mythic', 'pot_hp_xl', 'pot_hp_l', 'pot_hp_m', 'pot_hp_s']
+        : ['pot_mp_mythic', 'pot_mp_xl', 'pot_mp_l', 'pot_mp_s'];
       const chosen = order.find((id) => (h.bagItems[id] || 0) > 0);
       if (!chosen) { this.addFloatText(h.x, h.y - 16, kind === 'hp' ? 'HP 포션 없음' : 'MP 포션 없음', '#94a3b8'); return; }
       const item = DATA.ITEMS[chosen];
@@ -1456,7 +1715,7 @@
       if (this.state !== 'playing') return;
 
       const h = this.hero, st = this.getHeroStats(), map = DATA.MAPS[this.currentMapId];
-      h.mp = Math.min(st.maxMp, h.mp + (map.safe ? 8 : 1.8) * dt);
+      h.mp = Math.min(st.maxMp, h.mp + ((map.safe ? 8 : 1.8) + (st.mpRegen || 0)) * dt);
       if (map.safe) h.hp = Math.min(st.maxHp, h.hp + 12 * dt);
 
       if (h.attackTimer > 0) h.attackTimer = Math.max(0, h.attackTimer - dt);
@@ -1466,9 +1725,12 @@
       if (h.invulnTimer > 0) h.invulnTimer = Math.max(0, h.invulnTimer - dt);
       if (h.dashTimer > 0) h.dashTimer = Math.max(0, h.dashTimer - dt);
       if (h.dashCd > 0) h.dashCd = Math.max(0, h.dashCd - dt);
+      if (h.buffAtkTimer > 0) h.buffAtkTimer = Math.max(0, h.buffAtkTimer - dt);
       if (h.buffDefTimer > 0) h.buffDefTimer = Math.max(0, h.buffDefTimer - dt);
       if (h.buffSpdTimer > 0) h.buffSpdTimer = Math.max(0, h.buffSpdTimer - dt);
-      for (let i = 0; i < 4; i++) if (h.skillCds[i] > 0) h.skillCds[i] = Math.max(0, h.skillCds[i] - dt);
+      for (let i = 0; i < (h.skillCds ? h.skillCds.length : 4); i++) {
+        if (h.skillCds[i] > 0) h.skillCds[i] = Math.max(0, h.skillCds[i] - dt);
+      }
 
       for (let i = this.dashGhosts.length - 1; i >= 0; i--) {
         this.dashGhosts[i].life -= dt;
@@ -1796,6 +2058,10 @@
           else if (ch === '_' || ch === '*' || ch === '#') base = this.sprites.tiles.ruinFloor;
           else if (ch === 'a' || ch === 'X') base = this.sprites.tiles.altarFloor;
           else if (ch === 'c' || ch === 'F') base = this.sprites.tiles.cobble;
+          else if (ch === 'n' || ch === 'I') base = this.sprites.tiles.snow;
+          else if (ch === 'k' || ch === 'K') base = this.sprites.tiles.skyFloor;
+          else if (ch === 'm' || ch === 'M') base = this.sprites.tiles.swamp;
+          else if (ch === 'v' || ch === 'V') base = this.sprites.tiles.voidFloor;
           ctx.drawImage(base, px, py, TILE + 0.4, TILE + 0.4);
 
           const tileMap = {
@@ -1807,7 +2073,11 @@
             '#': this.sprites.tiles.wall, '*': this.sprites.tiles.ruinRune, 'X': this.sprites.tiles.altarWall,
             's': this.sprites.tiles.sand, 'P': this.sprites.tiles.palm,
             'r': this.sprites.tiles.redRock, 'C': this.sprites.tiles.canyonWall, 'L': this.sprites.tiles.lava,
-            'b': this.sprites.tiles.citadelFloor, 'B': this.sprites.tiles.citadelWall
+            'b': this.sprites.tiles.citadelFloor, 'B': this.sprites.tiles.citadelWall,
+            'n': this.sprites.tiles.snow, 'I': this.sprites.tiles.iceWall,
+            'k': this.sprites.tiles.skyFloor, 'K': this.sprites.tiles.skyVoid,
+            'm': this.sprites.tiles.swamp, 'M': this.sprites.tiles.swampTree,
+            'v': this.sprites.tiles.voidFloor, 'V': this.sprites.tiles.voidWall
           };
           if (tileMap[ch]) ctx.drawImage(tileMap[ch], px, py, TILE + 0.4, TILE + 0.4);
         }
@@ -2220,40 +2490,46 @@
     // --- SKILL SLOTS & QUICK BAR ---
     buildSkillSlotUi() {
       if (!this.hero) return;
+      this.ensureHeroExtras(this.hero);
       const cls = DATA.CLASSES[this.hero.classId];
       this.el.skillSlots.innerHTML = '';
       if (this.el.mobileSkillSlots) this.el.mobileSkillSlots.innerHTML = '';
 
-      cls.skills.forEach((sk, idx) => {
-        const lv = this.hero.skillLevels[idx] || 0;
+      for (let slot = 0; slot < 4; slot++) {
+        const skIdx = this.hero.equippedSkills[slot];
+        const sk = cls.skills[skIdx] || cls.skills[slot];
+        if (!sk) continue;
+        const lv = this.hero.skillLevels[skIdx] || 0;
         const svg = SVG[sk.type] || SVG.cone;
 
         const btn = document.createElement('button');
         btn.className = 'slot-btn' + (lv <= 0 ? ' locked' : '');
         btn.title = `${sk.name} (MP ${sk.mp}) - ${sk.desc}`;
-        btn.innerHTML = `<span class="slot-key">${idx + 1}</span><span class="slot-svg" style="color:${sk.color}">${svg}</span><span class="slot-label">${sk.name}</span><span class="slot-cd hidden" id="skillCd_${idx}"></span>`;
-        btn.addEventListener('click', () => this.useSkill(idx));
+        btn.innerHTML = `<span class="slot-key">${slot + 1}</span><span class="slot-svg" style="color:${sk.color}">${svg}</span><span class="slot-label">${sk.name}</span><span class="slot-cd hidden" id="skillCd_${slot}"></span>`;
+        btn.addEventListener('click', () => this.useSkill(slot));
         this.el.skillSlots.appendChild(btn);
 
         if (this.el.mobileSkillSlots) {
           const mbtn = document.createElement('button');
           mbtn.type = 'button';
-          mbtn.dataset.slot = String(idx);
+          mbtn.dataset.slot = String(slot);
           mbtn.className = 'arc-skill-btn' + (lv <= 0 ? ' locked' : '');
-          mbtn.innerHTML = `<span class="ms-svg" style="color:${sk.color}">${svg}</span><span class="ms-name">${sk.name}</span><span class="slot-cd hidden" id="mSkillCd_${idx}"></span>`;
+          mbtn.innerHTML = `<span class="ms-svg" style="color:${sk.color}">${svg}</span><span class="ms-name">${sk.name}</span><span class="slot-cd hidden" id="mSkillCd_${slot}"></span>`;
           mbtn.addEventListener('pointerdown', (e) => {
             e.preventDefault(); this.audio.init();
-            if (this.state === 'playing') this.useSkill(idx);
+            if (this.state === 'playing') this.useSkill(slot);
           });
           this.el.mobileSkillSlots.appendChild(mbtn);
         }
-      });
+      }
     }
 
     updateQuickSlotCooldowns() {
       if (!this.hero) return;
+      const eq = this.hero.equippedSkills || [0, 1, 2, 3];
       for (let i = 0; i < 4; i++) {
-        const cd = this.hero.skillCds[i];
+        const skIdx = typeof eq[i] === 'number' ? eq[i] : i;
+        const cd = this.hero.skillCds[skIdx] || 0;
         for (const id of [`skillCd_${i}`, `mSkillCd_${i}`]) {
           const el = document.getElementById(id);
           if (!el) continue;
@@ -2293,8 +2569,8 @@
     refreshQuickBar() {
       if (!this.hero) return;
       const b = this.hero.bagItems;
-      const hpCnt = (b.pot_hp_s || 0) + (b.pot_hp_m || 0) + (b.pot_hp_l || 0) + (b.pot_hp_xl || 0);
-      const mpCnt = (b.pot_mp_s || 0) + (b.pot_mp_l || 0) + (b.pot_mp_xl || 0);
+      const hpCnt = (b.pot_hp_s || 0) + (b.pot_hp_m || 0) + (b.pot_hp_l || 0) + (b.pot_hp_xl || 0) + (b.pot_hp_mythic || 0);
+      const mpCnt = (b.pot_mp_s || 0) + (b.pot_mp_l || 0) + (b.pot_mp_xl || 0) + (b.pot_mp_mythic || 0);
       const scCnt = b.scroll_town || 0;
       this.el.potHpCount.textContent = `${hpCnt}`;
       this.el.potMpCount.textContent = `${mpCnt}`;
@@ -2317,6 +2593,7 @@
 
     openHeroModal(tab) {
       this.clearTouchInputs();
+      this.hideQuestBrief();
       this.audio.playSfx('ui');
       this.state = 'modal'; this.modalType = 'hero'; this.modalTab = tab;
       this.el.modalBackdrop.classList.remove('hidden');
@@ -2368,6 +2645,10 @@
       if (b.vit) parts.push(`체력 +${b.vit}`);
       if (b.int) parts.push(`지능 +${b.int}`);
       if (b.crit) parts.push(`치명 +${b.crit}%`);
+      if (b.lifesteal) parts.push(`흡혈 +${b.lifesteal}%`);
+      if (b.spd) parts.push(`이속 +${b.spd}`);
+      if (b.mpRegen) parts.push(`MP회복 +${b.mpRegen}/s`);
+      if (b.skillDmg) parts.push(`스킬 +${b.skillDmg}%`);
       return parts.join(' · ');
     }
 
@@ -2470,6 +2751,11 @@
           const st = this.getHeroStats();
           if (it.subtype === 'hp') { h.bagItems[id]--; h.hp = Math.min(st.maxHp, h.hp + it.power); this.audio.playSfx('potion'); }
           else if (it.subtype === 'mp') { h.bagItems[id]--; h.mp = Math.min(st.maxMp, h.mp + it.power); this.audio.playSfx('potion'); }
+          else if (it.subtype === 'full') { h.bagItems[id]--; h.hp = st.maxHp; h.mp = st.maxMp; this.audio.playSfx('levelup'); this.addFloatText(h.x, h.y - 18, 'HP · MP 완전 회복!', '#4ade80'); }
+          else if (it.subtype === 'buff_atk') { h.bagItems[id]--; h.buffAtkTimer = Math.max(h.buffAtkTimer || 0, it.power); this.audio.playSfx('skill'); this.addFloatText(h.x, h.y - 18, '공격력·마력 +35%!', '#f97316'); }
+          else if (it.subtype === 'buff_def') { h.bagItems[id]--; h.buffDefTimer = Math.max(h.buffDefTimer || 0, it.power); this.audio.playSfx('skill'); this.addFloatText(h.x, h.y - 18, '방어력 대폭 상승!', '#60a5fa'); }
+          else if (it.subtype === 'buff_spd') { h.bagItems[id]--; h.buffSpdTimer = Math.max(h.buffSpdTimer || 0, it.power); this.audio.playSfx('skill'); this.addFloatText(h.x, h.y - 18, '질풍·치명타 상승!', '#34d399'); }
+          else if (it.subtype === 'exp') { h.bagItems[id]--; const gain = Math.round(it.power * (1 + h.lv * 0.28)); this.gainExp(gain); this.audio.playSfx('quest'); this.addFloatText(h.x, h.y - 18, `+${gain.toLocaleString()} EXP!`, '#fde047'); }
           else if (it.subtype === 'town') { this.closeModal(); this.useReturnScroll(); return; }
           this.renderHeroModal(); this.refreshQuickBar();
         });
@@ -2478,13 +2764,43 @@
 
     renderSkillsTab(body) {
       const h = this.hero, cls = DATA.CLASSES[h.classId];
+      this.ensureHeroExtras(h);
+      const eq = h.equippedSkills;
+      const slotSummary = eq.map((skIdx, slot) => {
+        const sk = cls.skills[skIdx];
+        return `<span class="badge" style="color:${sk ? sk.color : '#fff'}">슬롯${slot + 1}: ${sk ? sk.name : '-'}</span>`;
+      }).join(' ');
+
       body.innerHTML = `
+        <div class="panel-card" style="margin-bottom:10px;">
+          <h3>전투 슬롯 장착 현황 (총 ${cls.skills.length}종 중 4개 선택)</h3>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">${slotSummary}</div>
+        </div>
         <div class="panel-card">
-          <h3>${cls.name} 스킬 트리 (스킬 포인트: <span style="color:#fde047">${h.skillPoints}</span>)</h3>
+          <h3>${cls.name} 스킬 트리 <span class="badge">포인트 ${h.skillPoints}</span></h3>
           <div class="list-grid">
             ${cls.skills.map((sk, idx) => {
-              const lv = h.skillLevels[idx] || 0, canUp = h.lv >= sk.unlockLv && h.skillPoints > 0 && lv < 5;
-              return `<div class="item-row"><div class="item-info"><div class="item-title"><span style="color:${sk.color}">${sk.name}</span><span class="badge">${lv > 0 ? `Lv.${lv} / 5` : `Lv.${sk.unlockLv} 해금`}</span><span style="color:#60a5fa;font-size:11px;">MP ${sk.mp} · ${sk.cd}s</span></div><div class="item-sub">${sk.desc}</div></div><div class="item-actions"><button class="rpg-btn primary small" data-up-skill="${idx}" ${canUp ? '' : 'disabled'}>${lv >= 5 ? 'MAX' : '강화'}</button></div></div>`;
+              const lv = h.skillLevels[idx] || 0;
+              const canUp = h.lv >= sk.unlockLv && h.skillPoints > 0 && lv < 5;
+              const eqSlot = eq.indexOf(idx);
+              const slotBtns = lv > 0 ? [0, 1, 2, 3].map((sl) => {
+                const isHere = eqSlot === sl;
+                return `<button class="rpg-btn ${isHere ? 'primary' : 'secondary'}" style="padding:4px 7px;font-size:10px;" data-equip-skill="${idx}" data-equip-slot="${sl}">${sl + 1}번${isHere ? '✓' : ''}</button>`;
+              }).join('') : '';
+              return `
+                <div class="item-row" style="flex-direction:column;align-items:stretch;gap:7px;${eqSlot >= 0 ? 'border-color:rgba(245,208,122,0.45);' : ''}">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                    <div class="item-info">
+                      <div class="item-title"><span style="color:${sk.color}">${sk.name}</span><span class="badge">${lv > 0 ? `Lv.${lv}/5` : `Lv.${sk.unlockLv} 해금`}</span><span style="color:#7dd3fc;font-size:11px;">MP ${sk.mp} · ${sk.cd}s</span></div>
+                      <div class="item-sub">${sk.desc}</div>
+                    </div>
+                    <div class="item-actions">
+                      <button class="rpg-btn primary small" data-up-skill="${idx}" ${canUp ? '' : 'disabled'}>${lv >= 5 ? 'MAX' : (lv === 0 ? '습득' : '강화')}</button>
+                    </div>
+                  </div>
+                  ${lv > 0 ? `<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;"><span style="font-size:10.5px;color:#b4bdd6;font-weight:700;">전투 슬롯:</span>${slotBtns}</div>` : ''}
+                </div>
+              `;
             }).join('')}
           </div>
         </div>
@@ -2494,7 +2810,26 @@
           const idx = Number(btn.dataset.upSkill);
           if (h.skillPoints <= 0 || h.skillLevels[idx] >= 5) return;
           h.skillLevels[idx]++; h.skillPoints--;
-          this.audio.playSfx('enhanceOk'); this.buildSkillSlotUi(); this.renderHeroModal(); this.refreshQuickBar();
+          this.audio.playSfx('enhanceOk'); this.buildSkillSlotUi(); this.renderHeroModal(); this.refreshQuickBar(); this.saveGame(true);
+        });
+      });
+      body.querySelectorAll('[data-equip-skill]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const skIdx = Number(btn.dataset.equipSkill);
+          const targetSlot = Number(btn.dataset.equipSlot);
+          const prevSlot = h.equippedSkills.indexOf(skIdx);
+          if (prevSlot >= 0) {
+            // Swap cleanly with existing slot so no duplicate skills exist!
+            const oldInTarget = h.equippedSkills[targetSlot];
+            h.equippedSkills[targetSlot] = skIdx;
+            h.equippedSkills[prevSlot] = oldInTarget;
+          } else {
+            h.equippedSkills[targetSlot] = skIdx;
+          }
+          this.audio.playSfx('ui');
+          this.buildSkillSlotUi();
+          this.renderHeroModal();
+          this.saveGame(true);
         });
       });
     }
@@ -2595,6 +2930,17 @@
           this.gainExp(eRew);
           this.giveItem('mat_enhance', 1);
           this.audio.playSfx('quest');
+          // Progress 'bounty_clear' main scenario quest!
+          if (h.questState === 'active') {
+            const cq = DATA.QUESTS[h.questIdx];
+            if (cq && cq.type === 'bounty_clear') {
+              h.questProgress = Math.min(cq.goal, h.questProgress + 1);
+              if (h.questProgress >= cq.goal) {
+                h.questState = 'ready';
+                this.addFloatText(h.x, h.y - 34, '길드 의뢰 퀘스트 달성!', '#4ade80', true);
+              }
+            }
+          }
           const pool = DATA.SIDE_BOUNTY_POOL || [];
           const maxPool = Math.min(pool.length, Math.max(2, Math.floor((h.questIdx || 0) / 3) + 2));
           const fresh = pool[Math.floor(Math.random() * maxPool)];
@@ -2618,7 +2964,16 @@
       this.ensureHeroExtras(h);
       const season = this.getStorySeason();
       const nextFl = Math.min(100, (h.towerBest || 0) + 1);
-      const worldOrder = [
+      const curQ = h.questState !== 'all_done' ? DATA.QUESTS[h.questIdx] : null;
+      const qTargetMap = curQ ? curQ.targetMap : null;
+
+      if (this.selectedContinentTab === undefined) {
+        const curMapObj = DATA.MAPS[this.currentMapId];
+        this.selectedContinentTab = (curMapObj && curMapObj.continentId) ? curMapObj.continentId : 1;
+      }
+      const selCont = this.selectedContinentTab; // 0 = Classic 8 regions, 1..10 = 10 Continents (200 Zones!)
+
+      const classicOrder = [
         { id: 'town', tx: 11.5, ty: 11.5 },
         { id: 'meadow', tx: 11.5, ty: 15.5 },
         { id: 'coast', tx: 20.5, ty: 8.5 },
@@ -2629,23 +2984,67 @@
         { id: 'altar', tx: 11.5, ty: 15.5 }
       ];
 
-      const mapRows = worldOrder.map((entry) => {
-        const m = DATA.MAPS[entry.id];
-        if (!m) return '';
-        const unlocked = !!h.unlockedMaps[entry.id] || season >= 2;
-        const isHere = this.currentMapId === entry.id;
-        return `
-          <div class="item-row" style="${isHere ? 'border-color:rgba(251,191,36,0.6);' : (!unlocked ? 'opacity:0.5;' : '')}">
-            <div class="item-info">
-              <div class="item-title">${m.name} ${isHere ? '<span class="badge" style="color:#4ade80">현재 위치</span>' : ''}</div>
-              <div class="item-sub">${m.subtitle}</div>
+      const contPills = [
+        `<button type="button" class="tab-btn${selCont === 0 ? ' active' : ''}" data-pick-cont="0" style="padding:5px 9px;font-size:11px;">마을·고전8</button>`,
+        ...(DATA.CONTINENTS || []).map((c) => {
+          const active = selCont === c.id;
+          return `<button type="button" class="tab-btn${active ? ' active' : ''}" data-pick-cont="${c.id}" style="padding:5px 9px;font-size:11px;">${c.short}</button>`;
+        })
+      ].join('');
+
+      let mapRows = '';
+      let sectionHeading = '클래식 솔티아 8지역';
+      if (selCont === 0) {
+        mapRows = classicOrder.map((entry) => {
+          const m = DATA.MAPS[entry.id];
+          if (!m) return '';
+          const unlocked = !!h.unlockedMaps[entry.id] || season >= 2 || entry.id === 'town' || entry.id === 'meadow';
+          const isHere = this.currentMapId === entry.id;
+          const isTarget = qTargetMap === entry.id;
+          return `
+            <div class="item-row" style="${isHere ? 'border-color:rgba(251,191,36,0.65);' : (isTarget ? 'border-color:rgba(56,189,248,0.65);' : (!unlocked ? 'opacity:0.55;' : ''))}">
+              <div class="item-info">
+                <div class="item-title">${m.name} ${isHere ? '<span class="badge" style="color:#4ade80">현재</span>' : ''} ${isTarget ? '<span class="badge" style="color:#38bdf8">⭐ 퀘스트</span>' : ''}</div>
+                <div class="item-sub">${m.subtitle}</div>
+              </div>
+              <div class="item-actions">
+                <button class="rpg-btn ${isHere ? 'secondary' : 'primary'} small" data-warp-map="${entry.id}" data-wx="${entry.tx}" data-wy="${entry.ty}" ${(!unlocked || isHere) ? 'disabled' : ''}>${unlocked ? (isHere ? '위치 중' : '이동') : '미발견'}</button>
+              </div>
             </div>
-            <div class="item-actions">
-              <button class="rpg-btn ${isHere ? 'secondary' : 'primary'} small" data-warp-map="${entry.id}" data-wx="${entry.tx}" data-wy="${entry.ty}" ${(!unlocked || isHere) ? 'disabled' : ''}>${unlocked ? (isHere ? '위치 중' : '이동') : '미발견'}</button>
+          `;
+        }).join('');
+      } else {
+        const cont = (DATA.CONTINENTS || [])[selCont - 1];
+        sectionHeading = cont ? `${cont.name} (${(selCont - 1) * 20 + 1}~${selCont * 20}구역)` : `제${selCont}대륙`;
+        const startZ = (selCont - 1) * 20 + 1;
+        const rows = [];
+        for (let z = startZ; z < startZ + 20; z++) {
+          const m = DATA.MAPS[`zone_${z}`];
+          if (!m) continue;
+          const isHere = this.currentMapId === m.id;
+          const isTarget = qTargetMap === m.id;
+          const hasChest = m.chests && m.chests.some((ch) => !h.openedChests[ch.id]);
+          rows.push(`
+            <div class="item-row" style="${isHere ? 'border-color:rgba(251,191,36,0.7);' : (isTarget ? 'border-color:rgba(56,189,248,0.75);' : '')}">
+              <div class="item-info">
+                <div class="item-title">
+                  ${m.name}
+                  <span class="badge">Lv.${m.recLv}</span>
+                  ${m.isBossZone ? '<span class="badge" style="color:#fb7185;border-color:rgba(244,63,94,0.45)">👑 보스</span>' : ''}
+                  ${hasChest ? '<span class="badge" style="color:#fde047">🎁</span>' : ''}
+                  ${isHere ? '<span class="badge" style="color:#4ade80">현재</span>' : ''}
+                  ${isTarget ? '<span class="badge" style="color:#38bdf8">⭐ 목표</span>' : ''}
+                </div>
+                <div class="item-sub">${m.subtitle}</div>
+              </div>
+              <div class="item-actions">
+                <button class="rpg-btn ${isHere ? 'secondary' : 'primary'} small" data-warp-map="${m.id}" data-wx="11.5" data-wy="14.8" ${isHere ? 'disabled' : ''}>${isHere ? '위치 중' : '이동'}</button>
+              </div>
             </div>
-          </div>
-        `;
-      }).join('');
+          `);
+        }
+        mapRows = rows.join('');
+      }
 
       body.innerHTML = `
         <div class="panel-card" style="margin-bottom:10px;border-color:rgba(192,132,252,0.5);">
@@ -2657,11 +3056,21 @@
           </div>
         </div>
         <div class="panel-card">
-          <h3>솔티아 대륙 빠른 이동 <span class="badge" style="color:#fde047">제${season}부 각성</span></h3>
-          <div class="item-sub" style="margin-bottom:8px;">한 번 방문한 지역(또는 제2부 이후 전 지역)으로 즉시 이동할 수 있습니다.</div>
+          <h3>솔티아 10대륙 · 200구역 월드맵 <span class="badge" style="color:#fde047">총 ${Object.keys(DATA.MAPS).length}맵</span></h3>
+          <div class="item-sub" style="margin-bottom:8px;">원하는 대륙과 구역(1~200구역)을 선택해 즉시 탐험·보스 사냥·보물상자 파밍을 떠날 수 있습니다!</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;">${contPills}</div>
+          <div style="font-size:12px;font-weight:900;color:#fff6d2;margin-bottom:6px;">${sectionHeading}</div>
           <div class="list-grid">${mapRows}</div>
         </div>
       `;
+
+      body.querySelectorAll('[data-pick-cont]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          this.audio.playSfx('ui');
+          this.selectedContinentTab = Number(btn.dataset.pickCont);
+          this.renderHeroModal();
+        });
+      });
 
       const nextBtn = body.querySelector('#btnEnterTowerNext');
       if (nextBtn) {
@@ -2753,6 +3162,16 @@
         }).join('');
         body.innerHTML = `<div class="panel-card"><h3>대장장이 볼칸 · <span style="color:#fde047">${h.gold.toLocaleString()}G</span> · 강화석 <span style="color:#4ade80">${stones}</span></h3>${feedback ? `<div style="margin-bottom:8px;padding:7px 10px;border-radius:7px;background:rgba(229,188,101,0.12);border:1px solid rgba(229,188,101,0.4);color:#fde047;font-weight:700;">${feedback}</div>` : ''}<div class="item-sub" style="margin-bottom:8px;">최대 +25 초월 강화! 실패해도 장비는 파괴되지 않습니다. +3/+5/+7/+10/+15/+20 무기는 검기 색상이 진화합니다.</div><div class="list-grid">${rows}</div></div>`;
 
+        const markEnhanceQuest = () => {
+          if (h.questState === 'active') {
+            const cq = DATA.QUESTS[h.questIdx];
+            if (cq && cq.type === 'enhance_gear') {
+              h.questProgress = Math.min(cq.goal, h.questProgress + 1);
+              if (h.questProgress >= cq.goal) h.questState = 'ready';
+            }
+          }
+        };
+
         body.querySelectorAll('[data-enh-slot]').forEach((btn) => {
           btn.addEventListener('click', () => {
             const eq = h.equip[btn.dataset.enhSlot];
@@ -2760,6 +3179,7 @@
             const costGold = enhCost(eq.enh);
             if (h.gold < costGold || (h.bagItems.mat_enhance || 0) < 1) return;
             h.gold -= costGold; h.bagItems.mat_enhance--;
+            markEnhanceQuest();
             if (Math.random() * 100 < enhRate(eq.enh)) {
               eq.enh++; this.audio.playSfx('enhanceOk');
               this.renderSmithModal(`강화 성공! ${DATA.ITEMS[eq.itemId].name} +${eq.enh}`);
@@ -2789,6 +3209,13 @@
             h.gold -= rc.gold;
             rc.materials.forEach((m) => { h.bagItems[m.id] -= m.qty; });
             this.giveItem(rc.result, 1); this.audio.playSfx('enhanceOk');
+            if (h.questState === 'active') {
+              const cq = DATA.QUESTS[h.questIdx];
+              if (cq && cq.type === 'enhance_gear') {
+                h.questProgress = Math.min(cq.goal, h.questProgress + 1);
+                if (h.questProgress >= cq.goal) h.questState = 'ready';
+              }
+            }
             this.renderSmithModal(`조합 성공! [${DATA.ITEMS[rc.result].name}] 획득`);
             this.saveGame(true);
           });

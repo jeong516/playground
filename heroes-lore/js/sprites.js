@@ -506,6 +506,106 @@
       sprites.tiles.citadelWall = bw;
     }
 
+    // Alpine Snow & Crystal Glacier Wall (Continent 4)
+    {
+      const sn = makeCanvas(TS, TS);
+      const ctx = sn.getContext('2d');
+      ctx.fillStyle = '#dbeafe'; ctx.fillRect(0, 0, TS, TS);
+      [[26, 30, 22, 12, 'rgba(255,255,255,0.65)'], [68, 66, 20, 12, 'rgba(147,197,253,0.32)'], [64, 24, 15, 9, 'rgba(255,255,255,0.55)']]
+        .forEach(([x, y, rx, ry, col]) => { ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0.2, 0, Math.PI * 2); ctx.fill(); });
+      [[24, 58], [72, 34], [48, 76]].forEach(([sx, sy]) => {
+        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(sx, sy, 2.2, 0, Math.PI * 2); ctx.fill();
+      });
+      sprites.tiles.snow = sn;
+
+      const iw = makeCanvas(TS, TS);
+      const wctx = iw.getContext('2d');
+      wctx.fillStyle = '#1e3a8a'; wctx.fillRect(0, 0, TS, TS);
+      rrect(wctx, 4, 4, 88, 42, 8);
+      wctx.fillStyle = linGrad(wctx, 0, 4, 0, 46, [[0, '#e0f2fe'], [0.4, '#60a5fa'], [1, '#1d4ed8']]); wctx.fill();
+      rrect(wctx, 4, 50, 42, 42, 7); wctx.fillStyle = linGrad(wctx, 4, 50, 46, 92, [[0, '#93c5fd'], [1, '#1e40af']]); wctx.fill();
+      rrect(wctx, 50, 50, 42, 42, 7); wctx.fillStyle = linGrad(wctx, 50, 50, 92, 92, [[0, '#bae6fd'], [1, '#1d4ed8']]); wctx.fill();
+      wctx.strokeStyle = 'rgba(255,255,255,0.6)'; wctx.lineWidth = 1.6;
+      wctx.beginPath(); wctx.moveTo(14, 12); wctx.lineTo(38, 12); wctx.stroke();
+      sprites.tiles.iceWall = iw;
+    }
+
+    // Celestial Floating Marble & Starry Sky Abyss (Continent 6)
+    {
+      const sf = makeCanvas(TS, TS);
+      const ctx = sf.getContext('2d');
+      ctx.fillStyle = '#e6eef8'; ctx.fillRect(0, 0, TS, TS);
+      rrect(ctx, 3, 3, 43, 43, 6); ctx.fillStyle = linGrad(ctx, 3, 3, 46, 46, [[0, '#ffffff'], [1, '#d7e3f4']]); ctx.fill();
+      rrect(ctx, 50, 3, 43, 43, 6); ctx.fillStyle = linGrad(ctx, 50, 3, 93, 46, [[0, '#f8fbff'], [1, '#cedcf0']]); ctx.fill();
+      rrect(ctx, 3, 50, 43, 43, 6); ctx.fillStyle = linGrad(ctx, 3, 50, 46, 93, [[0, '#f8fbff'], [1, '#cedcf0']]); ctx.fill();
+      rrect(ctx, 50, 50, 43, 43, 6); ctx.fillStyle = linGrad(ctx, 50, 50, 93, 93, [[0, '#ffffff'], [1, '#d7e3f4']]); ctx.fill();
+      ctx.strokeStyle = 'rgba(234,179,8,0.42)'; ctx.lineWidth = 1.6;
+      ctx.strokeRect(4, 4, 88, 88);
+      sprites.tiles.skyFloor = sf;
+
+      const sv = makeCanvas(TS, TS);
+      const vctx = sv.getContext('2d');
+      vctx.fillStyle = linGrad(vctx, 0, 0, 0, TS, [[0, '#0f2854'], [0.55, '#1d4f8a'], [1, '#3b82c4']]);
+      vctx.fillRect(0, 0, TS, TS);
+      vctx.fillStyle = 'rgba(255,255,255,0.22)';
+      vctx.beginPath(); vctx.ellipse(32, 62, 24, 11, 0, 0, Math.PI * 2); vctx.ellipse(66, 54, 22, 10, 0, 0, Math.PI * 2); vctx.fill();
+      [[20, 22], [74, 28], [48, 16]].forEach(([x, y]) => {
+        vctx.fillStyle = '#fef08a'; vctx.beginPath(); vctx.arc(x, y, 1.8, 0, Math.PI * 2); vctx.fill();
+      });
+      sprites.tiles.skyVoid = sv;
+    }
+
+    // Cursed Witchwood Swamp & Glowing Mushroom Tree (Continent 7)
+    {
+      const sw = makeCanvas(TS, TS);
+      const ctx = sw.getContext('2d');
+      ctx.fillStyle = '#243c35'; ctx.fillRect(0, 0, TS, TS);
+      [[30, 32, 22, 12, 'rgba(52,211,153,0.14)'], [66, 68, 22, 13, 'rgba(15,23,42,0.34)']]
+        .forEach(([x, y, rx, ry, col]) => { ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, -0.2, 0, Math.PI * 2); ctx.fill(); });
+      ctx.fillStyle = 'rgba(167,139,250,0.45)';
+      ctx.beginPath(); ctx.arc(28, 66, 3.2, 0, Math.PI * 2); ctx.arc(70, 28, 2.5, 0, Math.PI * 2); ctx.fill();
+      sprites.tiles.swamp = sw;
+
+      const st = makeCanvas(TS, TS);
+      const tctx = st.getContext('2d');
+      tctx.fillStyle = 'rgba(0,0,0,0.32)';
+      tctx.beginPath(); tctx.ellipse(48, 84, 34, 11, 0, 0, Math.PI * 2); tctx.fill();
+      rrect(tctx, 40, 56, 16, 30, 5);
+      tctx.fillStyle = linGrad(tctx, 40, 56, 56, 86, [[0, '#312e45'], [0.5, '#4b4464'], [1, '#1e1b2e']]); tctx.fill();
+      tctx.beginPath(); tctx.arc(48, 42, 34, Math.PI, Math.PI * 2); tctx.quadraticCurveTo(48, 56, 14, 42); tctx.closePath();
+      tctx.fillStyle = linGrad(tctx, 18, 12, 78, 56, [[0, '#34d399'], [0.45, '#115e59'], [1, '#1e1b4b']]); tctx.fill();
+      tctx.strokeStyle = '#0f172a'; tctx.lineWidth = 2; tctx.stroke();
+      [[34, 30, 5], [58, 26, 4], [48, 40, 3.5]].forEach(([mx, my, mr]) => {
+        tctx.fillStyle = '#a7f3d0'; tctx.beginPath(); tctx.arc(mx, my, mr, 0, Math.PI * 2); tctx.fill();
+      });
+      sprites.tiles.swampTree = st;
+    }
+
+    // Cosmic Rift Floor & Dimensional Pillar Wall (Continents 9 & 10)
+    {
+      const vf = makeCanvas(TS, TS);
+      const ctx = vf.getContext('2d');
+      ctx.fillStyle = '#14122b'; ctx.fillRect(0, 0, TS, TS);
+      rrect(ctx, 4, 4, 88, 88, 8);
+      ctx.fillStyle = linGrad(ctx, 4, 4, 92, 92, [[0, '#221d47'], [0.5, '#1a1638'], [1, '#110e26']]); ctx.fill();
+      ctx.strokeStyle = 'rgba(56,189,248,0.28)'; ctx.lineWidth = 1.6; ctx.stroke();
+      [[24, 24], [72, 30], [44, 68], [76, 74]].forEach(([x, y]) => {
+        ctx.fillStyle = 'rgba(253,224,71,0.55)'; ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
+      });
+      sprites.tiles.voidFloor = vf;
+
+      const vw = makeCanvas(TS, TS);
+      const wctx = vw.getContext('2d');
+      wctx.fillStyle = '#080614'; wctx.fillRect(0, 0, TS, TS);
+      rrect(wctx, 6, 6, 84, 84, 10);
+      wctx.fillStyle = linGrad(wctx, 6, 6, 90, 90, [[0, '#38bdf8'], [0.22, '#312e81'], [0.78, '#1e1b4b'], [1, '#09071a']]);
+      wctx.fill();
+      wctx.strokeStyle = '#fde047'; wctx.lineWidth = 2; wctx.stroke();
+      wctx.fillStyle = '#7dd3fc';
+      wctx.beginPath(); wctx.moveTo(48, 22); wctx.lineTo(64, 48); wctx.lineTo(48, 74); wctx.lineTo(32, 48); wctx.closePath(); wctx.fill();
+      sprites.tiles.voidWall = vw;
+    }
+
     // =========================================================
     // 2. EPIC SLEEK ANIME-FANTASY HD HEROES (160x160 + PORTRAITS)
     // =========================================================
