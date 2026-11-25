@@ -142,6 +142,7 @@
         classGrid: document.getElementById('classGrid'),
         dialogBox: document.getElementById('dialogBox'),
         dialogSpeaker: document.getElementById('dialogSpeaker'),
+        dialogCounter: document.getElementById('dialogCounter'),
         dialogText: document.getElementById('dialogText'),
         modalBackdrop: document.getElementById('modalBackdrop'),
         modalTabs: document.getElementById('modalTabs'),
@@ -159,6 +160,7 @@
         hudMpText: document.getElementById('hudMpText'),
         hudExpFill: document.getElementById('hudExpFill'),
         hudMapName: document.getElementById('hudMapName'),
+        btnHudFold: document.getElementById('btnHudFold'),
         hudQuestPill: document.getElementById('hudQuestPill'),
         hudQuestText: document.getElementById('hudQuestText'),
         hudBossBar: document.getElementById('hudBossBar'),
@@ -173,6 +175,8 @@
         settingsPopover: document.getElementById('settingsPopover'),
         bgmState: document.getElementById('bgmState'),
         sfxState: document.getElementById('sfxState'),
+        btnHudAlpha: document.getElementById('btnHudAlpha'),
+        hudAlphaLabel: document.getElementById('hudAlphaLabel'),
         // Controls
         skillSlots: document.getElementById('skillSlots'),
         mobileSkillSlots: document.getElementById('mobileSkillSlots'),
@@ -509,7 +513,37 @@
 
       if (this.el.hudQuestPill) {
         this.el.hudQuestPill.addEventListener('click', () => {
-          if (this.state === 'playing') this.openHeroModal('quest');
+          if (this.state !== 'playing' || !this.hero) return;
+          if (this.hero.questState === 'available' || this.hero.questState === 'ready') {
+            this.audio.init();
+            this.audio.playSfx('ui');
+            this.handleElderQuestDialog();
+          } else {
+            this.openHeroModal('quest');
+          }
+        });
+      }
+
+      if (this.el.btnHudFold) {
+        this.el.btnHudFold.addEventListener('click', () => {
+          this.audio.init();
+          this.audio.playSfx('ui');
+          this.el.gameHud.classList.toggle('hud-compact');
+          if (this.el.settingsPopover) this.el.settingsPopover.classList.add('hidden');
+        });
+      }
+
+      this.hudAlphaMode = 'semi';
+      if (this.el.btnHudAlpha) {
+        this.el.btnHudAlpha.addEventListener('click', () => {
+          this.audio.playSfx('ui');
+          const next = this.hudAlphaMode === 'semi' ? 'minimal' : (this.hudAlphaMode === 'minimal' ? 'solid' : 'semi');
+          this.hudAlphaMode = next;
+          this.el.gameHud.classList.toggle('alpha-minimal', next === 'minimal');
+          this.el.gameHud.classList.toggle('alpha-solid', next === 'solid');
+          if (this.el.hudAlphaLabel) {
+            this.el.hudAlphaLabel.textContent = next === 'semi' ? '반투명' : (next === 'minimal' ? '미니멀' : '선명');
+          }
         });
       }
 
@@ -683,18 +717,24 @@
     openDialog(lines, onDone = null) {
       this.clearTouchInputs();
       this.dialogLines = lines; this.dialogIdx = 0; this.dialogOnDone = onDone; this.state = 'dialog';
+      if (this.el.gameHud) this.el.gameHud.classList.add('dialog-active');
       this.showDialogLine();
     }
 
     showDialogLine() {
       const raw = this.dialogLines[this.dialogIdx] || '';
       const sep = raw.indexOf(':');
-      if (sep > 0 && sep < 18 && !raw.startsWith('[')) {
+      if (sep > 0 && sep < 22 && !raw.startsWith('[')) {
         this.el.dialogSpeaker.textContent = raw.slice(0, sep).trim();
         this.el.dialogText.textContent = raw.slice(sep + 1).trim();
       } else {
-        this.el.dialogSpeaker.textContent = '안내';
+        this.el.dialogSpeaker.textContent = '솔티아 연대기';
         this.el.dialogText.textContent = raw;
+      }
+      if (this.el.dialogCounter) {
+        this.el.dialogCounter.textContent = this.dialogLines.length > 1
+          ? `${this.dialogIdx + 1} / ${this.dialogLines.length} · 터치 ▸`
+          : '터치 ▸';
       }
       this.el.dialogBox.classList.remove('hidden');
     }
@@ -704,6 +744,7 @@
       this.dialogIdx++;
       if (this.dialogIdx >= this.dialogLines.length) {
         this.el.dialogBox.classList.add('hidden');
+        if (this.el.gameHud) this.el.gameHud.classList.remove('dialog-active');
         this.state = 'playing';
         const cb = this.dialogOnDone; this.dialogOnDone = null;
         if (cb) cb();
@@ -757,9 +798,42 @@
 
     interactNpc(npc) {
       this.audio.playSfx('ui');
+      const h = this.hero, q = DATA.QUESTS[h.questIdx];
+      if (q && h.questState === 'active' && q.type === 'talk' && q.targetNpc === npc.id) {
+        h.questProgress = q.goal;
+        h.questState = 'ready';
+        this.audio.playSfx('quest');
+        this.handleElderQuestDialog();
+        return;
+      }
       if (npc.role === 'shop') this.openShopModal();
       else if (npc.role === 'smith') this.openSmithModal('enhance');
       else if (npc.role === 'quest') this.handleElderQuestDialog();
+      else if (npc.role === 'bard') {
+        const st = this.getHeroStats();
+        h.hp = st.maxHp; h.mp = st.maxMp;
+        this.audio.playSfx('potion');
+        this.spawnParticles(h.x, h.y, '#34d399', 18);
+        this.addFloatText(h.x, h.y - 20, '아리아의 축복 · 완전 회복!', '#4ade80');
+        if (h.questState === 'available' || h.questState === 'ready') {
+          this.handleElderQuestDialog();
+        } else {
+          const actName = q ? q.act : '완결 · 솔티아의 영웅';
+          this.openDialog([
+            `음유시인 아리아: "바람의 노래로 상처를 치유해 드렸어요. 지금 우리는 [${actName}]의 이야기를 써 내려가고 있답니다."`,
+            q ? `음유시인 아리아: "${q.desc}"` : '음유시인 아리아: "영웅님의 20장 연대기는 솔티아 대륙에서 영원히 노래될 거예요!"'
+          ]);
+        }
+      } else if (npc.role === 'scout') {
+        if (h.questState === 'available' || h.questState === 'ready') {
+          this.handleElderQuestDialog();
+        } else {
+          this.openDialog([
+            '정찰병 카일: "해안의 바람이 심상치 않네. 부상을 입으면 언제든 포션이나 귀환 주문서를 쓰게!"',
+            q ? `정찰병 카일: "지금 목표는 [${q.title}]일세. ${q.desc}"` : '정찰병 카일: "자네 덕분에 솔티아 성기사단의 명예가 지켜졌네!"'
+          ]);
+        }
+      }
     }
 
     handleElderQuestDialog() {
@@ -767,8 +841,8 @@
       this.checkCollectQuest();
       if (h.questState === 'all_done') {
         this.openDialog([
-          `촌장 엘더: "${h.name}, 솔티아의 영웅이여! 마을에 평화를 되찾아 주어 고맙네."`,
-          '촌장 엘더: "언제든 봉인의 제단에 다시 도전해 전설의 장비를 시험해 볼 수 있다네."'
+          `촌장 엘더: "${h.name}, 솔티아의 영웅이여! 20장에 걸친 기나긴 사투 끝에 대륙에 평화를 되찾아 주어 고맙네."`,
+          '촌장 엘더: "언제든 대륙 곳곳과 봉인의 제단에 다시 도전해 전설의 장비를 시험해 볼 수 있다네."'
         ]);
         return;
       }
@@ -778,7 +852,7 @@
         this.openDialog(q.dialogStart, () => {
           h.questState = 'active'; h.questProgress = 0; this.checkCollectQuest();
           this.audio.playSfx('quest');
-          this.addFloatText(h.x, h.y - 24, `퀘스트: ${q.title}`, '#fde047');
+          this.addFloatText(h.x, h.y - 24, `${q.title}`, '#fde047');
           this.saveGame(true);
         });
       } else if (h.questState === 'active') {
@@ -1417,10 +1491,19 @@
     updateCamera(snap = false) {
       const map = DATA.MAPS[this.currentMapId];
       const mapW = map.layout[0].length * TILE, mapH = map.layout.length * TILE;
+      const isPortrait = this.viewW < this.viewH;
+      const hasPad = this.padMode !== 'off';
+      // Keep hero comfortably framed in the unobstructed center zone above bottom controls & below top HUD
+      const padTop = isPortrait ? 46 : 26;
+      const padBottom = hasPad ? (isPortrait ? 114 : 66) : 26;
+      const centerRatioY = hasPad ? (isPortrait ? 0.42 : 0.45) : 0.5;
+
       const tx = clamp(this.hero.x - this.viewW / 2, 0, Math.max(0, mapW - this.viewW));
-      const ty = clamp(this.hero.y - this.viewH / 2, 0, Math.max(0, mapH - this.viewH));
+      const minY = -padTop;
+      const maxY = Math.max(0, mapH - this.viewH) + padBottom;
+      const ty = clamp(this.hero.y - this.viewH * centerRatioY, minY, maxY);
       if (snap) { this.camX = tx; this.camY = ty; }
-      else { this.camX += (tx - this.camX) * 0.14; this.camY += (ty - this.camY) * 0.14; }
+      else { this.camX += (tx - this.camX) * 0.16; this.camY += (ty - this.camY) * 0.16; }
     }
 
     shake(duration, mag) { this.shakeTimer = Math.max(this.shakeTimer, duration); this.shakeMag = Math.max(this.shakeMag, mag); }
@@ -1449,17 +1532,18 @@
       this.el.hudExpFill.style.width = `${clamp((h.exp / h.expNext) * 100, 0, 100)}%`;
       this.el.hudMapName.textContent = map.name;
 
-      let qText = '';
-      if (h.questState === 'all_done') qText = '솔티아의 영웅 칭호 획득';
+      let qText = '', isReady = false;
+      if (h.questState === 'all_done') qText = '완결 · 솔티아의 영웅';
       else {
         const q = DATA.QUESTS[h.questIdx];
         if (q) {
-          if (h.questState === 'available') qText = '촌장 엘더와 대화하세요';
-          else if (h.questState === 'active') qText = `${q.title} (${h.questProgress}/${q.goal})`;
-          else if (h.questState === 'ready') qText = '목표 달성 · 촌장에게 보고!';
+          if (h.questState === 'available') { qText = `터치해 시작 · ${q.title}`; isReady = true; }
+          else if (h.questState === 'active') qText = q.type === 'talk' ? `${q.title}` : `${q.title} (${h.questProgress}/${q.goal})`;
+          else if (h.questState === 'ready') { qText = `완료 보고! · ${q.title}`; isReady = true; }
         }
       }
       this.el.hudQuestText.textContent = qText;
+      if (this.el.hudQuestPill) this.el.hudQuestPill.classList.toggle('ready', isReady);
 
       const boss = this.monsters.find((m) => DATA.MONSTERS[m.typeId].isBoss && m.hp > 0);
       if (boss) {
@@ -1495,7 +1579,7 @@
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
-      ctx.fillStyle = '#141922';
+      ctx.fillStyle = '#0d111a';
       ctx.fillRect(0, 0, this.viewW, this.viewH);
 
       if (!this.hero) { this.renderTitleBackdrop(ctx); return; }
@@ -1514,6 +1598,9 @@
           const ch = row[tx], px = tx * TILE, py = ty * TILE;
           let base = this.sprites.tiles.grass;
           if (ch === ';' || ch === 'D') base = this.sprites.tiles.darkGrass;
+          else if (ch === 's' || ch === 'P') base = this.sprites.tiles.sand;
+          else if (ch === 'r' || ch === 'C' || ch === 'L') base = this.sprites.tiles.redRock;
+          else if (ch === 'b' || ch === 'B') base = this.sprites.tiles.citadelFloor;
           else if (ch === '_' || ch === '*' || ch === '#') base = this.sprites.tiles.ruinFloor;
           else if (ch === 'a' || ch === 'X') base = this.sprites.tiles.altarFloor;
           else if (ch === 'c' || ch === 'F') base = this.sprites.tiles.cobble;
@@ -1525,7 +1612,10 @@
             'T': this.sprites.tiles.tree, 'D': this.sprites.tiles.darkTree, 'R': this.sprites.tiles.houseRoof,
             'W': this.sprites.tiles.houseWall, 'd': this.sprites.tiles.houseDoor,
             'F': waterFrame ? this.sprites.tiles.fountain1 : this.sprites.tiles.fountain0,
-            '#': this.sprites.tiles.wall, '*': this.sprites.tiles.ruinRune, 'X': this.sprites.tiles.altarWall
+            '#': this.sprites.tiles.wall, '*': this.sprites.tiles.ruinRune, 'X': this.sprites.tiles.altarWall,
+            's': this.sprites.tiles.sand, 'P': this.sprites.tiles.palm,
+            'r': this.sprites.tiles.redRock, 'C': this.sprites.tiles.canyonWall, 'L': this.sprites.tiles.lava,
+            'b': this.sprites.tiles.citadelFloor, 'B': this.sprites.tiles.citadelWall
           };
           if (tileMap[ch]) ctx.drawImage(tileMap[ch], px, py, TILE + 0.4, TILE + 0.4);
         }
@@ -1710,10 +1800,15 @@
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)'; ctx.lineWidth = 0.6; ctx.stroke();
       ctx.fillStyle = '#fef3c7'; ctx.fillText(npc.name, x, y - 22);
 
-      if (npc.role === 'quest') {
+      const curQ = DATA.QUESTS[this.hero.questIdx];
+      const isQuestGiver = npc.role === 'quest' || npc.role === 'scout' || (curQ && curQ.targetNpc === npc.id);
+      if (isQuestGiver) {
         let mark = null, col = '#fde047';
-        if (this.hero.questState === 'available') { mark = '!'; col = '#fde047'; }
-        else if (this.hero.questState === 'ready') { mark = '?'; col = '#4ade80'; }
+        if (curQ && this.hero.questState === 'active' && curQ.type === 'talk' && curQ.targetNpc === npc.id) { mark = '!'; col = '#4ade80'; }
+        else if (npc.role === 'quest' || npc.role === 'scout') {
+          if (this.hero.questState === 'available') { mark = '!'; col = '#fde047'; }
+          else if (this.hero.questState === 'ready') { mark = '?'; col = '#4ade80'; }
+        }
         if (mark) {
           const mb = Math.sin(this.time * 6) * 2.2;
           ctx.fillStyle = 'rgba(13, 16, 24, 0.85)';
@@ -2089,23 +2184,48 @@
 
     renderQuestTab(body) {
       const h = this.hero;
+      const doneCount = h.questState === 'all_done' ? DATA.QUESTS.length : h.questIdx;
+      const curQ = h.questState === 'all_done' ? null : DATA.QUESTS[h.questIdx];
+      let lastAct = '';
+      const rows = DATA.QUESTS.map((q, idx) => {
+        let actHeader = '';
+        if (q.act && q.act !== lastAct) {
+          lastAct = q.act;
+          actHeader = `<div style="margin:10px 0 4px;font-size:11px;font-weight:800;letter-spacing:0.06em;color:#f5d07a;">${q.act}</div>`;
+        }
+        const isDone = idx < h.questIdx || h.questState === 'all_done';
+        const isCur = idx === h.questIdx && h.questState !== 'all_done';
+        let status = '미개방', col = '#6d6b75';
+        if (isDone) { status = '완료'; col = '#4ade80'; }
+        else if (isCur) {
+          if (h.questState === 'available') { status = '시작 가능'; col = '#fde047'; }
+          else if (h.questState === 'active') { status = q.type === 'talk' ? '대화 필요' : `진행 (${h.questProgress}/${q.goal})`; col = '#60a5fa'; }
+          else if (h.questState === 'ready') { status = '완료 보고!'; col = '#4ade80'; }
+        }
+        const locked = !isDone && !isCur;
+        const bodyTxt = isDone && q.summary
+          ? `<div class="item-sub" style="color:#d6d3df;line-height:1.45;">${q.summary}</div>`
+          : (locked ? '<div class="item-sub" style="opacity:0.5;">이전 장을 완료하면 이야기가 이어집니다.</div>' : `<div class="item-sub">${q.desc}</div>`);
+        const actionBtn = isCur && (h.questState === 'available' || h.questState === 'ready')
+          ? `<div class="item-actions"><button class="rpg-btn primary small" id="btnStoryProceed">${h.questState === 'available' ? '스토리 시작' : '완료 보고'}</button></div>`
+          : '';
+        return `${actHeader}<div class="item-row" style="${isCur ? 'border-color:rgba(251,191,36,0.55);' : (locked ? 'opacity:0.55;' : '')}"><div class="item-info"><div class="item-title">${q.title} <span class="badge" style="color:${col}">${status}</span></div>${bodyTxt}${!locked ? `<div class="item-sub" style="color:#d4b572">보상: ${q.reward.gold}G · EXP ${q.reward.exp}</div>` : ''}</div>${actionBtn}</div>`;
+      }).join('');
+
       body.innerHTML = `
         <div class="panel-card">
-          <h3>솔티아 연대기 퀘스트</h3>
-          <div class="list-grid">
-            ${DATA.QUESTS.map((q, idx) => {
-              let status = '미개방', col = '#6d6b75';
-              if (idx < h.questIdx || h.questState === 'all_done') { status = '완료'; col = '#4ade80'; }
-              else if (idx === h.questIdx) {
-                if (h.questState === 'available') { status = '수락 가능'; col = '#fde047'; }
-                else if (h.questState === 'active') { status = `진행 중 (${h.questProgress}/${q.goal})`; col = '#60a5fa'; }
-                else if (h.questState === 'ready') { status = '보고 가능!'; col = '#4ade80'; }
-              }
-              return `<div class="item-row"><div class="item-info"><div class="item-title">Ch.${idx + 1} ${q.title} <span class="badge" style="color:${col}">${status}</span></div><div class="item-sub">${q.desc}</div><div class="item-sub" style="color:#d4b572">보상: ${q.reward.gold}G · EXP ${q.reward.exp}</div></div></div>`;
-            }).join('')}
-          </div>
+          <h3>솔티아 완전판 연대기 <span class="badge" style="color:#fde047">${doneCount} / ${DATA.QUESTS.length}장</span></h3>
+          ${curQ ? `<div class="item-sub" style="margin-bottom:8px;color:#cbd5e1;">현재 진행: <strong style="color:#fde047">${curQ.act}</strong> · ${curQ.title}</div>` : '<div class="item-sub" style="margin-bottom:8px;color:#4ade80;">모든 20장 대서사시를 완결했습니다!</div>'}
+          <div class="list-grid">${rows}</div>
         </div>
       `;
+      const proceedBtn = body.querySelector('#btnStoryProceed');
+      if (proceedBtn) {
+        proceedBtn.addEventListener('click', () => {
+          this.closeModal();
+          this.handleElderQuestDialog();
+        });
+      }
     }
 
     openShopModal() {

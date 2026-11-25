@@ -220,6 +220,19 @@ canvas#hudPortrait {
   font-weight: 700;
   color: #fff;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+  appearance: none;
+  cursor: pointer;
+}
+
+.fold-arrow {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.65);
+  transition: transform 0.2s ease;
+}
+
+.hud-layer.hud-compact .fold-arrow {
+  transform: rotate(180deg);
 }
 
 .map-pulse {
@@ -232,23 +245,31 @@ canvas#hudPortrait {
 
 .dock-row {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   pointer-events: auto;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.hud-layer.hud-compact .dock-row,
+.hud-layer.hud-compact .quest-chip {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.94);
+  pointer-events: none;
 }
 
 .glass-ico {
   position: relative;
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
   border: 1px solid var(--glass-border);
   background: var(--glass);
   color: #f3f1ec;
   display: grid;
   place-items: center;
   cursor: pointer;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.32);
   transition: transform 0.08s, border-color 0.14s;
 }
@@ -276,6 +297,7 @@ canvas#hudPortrait {
   position: absolute;
   top: calc(max(10px, env(safe-area-inset-top)) + 64px);
   left: max(12px, env(safe-area-inset-left));
+  max-width: min(260px, 72vw);
   pointer-events: auto;
   appearance: none;
   display: inline-flex;
@@ -291,14 +313,30 @@ canvas#hudPortrait {
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: opacity 0.2s ease, transform 0.2s ease, border-color 0.2s, box-shadow 0.2s;
+}
+
+.quest-chip.ready {
+  border-color: rgba(251, 191, 36, 0.88);
+  background: rgba(54, 38, 12, 0.78);
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.38);
 }
 
 .q-dot {
   width: 6px;
   height: 6px;
+  flex-shrink: 0;
   border-radius: 50%;
   background: #fbbf24;
   box-shadow: 0 0 6px #fbbf24;
+}
+
+.quest-chip.ready .q-dot {
+  background: #4ade80;
+  box-shadow: 0 0 8px #4ade80;
 }
 
 /* Floating Boss Health Bar */
@@ -325,7 +363,7 @@ canvas#hudPortrait {
 /* Crisp Retina Map Transition Banner */
 .map-banner {
   position: absolute;
-  top: 25%;
+  top: 24%;
   left: 50%;
   transform: translate(-50%, -8px) scale(0.96);
   width: max-content;
@@ -370,7 +408,7 @@ canvas#hudPortrait {
   position: absolute;
   top: calc(max(10px, env(safe-area-inset-top)) + 74px);
   right: max(12px, env(safe-area-inset-right));
-  width: 196px;
+  width: 204px;
   padding: 6px;
   border-radius: 16px;
   background: rgba(18, 20, 28, 0.94);
@@ -407,72 +445,85 @@ canvas#hudPortrait {
 .pop-item:active { background: rgba(231, 190, 103, 0.16); }
 
 /* ========================================================
-   FLOATING TRANSLUCENT MOBILE GAMEPAD (CURVED SKILL ARC!)
+   LOW-PROFILE AUTO-GHOSTING MOBILE GAMEPAD (NON-INTRUSIVE!)
    ======================================================== */
+.hud-layer { --pad-alpha: 0.62; }
+.hud-layer.alpha-minimal { --pad-alpha: 0.36; }
+.hud-layer.alpha-solid { --pad-alpha: 0.94; }
+
 .touch-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  opacity: var(--pad-alpha);
+  transition: opacity 0.2s ease;
 }
 
 .touch-overlay.hidden { display: none; }
 
-/* Quick Potion Mini-Orbs above left stick */
+/* Auto-hide bottom controls while reading story dialog so text never overlaps */
+.hud-layer.dialog-active .touch-overlay,
+.hud-layer.dialog-active .phone-keypad {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Quick Potion Mini-Orbs snugly above compact stick */
 .floating-potions {
   position: absolute;
-  left: max(16px, env(safe-area-inset-left));
-  bottom: calc(max(18px, env(safe-area-inset-bottom)) + 150px);
+  left: max(12px, env(safe-area-inset-left));
+  bottom: calc(max(10px, env(safe-area-inset-bottom)) + 118px);
   display: flex;
-  gap: 8px;
+  gap: 6px;
   pointer-events: auto;
 }
 
 .pot-orb {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   border: 1px solid var(--glass-border);
-  background: rgba(15, 17, 24, 0.62);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(15, 17, 24, 0.56);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: grid;
   place-items: center;
   cursor: pointer;
   touch-action: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.32);
 }
 
-.hp-orb { color: #fb7185; border-color: rgba(251, 113, 133, 0.4); }
-.mp-orb { color: #60a5fa; border-color: rgba(96, 165, 250, 0.4); }
-.town-orb { color: var(--gold-hi); border-color: rgba(231, 190, 103, 0.4); }
+.hp-orb { color: #fb7185; border-color: rgba(251, 113, 133, 0.42); }
+.mp-orb { color: #60a5fa; border-color: rgba(96, 165, 250, 0.42); }
+.town-orb { color: var(--gold-hi); border-color: rgba(231, 190, 103, 0.42); }
 .pot-orb:active { transform: scale(0.9); }
 
 .pot-cnt {
   position: absolute;
   bottom: -3px;
   right: -3px;
-  min-width: 17px;
-  height: 16px;
-  padding: 0 4px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
   border-radius: 999px;
   background: #14161f;
   border: 1px solid rgba(255, 255, 255, 0.22);
   color: #fff;
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 800;
   display: grid;
   place-items: center;
   font-variant-numeric: tabular-nums;
 }
 
-/* Bottom-Left Translucent Analog Joystick */
+/* Bottom-Left Compact Translucent Analog Joystick */
 .stick-zone {
   position: absolute;
-  left: max(14px, env(safe-area-inset-left));
-  bottom: max(18px, env(safe-area-inset-bottom));
-  width: 136px;
-  height: 136px;
+  left: max(10px, env(safe-area-inset-left));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  width: 112px;
+  height: 112px;
   display: grid;
   place-items: center;
   pointer-events: auto;
@@ -480,40 +531,40 @@ canvas#hudPortrait {
 }
 
 .stick-ring {
-  width: 118px;
-  height: 118px;
+  width: 98px;
+  height: 98px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.05) 0%, rgba(12, 14, 20, 0.42) 100%);
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.04) 0%, rgba(12, 14, 20, 0.34) 100%);
   border: 1.5px solid rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   display: grid;
   place-items: center;
   transition: border-color 0.14s;
 }
 
 .stick-zone.active .stick-ring {
-  border-color: rgba(255, 236, 186, 0.72);
-  background: radial-gradient(circle, rgba(231, 190, 103, 0.14) 0%, rgba(12, 14, 20, 0.5) 100%);
+  border-color: rgba(255, 236, 186, 0.8);
+  background: radial-gradient(circle, rgba(231, 190, 103, 0.16) 0%, rgba(12, 14, 20, 0.48) 100%);
 }
 
 .stick-knob {
-  width: 50px;
-  height: 50px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, rgba(255, 236, 186, 0.92), rgba(180, 130, 48, 0.78));
-  border: 1.5px solid rgba(255, 250, 230, 0.88);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  background: radial-gradient(circle at 35% 30%, rgba(255, 236, 186, 0.9), rgba(180, 130, 48, 0.74));
+  border: 1.5px solid rgba(255, 250, 230, 0.85);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
   pointer-events: none;
 }
 
-/* Bottom-Right Curved Radial Skill Arc + Dash + Primary Orb */
+/* Bottom-Right Compact Curved Radial Skill Arc */
 .right-arc-cluster {
   position: absolute;
-  right: max(12px, env(safe-area-inset-right));
-  bottom: max(18px, env(safe-area-inset-bottom));
-  width: 196px;
-  height: 196px;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  width: 174px;
+  height: 172px;
   pointer-events: none;
 }
 
@@ -525,13 +576,13 @@ canvas#hudPortrait {
 
 .arc-skill-btn {
   position: absolute;
-  width: 48px;
-  height: 48px;
+  width: 43px;
+  height: 43px;
   border-radius: 50%;
   border: 1.5px solid rgba(255, 255, 255, 0.26);
-  background: rgba(15, 17, 24, 0.68);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(15, 17, 24, 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -542,20 +593,20 @@ canvas#hudPortrait {
   cursor: pointer;
   pointer-events: auto;
   touch-action: none;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   transition: transform 0.08s;
 }
 
-/* Exact Radial Quarter-Circle Coordinates Around Attack Orb */
-.arc-skill-btn[data-slot="0"] { right: 112px; bottom: 64px; }
-.arc-skill-btn[data-slot="1"] { right: 94px;  bottom: 118px; }
-.arc-skill-btn[data-slot="2"] { right: 44px;  bottom: 148px; }
-.arc-skill-btn[data-slot="3"] { right: 2px;   bottom: 108px; width: 52px; height: 52px; border-color: rgba(231, 190, 103, 0.65); }
+/* Tighter Ergonomic Quarter-Circle Coordinates */
+.arc-skill-btn[data-slot="0"] { right: 98px; bottom: 54px; }
+.arc-skill-btn[data-slot="1"] { right: 82px; bottom: 102px; }
+.arc-skill-btn[data-slot="2"] { right: 38px; bottom: 128px; }
+.arc-skill-btn[data-slot="3"] { right: 0px;  bottom: 92px; width: 46px; height: 46px; border-color: rgba(231, 190, 103, 0.65); }
 
 .arc-skill-btn:active { transform: scale(0.9); }
-.arc-skill-btn.locked { opacity: 0.34; }
+.arc-skill-btn.locked { opacity: 0.32; }
 .arc-skill-btn .ms-svg { display: grid; place-items: center; }
-.arc-skill-btn .ms-name { font-size: 8px; font-weight: 800; color: rgba(255, 255, 255, 0.88); max-width: 42px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.arc-skill-btn .ms-name { font-size: 7.5px; font-weight: 800; color: rgba(255, 255, 255, 0.88); max-width: 38px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .slot-cd {
   position: absolute;
@@ -564,7 +615,7 @@ canvas#hudPortrait {
   background: rgba(10, 11, 16, 0.8);
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
   color: #fff;
 }
@@ -572,32 +623,32 @@ canvas#hudPortrait {
 
 .arc-dash {
   position: absolute;
-  right: 102px;
-  bottom: 8px;
-  width: 48px;
-  height: 48px;
+  right: 88px;
+  bottom: 6px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   border: 1.5px solid rgba(96, 165, 250, 0.68);
-  background: rgba(24, 46, 78, 0.72);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(24, 46, 78, 0.68);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: #dbeafe;
   display: grid;
   place-items: center;
   cursor: pointer;
   pointer-events: auto;
   touch-action: none;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .arc-dash:active { transform: scale(0.9); }
 
 .arc-attack {
   position: absolute;
-  right: 4px;
-  bottom: 6px;
-  width: 82px;
-  height: 82px;
+  right: 2px;
+  bottom: 4px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   border: 2px solid rgba(255, 236, 186, 0.85);
   background: radial-gradient(circle at 35% 30%, rgba(226, 173, 74, 0.9), rgba(133, 82, 20, 0.86));
@@ -612,17 +663,17 @@ canvas#hudPortrait {
   cursor: pointer;
   pointer-events: auto;
   touch-action: none;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.52), inset 0 2px 6px rgba(255, 250, 224, 0.38);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 2px 6px rgba(255, 250, 224, 0.35);
   transition: transform 0.08s;
 }
 
 .arc-attack .atk-svg { display: grid; place-items: center; }
-.arc-attack .atk-txt { font-size: 11px; font-weight: 900; }
+.arc-attack .atk-txt { font-size: 10.5px; font-weight: 900; }
 .arc-attack:active, .arc-attack.pressed { transform: scale(0.92); filter: brightness(1.14); }
 .arc-attack.interact-mode {
   border-color: #a7f3d0;
   background: radial-gradient(circle at 35% 30%, rgba(45, 179, 108, 0.92), rgba(20, 96, 56, 0.9));
-  box-shadow: 0 0 22px rgba(52, 211, 153, 0.55);
+  box-shadow: 0 0 20px rgba(52, 211, 153, 0.55);
 }
 
 /* Optional Classic Floating Feature-Phone Keypad */

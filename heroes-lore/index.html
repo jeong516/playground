@@ -9,7 +9,7 @@
   <title>영웅서기: 솔티아의 바람</title>
   <meta name="description" content="최신 스마트폰 풀스크린 최적화 액션 RPG 영웅서기: 솔티아의 바람" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=5" />
+  <link rel="stylesheet" href="style.css?v=6" />
 </head>
 <body>
   <div id="appViewport" class="app-viewport">
@@ -45,12 +45,13 @@
           </div>
         </div>
 
-        <!-- Right Map + Compact Glass Dock -->
+        <!-- Right Map + Collapsible Glass Dock -->
         <div class="hud-right">
-          <div class="map-chip">
+          <button id="btnHudFold" class="map-chip" type="button" aria-label="상단 UI 접기/펼치기">
             <span class="map-pulse"></span>
             <span id="hudMapName">솔티아 마을</span>
-          </div>
+            <span id="hudFoldArrow" class="fold-arrow">▾</span>
+          </button>
           <div class="dock-row">
             <button class="glass-ico" data-open-menu="status" type="button" aria-label="상태">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -106,6 +107,10 @@
         <button id="btnPadMode" class="pop-item" type="button">
           <span>조작 모드</span>
           <strong id="padModeLabel">조이스틱</strong>
+        </button>
+        <button id="btnHudAlpha" class="pop-item active" type="button">
+          <span>조작부 투명도</span>
+          <strong id="hudAlphaLabel">반투명</strong>
         </button>
         <button id="btnSave" class="pop-item" type="button">
           <span>지금 저장하기</span>
@@ -231,7 +236,7 @@
     <div id="dialogBox" class="dialog-sheet hidden" role="dialog" aria-live="polite">
       <div class="dialog-header-row">
         <span id="dialogSpeaker" class="dialog-speaker"></span>
-        <span class="dialog-tap-hint">터치 ▸</span>
+        <span id="dialogCounter" class="dialog-tap-hint">터치 ▸</span>
       </div>
       <div id="dialogText" class="dialog-text"></div>
     </div>
@@ -252,9 +257,9 @@
   <!-- Hidden desktop skill container fallback kept empty for compatibility -->
   <div id="skillSlots" style="display:none"></div>
 
-  <script src="js/audio.js?v=5"></script>
-  <script src="js/sprites.js?v=5"></script>
-  <script src="js/data.js?v=5"></script>
-  <script src="js/game.js?v=5"></script>
+  <script src="js/audio.js?v=6"></script>
+  <script src="js/sprites.js?v=6"></script>
+  <script src="js/data.js?v=6"></script>
+  <script src="js/game.js?v=6"></script>
 </body>
 </html>

@@ -418,6 +418,94 @@
     sprites.tiles.chestClosed = makeChest(false);
     sprites.tiles.chestOpen = makeChest(true);
 
+    // Coastal Golden Sand & Palm Tree (for Blue Mist Coast)
+    {
+      const s = makeCanvas(TS, TS);
+      const ctx = s.getContext('2d');
+      ctx.fillStyle = '#e5cf9c';
+      ctx.fillRect(0, 0, TS, TS);
+      [[26, 26, 20, 10, 'rgba(255,248,224,0.34)'], [68, 66, 22, 11, 'rgba(189,154,96,0.22)']].forEach(([x, y, rx, ry, col]) => {
+        ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0.2, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.fillStyle = '#fda4af'; ctx.beginPath(); ctx.arc(72, 26, 4.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fef3c7'; ctx.beginPath(); ctx.arc(28, 72, 3.5, 0, Math.PI * 2); ctx.fill();
+      sprites.tiles.sand = s;
+
+      const p = makeCanvas(TS, TS);
+      const pctx = p.getContext('2d');
+      pctx.fillStyle = 'rgba(0,0,0,0.24)';
+      pctx.beginPath(); pctx.ellipse(48, 84, 30, 10, 0, 0, Math.PI * 2); pctx.fill();
+      pctx.strokeStyle = '#7c4d25'; pctx.lineWidth = 12; pctx.lineCap = 'round';
+      pctx.beginPath(); pctx.moveTo(46, 84); pctx.quadraticCurveTo(54, 58, 48, 34); pctx.stroke();
+      pctx.strokeStyle = '#9c6634'; pctx.lineWidth = 6;
+      pctx.beginPath(); pctx.moveTo(45, 80); pctx.quadraticCurveTo(52, 58, 47, 36); pctx.stroke();
+      const fronds = [-2.5, -1.6, -0.7, 0.2, 1.0, 2.2];
+      fronds.forEach((ang) => {
+        pctx.save(); pctx.translate(48, 34); pctx.rotate(ang);
+        pctx.beginPath(); pctx.moveTo(0, 0); pctx.quadraticCurveTo(18, -14, 34, 4); pctx.quadraticCurveTo(16, 4, 0, 0); pctx.closePath();
+        pctx.fillStyle = linGrad(pctx, 0, -10, 34, 6, [[0, '#4ade80'], [1, '#15803d']]); pctx.fill();
+        pctx.strokeStyle = '#14532d'; pctx.lineWidth = 1.4; pctx.stroke();
+        pctx.restore();
+      });
+      sprites.tiles.palm = p;
+    }
+
+    // Crimson Canyon Sandstone, Cliff Wall & Glowing Magma (for Red Wind Canyon)
+    {
+      const r = makeCanvas(TS, TS);
+      const ctx = r.getContext('2d');
+      ctx.fillStyle = '#9e5a3c';
+      ctx.fillRect(0, 0, TS, TS);
+      [[28, 30, 22, 11, 'rgba(224,142,99,0.22)'], [68, 66, 20, 11, 'rgba(92,41,22,0.24)']].forEach(([x, y, rx, ry, col]) => {
+        ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, -0.15, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.strokeStyle = 'rgba(72,28,16,0.28)'; ctx.lineWidth = 1.8;
+      ctx.beginPath(); ctx.moveTo(18, 60); ctx.lineTo(34, 56); ctx.lineTo(42, 64); ctx.stroke();
+      sprites.tiles.redRock = r;
+
+      const cw = makeCanvas(TS, TS);
+      const wctx = cw.getContext('2d');
+      wctx.fillStyle = '#471f14'; wctx.fillRect(0, 0, TS, TS);
+      rrect(wctx, 4, 4, 88, 42, 7);
+      wctx.fillStyle = linGrad(wctx, 0, 4, 0, 46, [[0, '#c26d47'], [0.4, '#8c4428'], [1, '#5c2817']]); wctx.fill();
+      rrect(wctx, 4, 50, 42, 42, 6); wctx.fillStyle = '#6e321e'; wctx.fill();
+      rrect(wctx, 50, 50, 42, 42, 6); wctx.fillStyle = '#632c1a'; wctx.fill();
+      sprites.tiles.canyonWall = cw;
+
+      const lv = makeCanvas(TS, TS);
+      const lctx = lv.getContext('2d');
+      lctx.fillStyle = linGrad(lctx, 0, 0, TS, TS, [[0, '#b91c1c'], [0.5, '#ea580c'], [1, '#991b1b']]);
+      lctx.fillRect(0, 0, TS, TS);
+      lctx.fillStyle = radGrad(lctx, 34, 38, 4, 34, 38, 28, [[0, '#fef08a'], [0.55, '#fb923c'], [1, 'rgba(234,88,12,0)']]);
+      lctx.beginPath(); lctx.arc(34, 38, 28, 0, Math.PI * 2); lctx.fill();
+      lctx.fillStyle = radGrad(lctx, 70, 70, 3, 70, 70, 22, [[0, '#fde047'], [0.55, '#f97316'], [1, 'rgba(234,88,12,0)']]);
+      lctx.beginPath(); lctx.arc(70, 70, 22, 0, Math.PI * 2); lctx.fill();
+      sprites.tiles.lava = lv;
+    }
+
+    // Obsidian Fortress Floor & Gothic Citadel Wall (for Silent Obsidian Citadel)
+    {
+      const bf = makeCanvas(TS, TS);
+      const ctx = bf.getContext('2d');
+      ctx.fillStyle = '#1d1f2e'; ctx.fillRect(0, 0, TS, TS);
+      rrect(ctx, 3, 3, 43, 43, 5); ctx.fillStyle = '#2a2e42'; ctx.fill();
+      rrect(ctx, 50, 3, 43, 43, 5); ctx.fillStyle = '#262a3d'; ctx.fill();
+      rrect(ctx, 3, 50, 43, 43, 5); ctx.fillStyle = '#262a3d'; ctx.fill();
+      rrect(ctx, 50, 50, 43, 43, 5); ctx.fillStyle = '#2e334a'; ctx.fill();
+      ctx.strokeStyle = 'rgba(139,92,246,0.22)'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(4, 4, 88, 88);
+      sprites.tiles.citadelFloor = bf;
+
+      const bw = makeCanvas(TS, TS);
+      const wctx = bw.getContext('2d');
+      wctx.fillStyle = '#0e0f18'; wctx.fillRect(0, 0, TS, TS);
+      rrect(wctx, 4, 4, 88, 40, 6);
+      wctx.fillStyle = linGrad(wctx, 0, 4, 0, 44, [[0, '#5b21b6'], [0.22, '#2d2945'], [1, '#181829']]); wctx.fill();
+      rrect(wctx, 4, 50, 42, 42, 6); wctx.fillStyle = '#202136'; wctx.fill();
+      rrect(wctx, 50, 50, 42, 42, 6); wctx.fillStyle = '#1c1d30'; wctx.fill();
+      sprites.tiles.citadelWall = bw;
+    }
+
     // =========================================================
     // 2. EPIC SLEEK ANIME-FANTASY HD HEROES (160x160 + PORTRAITS)
     // =========================================================
@@ -890,6 +978,15 @@
       const ctx = c.getContext('2d');
       const cx = 70;
 
+      // Flowing back hair for Aria
+      if (kind === 'aria') {
+        ctx.beginPath();
+        ctx.moveTo(44, 38); ctx.bezierCurveTo(36, 70, 38, 102, 48, 114);
+        ctx.lineTo(92, 114); ctx.bezierCurveTo(102, 102, 104, 70, 96, 38); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 40, 38, 100, 114, [[0, '#c2410c'], [1, '#7c2d12']]);
+        ctx.fill(); ctx.strokeStyle = '#29150c'; ctx.lineWidth = 2.2; ctx.stroke();
+      }
+
       // Robe / Outfit
       ctx.beginPath();
       ctx.moveTo(46, 66); ctx.lineTo(94, 66); ctx.lineTo(102, 124); ctx.lineTo(38, 124); ctx.closePath();
@@ -897,13 +994,21 @@
         ? linGrad(ctx, 40, 66, 100, 124, [[0, '#8c5e3a'], [1, '#4a2f1a']])
         : kind === 'shop'
         ? linGrad(ctx, 40, 66, 100, 124, [[0, '#e11d48'], [1, '#881337']])
+        : kind === 'aria'
+        ? linGrad(ctx, 40, 66, 100, 124, [[0, '#10b981'], [1, '#065f46']])
+        : kind === 'kyle'
+        ? linGrad(ctx, 40, 66, 100, 124, [[0, '#2563eb'], [1, '#1e3a8a']])
         : linGrad(ctx, 40, 66, 100, 124, [[0, '#57534e'], [1, '#292524']]);
       ctx.fill();
       ctx.strokeStyle = '#181414'; ctx.lineWidth = 2.6; ctx.stroke();
 
-      // Center Apron / Stole
+      // Center Apron / Stole / Armor Vest
       rrect(ctx, 56, 68, 28, 54, 6);
-      ctx.fillStyle = kind === 'elder' ? '#d9a441' : (kind === 'shop' ? '#fff7ed' : '#78350f');
+      ctx.fillStyle = kind === 'elder' ? '#d9a441'
+        : kind === 'shop' ? '#fff7ed'
+        : kind === 'aria' ? '#fef3c7'
+        : kind === 'kyle' ? '#cbd5e1'
+        : '#78350f';
       ctx.fill();
 
       // Head
@@ -916,35 +1021,51 @@
       ctx.beginPath();
       ctx.arc(cx, 38, 25, Math.PI * 0.95, Math.PI * 2.05);
       ctx.lineTo(94, 46); ctx.quadraticCurveTo(cx, 34, 46, 46); ctx.closePath();
-      ctx.fillStyle = kind === 'elder' ? '#e2e8f0' : (kind === 'shop' ? '#f59e0b' : '#b91c1c');
+      ctx.fillStyle = kind === 'elder' ? '#e2e8f0'
+        : kind === 'shop' ? '#f59e0b'
+        : kind === 'aria' ? '#ea580c'
+        : kind === 'kyle' ? '#334155'
+        : '#b91c1c';
       ctx.fill(); ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 2.4; ctx.stroke();
 
       // Eyes
-      drawStylizedEye(ctx, 60, 48, 4.8, 5.2, kind === 'shop' ? '#fb7185' : '#64748b', '#1e293b', -1, false);
-      drawStylizedEye(ctx, 80, 48, 4.8, 5.2, kind === 'shop' ? '#fb7185' : '#64748b', '#1e293b', 1, false);
+      const eyeHi = kind === 'shop' ? '#fb7185' : (kind === 'aria' ? '#34d399' : (kind === 'kyle' ? '#38bdf8' : '#64748b'));
+      drawStylizedEye(ctx, 60, 48, 4.8, 5.2, eyeHi, '#1e293b', -1, kind === 'kyle');
+      drawStylizedEye(ctx, 80, 48, 4.8, 5.2, eyeHi, '#1e293b', 1, kind === 'kyle');
 
       if (kind === 'elder') {
-        // Flowing sage beard
         ctx.beginPath();
         ctx.moveTo(52, 56); ctx.quadraticCurveTo(cx, 88, 88, 56); ctx.quadraticCurveTo(cx, 62, 52, 56); ctx.closePath();
         ctx.fillStyle = linGrad(ctx, cx, 56, cx, 84, [[0, '#f8fafc'], [1, '#cbd5e1']]); ctx.fill();
         ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.8; ctx.stroke();
-        // Glowing amber staff
         ctx.strokeStyle = '#6b4226'; ctx.lineWidth = 6; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(108, 34); ctx.lineTo(108, 122); ctx.stroke();
         ctx.fillStyle = radGrad(ctx, 108, 28, 2, 108, 28, 13, [[0, '#fffbeb'], [0.5, '#fbbf24'], [1, '#b45309']]);
         ctx.beginPath(); ctx.arc(108, 28, 10, 0, Math.PI * 2); ctx.fill();
       } else if (kind === 'shop') {
-        // Crimson Ribbon Bow
         ctx.fillStyle = '#f43f5e';
         ctx.beginPath(); ctx.ellipse(58, 17, 10, 5, -0.35, 0, Math.PI * 2); ctx.ellipse(82, 17, 10, 5, 0.35, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#fda4af'; ctx.beginPath(); ctx.arc(cx, 18, 5, 0, Math.PI * 2); ctx.fill();
-        // Glowing Potion Flask
         ctx.fillStyle = radGrad(ctx, 108, 88, 2, 108, 90, 12, [[0, '#fda4af'], [0.6, '#e11d48'], [1, '#881337']]);
         ctx.beginPath(); ctx.arc(108, 90, 10, 0, Math.PI * 2); ctx.fill();
         ctx.strokeStyle = '#fecdd3'; ctx.lineWidth = 1.8; ctx.stroke();
+      } else if (kind === 'aria') {
+        // Golden Minstrel Harp
+        ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(102, 66); ctx.quadraticCurveTo(126, 62, 118, 102); ctx.lineTo(100, 98); ctx.closePath(); ctx.stroke();
+        ctx.strokeStyle = '#fef9c3'; ctx.lineWidth = 1.3;
+        [106, 110, 114].forEach((sx) => { ctx.beginPath(); ctx.moveTo(sx, 68); ctx.lineTo(sx - 2, 98); ctx.stroke(); });
+        // Emerald feather beret
+        ctx.fillStyle = '#059669'; ctx.beginPath(); ctx.ellipse(cx, 18, 20, 7, -0.1, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#fde047'; ctx.lineWidth = 1.6; ctx.stroke();
+      } else if (kind === 'kyle') {
+        // Knight Order Scout Bandana & Short Sword
+        ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(cx, 38, 23, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(110, 44); ctx.lineTo(115, 56); ctx.lineTo(113, 104); ctx.lineTo(107, 104); ctx.lineTo(105, 56); ctx.closePath();
+        ctx.fillStyle = '#e2e8f0'; ctx.fill(); ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1.6; ctx.stroke();
+        rrect(ctx, 101, 102, 18, 5, 2); ctx.fillStyle = '#eab308'; ctx.fill();
       } else {
-        // Master Blacksmith Forge Hammer
         ctx.strokeStyle = '#713f12'; ctx.lineWidth = 6; ctx.lineCap = 'round';
         ctx.beginPath(); ctx.moveTo(108, 54); ctx.lineTo(108, 118); ctx.stroke();
         rrect(ctx, 92, 40, 32, 18, 5);
@@ -957,6 +1078,8 @@
     sprites.npcs.elder = makeNpcHD('elder');
     sprites.npcs.shop  = makeNpcHD('shop');
     sprites.npcs.smith = makeNpcHD('smith');
+    sprites.npcs.aria  = makeNpcHD('aria');
+    sprites.npcs.kyle  = makeNpcHD('kyle');
 
     // =========================================================
     // 4. HD ILLUSTRATED MONSTERS & EPIC BOSSES (128px ~ 200px)
@@ -1281,6 +1404,188 @@
       return c;
     };
     sprites.monsters.vargas = [makeVargasHD(0), makeVargasHD(1)];
+
+    // --- EXPANSION MONSTERS & MID-BOSSES (COAST, CANYON, CITADEL) ---
+    const makeCoralCrab = (f) => {
+      const S = 128, c = makeCanvas(S, S), ctx = c.getContext('2d'), b = f ? 4 : 0;
+      [-1, 1].forEach((dir) => {
+        ctx.beginPath(); ctx.arc(64 + dir * 36, 46 - b, 15, 0, Math.PI * 2);
+        ctx.fillStyle = linGrad(ctx, 40, 30, 88, 60, [[0, '#fb7185'], [1, '#9f1239']]); ctx.fill();
+        ctx.strokeStyle = '#4c0519'; ctx.lineWidth = 2.4; ctx.stroke();
+      });
+      ctx.beginPath(); ctx.ellipse(64, 72 + b * 0.5, 40, 26, 0, 0, Math.PI * 2);
+      ctx.fillStyle = linGrad(ctx, 28, 46, 100, 98, [[0, '#fda4af'], [0.45, '#e11d48'], [1, '#881337']]);
+      ctx.fill(); ctx.strokeStyle = '#3b0718'; ctx.lineWidth = 3; ctx.stroke();
+      ctx.fillStyle = '#38bdf8'; ctx.beginPath(); ctx.arc(64, 62 + b * 0.5, 8, 0, Math.PI * 2); ctx.fill();
+      [50, 78].forEach((ex) => { ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(ex, 64 + b * 0.5, 4.5, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(ex - 1.5, 62.5 + b * 0.5, 1.8, 0, Math.PI * 2); ctx.fill(); });
+      return c;
+    };
+    sprites.monsters.coral_crab = [makeCoralCrab(0), makeCoralCrab(1)];
+
+    const makePirateSkel = (f) => {
+      const S = 136, c = makeCanvas(S, S), ctx = c.getContext('2d'), b = f ? -4 : 0;
+      rrect(ctx, 46, 66 + b, 44, 44, 10);
+      ctx.fillStyle = linGrad(ctx, 46, 66, 90, 110, [[0, '#1e3a8a'], [1, '#0f172a']]); ctx.fill();
+      ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(68, 44 + b, 22, 0, Math.PI * 2);
+      ctx.fillStyle = '#e2e8f0'; ctx.fill(); ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2.4; ctx.stroke();
+      // Tricorn Corsair Hat
+      ctx.beginPath(); ctx.moveTo(34, 34 + b); ctx.quadraticCurveTo(68, 6 + b, 102, 34 + b); ctx.quadraticCurveTo(68, 42 + b, 34, 34 + b); ctx.closePath();
+      ctx.fillStyle = '#1e1b2e'; ctx.fill(); ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.stroke();
+      [58, 78].forEach((ex) => { ctx.fillStyle = '#2dd4bf'; ctx.beginPath(); ctx.arc(ex, 45 + b, 4.2, 0, Math.PI * 2); ctx.fill(); });
+      // Cutlass
+      ctx.beginPath(); ctx.moveTo(106, 86 + b); ctx.quadraticCurveTo(126, 52 + b, 110, 24 + b); ctx.lineTo(100, 42 + b); ctx.lineTo(100, 86 + b); ctx.closePath();
+      ctx.fillStyle = '#cbd5e1'; ctx.fill(); ctx.strokeStyle = '#0f172a'; ctx.lineWidth = 2; ctx.stroke();
+      return c;
+    };
+    sprites.monsters.pirate_skel = [makePirateSkel(0), makePirateSkel(1)];
+
+    const makeKrakenGuard = (f) => {
+      const S = 176, c = makeCanvas(S, S), ctx = c.getContext('2d'), b = f ? -5 : 0;
+      ctx.fillStyle = radGrad(ctx, 88, 92, 12, 88, 92, 82, [[0, 'rgba(56,189,248,0.34)'], [1, 'rgba(0,0,0,0)']]);
+      ctx.beginPath(); ctx.arc(88, 92, 82, 0, Math.PI * 2); ctx.fill();
+      // Tentacles
+      for (let i = -2; i <= 2; i++) {
+        ctx.strokeStyle = '#0369a1'; ctx.lineWidth = 11; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(88 + i * 16, 102 + b); ctx.quadraticCurveTo(88 + i * 28, 134, 88 + i * 22 + (f ? 6 : -6), 156); ctx.stroke();
+      }
+      // Deep-Sea Armored Dome Head & Crown
+      ctx.beginPath(); ctx.ellipse(88, 66 + b, 44, 48, 0, 0, Math.PI * 2);
+      ctx.fillStyle = linGrad(ctx, 44, 18, 132, 114, [[0, '#38bdf8'], [0.5, '#0284c7'], [1, '#082f49']]);
+      ctx.fill(); ctx.strokeStyle = '#bae6fd'; ctx.lineWidth = 2.6; ctx.stroke();
+      [70, 106].forEach((ex) => { ctx.shadowColor = '#fde047'; ctx.shadowBlur = 10; ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.ellipse(ex, 68 + b, 7, 4.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0; });
+      // Sapphire Trident
+      ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(148, 28 + b); ctx.lineTo(148, 146 + b); ctx.stroke();
+      ctx.strokeStyle = '#7dd3fc'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(134, 34 + b); ctx.lineTo(134, 52 + b); ctx.lineTo(162, 52 + b); ctx.lineTo(162, 34 + b); ctx.moveTo(148, 18 + b); ctx.lineTo(148, 52 + b); ctx.stroke();
+      return c;
+    };
+    sprites.monsters.kraken_guard = [makeKrakenGuard(0), makeKrakenGuard(1)];
+
+    const makeWyvern = (f) => {
+      const S = 144, c = makeCanvas(S, S), ctx = c.getContext('2d'), b = f ? -6 : 2;
+      [-1, 1].forEach((dir) => {
+        ctx.beginPath(); ctx.moveTo(72 + dir * 14, 62 + b); ctx.quadraticCurveTo(72 + dir * 64, 18 - b, 72 + dir * 56, 78 + b); ctx.lineTo(72 + dir * 24, 78 + b); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 72, 24, 72 + dir * 60, 78, [[0, '#f97316'], [1, '#7f1d1d']]); ctx.fill();
+        ctx.strokeStyle = '#450a0a'; ctx.lineWidth = 2.4; ctx.stroke();
+      });
+      ctx.beginPath(); ctx.ellipse(72, 72 + b, 24, 30, 0, 0, Math.PI * 2);
+      ctx.fillStyle = linGrad(ctx, 48, 42, 96, 102, [[0, '#ef4444'], [0.6, '#b91c1c'], [1, '#450a0a']]);
+      ctx.fill(); ctx.strokeStyle = '#290707'; ctx.lineWidth = 2.6; ctx.stroke();
+      ctx.fillStyle = '#fde047';
+      [62, 82].forEach((ex) => { ctx.beginPath(); ctx.arc(ex, 58 + b, 4.2, 0, Math.PI * 2); ctx.fill(); });
+      return c;
+    };
+    sprites.monsters.wyvern = [makeWyvern(0), makeWyvern(1)];
+
+    const makeLavaGolem = (f) => {
+      const S = 152, c = makeCanvas(S, S), ctx = c.getContext('2d'), b = f ? 3 : 0;
+      ctx.beginPath(); ctx.moveTo(30, 50 + b); ctx.lineTo(122, 50 + b); ctx.lineTo(108, 116 + b); ctx.lineTo(44, 116 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 30, 50, 122, 116, [[0, '#57534e'], [0.5, '#292524'], [1, '#1c1917']]);
+      ctx.fill(); ctx.strokeStyle = '#ea580c'; ctx.lineWidth = 3; ctx.stroke();
+      [20, 132].forEach((fx) => { rrect(ctx, fx - 14, 68 + b, 28, 42, 10); ctx.fillStyle = '#292524'; ctx.fill(); ctx.strokeStyle = '#f97316'; ctx.lineWidth = 2.4; ctx.stroke(); });
+      rrect(ctx, 50, 18 + b, 52, 36, 10); ctx.fillStyle = '#3f3b39'; ctx.fill(); ctx.strokeStyle = '#fb923c'; ctx.lineWidth = 2.4; ctx.stroke();
+      ctx.fillStyle = '#fef08a'; rrect(ctx, 58, 30 + b, 13, 6, 3); ctx.fill(); rrect(ctx, 81, 30 + b, 13, 6, 3); ctx.fill();
+      ctx.shadowColor = '#f97316'; ctx.shadowBlur = 16;
+      ctx.beginPath(); ctx.moveTo(76, 60 + b); ctx.lineTo(94, 82 + b); ctx.lineTo(76, 104 + b); ctx.lineTo(58, 82 + b); ctx.closePath();
+      ctx.fillStyle = radGrad(ctx, 76, 82 + b, 2, 76, 82 + b, 20, [[0, '#ffffff'], [0.45, '#fde047'], [1, '#ea580c']]); ctx.fill(); ctx.shadowBlur = 0;
+      return c;
+    };
+    sprites.monsters.lava_golem = [makeLavaGolem(0), makeLavaGolem(1)];
+
+    const makeIgnisBoss = (f) => {
+      const S = 184, c = makeCanvas(S, S), ctx = c.getContext('2d'), b = f ? -5 : 0;
+      ctx.fillStyle = radGrad(ctx, 92, 92, 14, 92, 92, 86, [[0, 'rgba(249,115,22,0.38)'], [1, 'rgba(0,0,0,0)']]);
+      ctx.beginPath(); ctx.arc(92, 92, 86, 0, Math.PI * 2); ctx.fill();
+      // Flame Wing Mantle
+      [-1, 1].forEach((dir) => {
+        ctx.beginPath(); ctx.moveTo(92 + dir * 20, 72 + b); ctx.bezierCurveTo(92 + dir * 74, 24 + b, 92 + dir * 88, 66 + b, 92 + dir * 72, 126 + b); ctx.lineTo(92 + dir * 28, 108 + b); ctx.closePath();
+        ctx.fillStyle = linGrad(ctx, 92, 30, 92 + dir * 80, 126, [[0, '#fef08a'], [0.45, '#f97316'], [1, '#991b1b']]); ctx.fill();
+      });
+      // Solar Armored Torso & Helm
+      ctx.beginPath(); ctx.moveTo(52, 72 + b); ctx.lineTo(132, 72 + b); ctx.lineTo(122, 144 + b); ctx.lineTo(62, 144 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 52, 72, 132, 144, [[0, '#fbbf24'], [0.45, '#b45309'], [1, '#451a03']]);
+      ctx.fill(); ctx.strokeStyle = '#fef08a'; ctx.lineWidth = 2.4; ctx.stroke();
+      ctx.beginPath(); ctx.arc(92, 46 + b, 26, 0, Math.PI * 2);
+      ctx.fillStyle = linGrad(ctx, 66, 20, 118, 72, [[0, '#fde047'], [0.5, '#ea580c'], [1, '#7c2d12']]); ctx.fill(); ctx.stroke();
+      rrect(ctx, 74, 42 + b, 36, 10, 4); ctx.fillStyle = '#1c0a04'; ctx.fill();
+      ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.arc(83, 47 + b, 4, 0, Math.PI * 2); ctx.arc(101, 47 + b, 4, 0, Math.PI * 2); ctx.fill();
+      // Solar Flame Halberd
+      ctx.strokeStyle = '#fde047'; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(150, 22 + b); ctx.lineTo(150, 152 + b); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(150, 18 + b); ctx.bezierCurveTo(180, 32 + b, 178, 76 + b, 150, 74 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 148, 18, 178, 74, [[0, '#ffffff'], [0.4, '#fde047'], [1, '#ea580c']]); ctx.fill();
+      return c;
+    };
+    sprites.monsters.ignis_boss = [makeIgnisBoss(0), makeIgnisBoss(1)];
+
+    const makeFallenKnight = (f) => {
+      const S = 140, c = makeCanvas(S, S), ctx = c.getContext('2d'), b = f ? -4 : 0;
+      ctx.beginPath(); ctx.moveTo(44, 62 + b); ctx.lineTo(96, 62 + b); ctx.lineTo(90, 118 + b); ctx.lineTo(50, 118 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 44, 62, 96, 118, [[0, '#64748b'], [0.5, '#1e1b4b'], [1, '#09090b']]);
+      ctx.fill(); ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 2.2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(70, 42 + b, 21, 0, Math.PI * 2);
+      ctx.fillStyle = '#1e293b'; ctx.fill(); ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 2.2; ctx.stroke();
+      rrect(ctx, 56, 38 + b, 28, 8, 3); ctx.fillStyle = '#090512'; ctx.fill();
+      ctx.fillStyle = '#d8b4fe'; ctx.beginPath(); ctx.arc(63, 42 + b, 3.2, 0, Math.PI * 2); ctx.arc(77, 42 + b, 3.2, 0, Math.PI * 2); ctx.fill();
+      // Cursed Lance
+      ctx.beginPath(); ctx.moveTo(112, 16 + b); ctx.lineTo(120, 46 + b); ctx.lineTo(114, 116 + b); ctx.lineTo(108, 116 + b); ctx.lineTo(104, 46 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 104, 16, 120, 116, [[0, '#e9d5ff'], [0.4, '#9333ea'], [1, '#1e1b4b']]); ctx.fill();
+      return c;
+    };
+    sprites.monsters.fallen_knight = [makeFallenKnight(0), makeFallenKnight(1)];
+
+    const makeAbyssAssassin = (f) => {
+      const S = 136, c = makeCanvas(S, S), ctx = c.getContext('2d'), b = f ? -5 : 0;
+      ctx.beginPath(); ctx.moveTo(46, 62 + b); ctx.lineTo(90, 62 + b); ctx.lineTo(98, 116 + b); ctx.lineTo(38, 116 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 40, 62, 96, 116, [[0, '#312e81'], [1, '#09090b']]); ctx.fill(); ctx.strokeStyle = '#f43f5e'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(42, 54 + b); ctx.quadraticCurveTo(68, 12 + b, 94, 54 + b); ctx.closePath();
+      ctx.fillStyle = '#1e1b4b'; ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fb7185'; ctx.beginPath(); ctx.arc(60, 44 + b, 3.5, 0, Math.PI * 2); ctx.arc(76, 44 + b, 3.5, 0, Math.PI * 2); ctx.fill();
+      // Twin Crimson Energy Sickles
+      [-1, 1].forEach((dir) => {
+        ctx.strokeStyle = '#fb7185'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.arc(68 + dir * 36, 76 + b, 18, dir < 0 ? 1.2 : -0.6, dir < 0 ? 3.8 : 2.0); ctx.stroke();
+      });
+      return c;
+    };
+    sprites.monsters.abyss_assassin = [makeAbyssAssassin(0), makeAbyssAssassin(1)];
+
+    // PLOT TWIST MID-BOSS: Traitor Grand Commander Cassius (188x188)
+    const makeCassiusBoss = (f) => {
+      const S = 188, c = makeCanvas(S, S), ctx = c.getContext('2d'), b = f ? -5 : 0;
+      ctx.fillStyle = radGrad(ctx, 94, 94, 14, 94, 94, 88, [[0, 'rgba(168,85,247,0.36)'], [0.6, 'rgba(234,179,8,0.16)'], [1, 'rgba(0,0,0,0)']]);
+      ctx.beginPath(); ctx.arc(94, 94, 88, 0, Math.PI * 2); ctx.fill();
+      // Grand Commander Royal Violet-Gold Cape
+      ctx.beginPath(); ctx.moveTo(52, 72 + b); ctx.lineTo(30, 166 + b); ctx.lineTo(94, 154 + b); ctx.lineTo(158, 166 + b); ctx.lineTo(136, 72 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 32, 72, 156, 166, [[0, '#7e22ce'], [0.6, '#3b0764'], [1, '#12031f']]); ctx.fill();
+      ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2.4; ctx.stroke();
+      // Tarnished Gold & Obsidian Paladin Armor
+      ctx.beginPath(); ctx.moveTo(54, 70 + b); ctx.lineTo(134, 70 + b); ctx.lineTo(122, 144 + b); ctx.lineTo(66, 144 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 54, 70, 134, 144, [[0, '#fde047'], [0.35, '#475569'], [1, '#0f172a']]);
+      ctx.fill(); ctx.strokeStyle = '#c084fc'; ctx.lineWidth = 2.4; ctx.stroke();
+      // Sculpted Pauldrons
+      [-1, 1].forEach((dir) => {
+        ctx.beginPath(); ctx.ellipse(94 + dir * 44, 78 + b, 20, 14, dir * 0.3, 0, Math.PI * 2);
+        ctx.fillStyle = linGrad(ctx, 74, 64, 114, 92, [[0, '#fef08a'], [0.5, '#a855f7'], [1, '#1e1b4b']]); ctx.fill();
+        ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2.4; ctx.stroke();
+      });
+      // Unmasked Cold Noble Commander Head & Crowned Silver Hair
+      ctx.beginPath(); ctx.arc(94, 44 + b, 24, 0, Math.PI * 2);
+      ctx.fillStyle = '#fde4cf'; ctx.fill(); ctx.strokeStyle = '#1e1b4b'; ctx.lineWidth = 2.4; ctx.stroke();
+      ctx.beginPath(); ctx.arc(94, 36 + b, 26, Math.PI * 0.9, Math.PI * 2.1); ctx.lineTo(116, 46 + b); ctx.quadraticCurveTo(94, 30 + b, 72, 46 + b); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, 68, 12, 120, 46, [[0, '#f8fafc'], [1, '#64748b']]); ctx.fill(); ctx.stroke();
+      drawStylizedEye(ctx, 84, 48 + b, 5, 4.5, '#c084fc', '#581c87', -1, true);
+      drawStylizedEye(ctx, 104, 48 + b, 5, 4.5, '#c084fc', '#581c87', 1, true);
+      // Black-Violet Runed Greatsword
+      ctx.save(); ctx.translate(154, 98 + b); ctx.rotate(0.14);
+      ctx.shadowColor = '#a855f7'; ctx.shadowBlur = 16;
+      ctx.beginPath(); ctx.moveTo(0, -86); ctx.lineTo(12, -62); ctx.lineTo(8, 22); ctx.lineTo(-8, 22); ctx.lineTo(-12, -62); ctx.closePath();
+      ctx.fillStyle = linGrad(ctx, -12, -86, 12, 22, [[0, '#f3e8ff'], [0.4, '#a855f7'], [1, '#0f172a']]); ctx.fill(); ctx.shadowBlur = 0;
+      rrect(ctx, -20, 18, 40, 8, 3); ctx.fillStyle = '#fbbf24'; ctx.fill();
+      ctx.restore();
+      return c;
+    };
+    sprites.monsters.cassius_boss = [makeCassiusBoss(0), makeCassiusBoss(1)];
 
     return sprites;
   }
