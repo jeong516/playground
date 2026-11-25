@@ -506,50 +506,72 @@
       sprites.tiles.citadelWall = bw;
     }
 
-    // Alpine Snow & Crystal Glacier Wall (Continent 4)
+    // Alpine Snow & Faceted Crystal Glacier Wall (Continent 4)
     {
-      const sn = makeCanvas(TS, TS);
-      const ctx = sn.getContext('2d');
-      ctx.fillStyle = '#dbeafe'; ctx.fillRect(0, 0, TS, TS);
-      [[26, 30, 22, 12, 'rgba(255,255,255,0.65)'], [68, 66, 20, 12, 'rgba(147,197,253,0.32)'], [64, 24, 15, 9, 'rgba(255,255,255,0.55)']]
-        .forEach(([x, y, rx, ry, col]) => { ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0.2, 0, Math.PI * 2); ctx.fill(); });
-      [[24, 58], [72, 34], [48, 76]].forEach(([sx, sy]) => {
-        ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(sx, sy, 2.2, 0, Math.PI * 2); ctx.fill();
-      });
-      sprites.tiles.snow = sn;
+      const makeSnow = (v) => {
+        const sn = makeCanvas(TS, TS);
+        const ctx = sn.getContext('2d');
+        ctx.fillStyle = '#ddebfb'; ctx.fillRect(0, 0, TS, TS);
+        const ox = (v * 17) % 36, oy = (v * 23) % 36;
+        [[20 + ox * 0.4, 24 + oy * 0.4, 24, 13, 'rgba(255,255,255,0.68)'],
+         [64 - ox * 0.3, 68 - oy * 0.3, 22, 12, 'rgba(147,197,253,0.24)'],
+         [54 + ox * 0.2, 22 + oy * 0.3, 16, 9, 'rgba(255,255,255,0.52)']]
+          .forEach(([x, y, rx, ry, col]) => { ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0.2, 0, Math.PI * 2); ctx.fill(); });
+        if (v === 1 || v === 3) {
+          ctx.fillStyle = 'rgba(255,255,255,0.92)';
+          ctx.beginPath(); ctx.arc(22 + ox, 54 + oy * 0.5, 2.2, 0, Math.PI * 2); ctx.fill();
+        }
+        return sn;
+      };
+      sprites.tiles.snow = makeSnow(0);
+      sprites.tileVariants = sprites.tileVariants || {};
+      sprites.tileVariants.snow = [0, 1, 2, 3].map(makeSnow);
 
       const iw = makeCanvas(TS, TS);
       const wctx = iw.getContext('2d');
-      wctx.fillStyle = '#1e3a8a'; wctx.fillRect(0, 0, TS, TS);
-      rrect(wctx, 4, 4, 88, 42, 8);
-      wctx.fillStyle = linGrad(wctx, 0, 4, 0, 46, [[0, '#e0f2fe'], [0.4, '#60a5fa'], [1, '#1d4ed8']]); wctx.fill();
-      rrect(wctx, 4, 50, 42, 42, 7); wctx.fillStyle = linGrad(wctx, 4, 50, 46, 92, [[0, '#93c5fd'], [1, '#1e40af']]); wctx.fill();
-      rrect(wctx, 50, 50, 42, 42, 7); wctx.fillStyle = linGrad(wctx, 50, 50, 92, 92, [[0, '#bae6fd'], [1, '#1d4ed8']]); wctx.fill();
-      wctx.strokeStyle = 'rgba(255,255,255,0.6)'; wctx.lineWidth = 1.6;
-      wctx.beginPath(); wctx.moveTo(14, 12); wctx.lineTo(38, 12); wctx.stroke();
+      wctx.fillStyle = '#1d4ed8'; wctx.fillRect(0, 0, TS, TS);
+      // Faceted glacial crystal ridges
+      wctx.fillStyle = linGrad(wctx, 0, 0, TS, TS, [[0, '#e0f2fe'], [0.42, '#60a5fa'], [1, '#1e3a8a']]);
+      wctx.fillRect(0, 0, TS, TS);
+      wctx.fillStyle = 'rgba(255,255,255,0.34)';
+      wctx.beginPath(); wctx.moveTo(0, 0); wctx.lineTo(68, 0); wctx.lineTo(36, 46); wctx.lineTo(0, 32); wctx.closePath(); wctx.fill();
+      wctx.fillStyle = 'rgba(15,23,42,0.22)';
+      wctx.beginPath(); wctx.moveTo(96, 26); wctx.lineTo(52, 54); wctx.lineTo(96, 96); wctx.closePath(); wctx.fill();
+      wctx.strokeStyle = 'rgba(255,255,255,0.65)'; wctx.lineWidth = 1.8;
+      wctx.beginPath(); wctx.moveTo(10, 14); wctx.lineTo(44, 28); wctx.lineTo(78, 12); wctx.stroke();
       sprites.tiles.iceWall = iw;
     }
 
-    // Celestial Floating Marble & Starry Sky Abyss (Continent 6)
+    // Celestial Floating Alabaster Marble & Starry Sky Abyss (Continent 6)
     {
-      const sf = makeCanvas(TS, TS);
-      const ctx = sf.getContext('2d');
-      ctx.fillStyle = '#e6eef8'; ctx.fillRect(0, 0, TS, TS);
-      rrect(ctx, 3, 3, 43, 43, 6); ctx.fillStyle = linGrad(ctx, 3, 3, 46, 46, [[0, '#ffffff'], [1, '#d7e3f4']]); ctx.fill();
-      rrect(ctx, 50, 3, 43, 43, 6); ctx.fillStyle = linGrad(ctx, 50, 3, 93, 46, [[0, '#f8fbff'], [1, '#cedcf0']]); ctx.fill();
-      rrect(ctx, 3, 50, 43, 43, 6); ctx.fillStyle = linGrad(ctx, 3, 50, 46, 93, [[0, '#f8fbff'], [1, '#cedcf0']]); ctx.fill();
-      rrect(ctx, 50, 50, 43, 43, 6); ctx.fillStyle = linGrad(ctx, 50, 50, 93, 93, [[0, '#ffffff'], [1, '#d7e3f4']]); ctx.fill();
-      ctx.strokeStyle = 'rgba(234,179,8,0.42)'; ctx.lineWidth = 1.6;
-      ctx.strokeRect(4, 4, 88, 88);
-      sprites.tiles.skyFloor = sf;
+      const makeSkyFloor = (v) => {
+        const sf = makeCanvas(TS, TS);
+        const ctx = sf.getContext('2d');
+        ctx.fillStyle = '#edf3fb'; ctx.fillRect(0, 0, TS, TS);
+        // Seamless polished marble veining (zero harsh grid box!)
+        ctx.strokeStyle = 'rgba(148,180,220,0.28)'; ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo((v * 22) % 40, 12 + v * 6);
+        ctx.quadraticCurveTo(48, 38 + (v % 2) * 18, 92 - (v * 14) % 30, 78);
+        ctx.stroke();
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.beginPath(); ctx.ellipse(32 + v * 9, 28 + v * 6, 22, 12, -0.3, 0, Math.PI * 2); ctx.fill();
+        if (v === 2) {
+          ctx.strokeStyle = 'rgba(234,179,8,0.28)'; ctx.lineWidth = 1.2;
+          ctx.beginPath(); ctx.arc(48, 48, 16, 0, Math.PI * 2); ctx.stroke();
+        }
+        return sf;
+      };
+      sprites.tiles.skyFloor = makeSkyFloor(0);
+      sprites.tileVariants.skyFloor = [0, 1, 2, 3].map(makeSkyFloor);
 
       const sv = makeCanvas(TS, TS);
       const vctx = sv.getContext('2d');
-      vctx.fillStyle = linGrad(vctx, 0, 0, 0, TS, [[0, '#0f2854'], [0.55, '#1d4f8a'], [1, '#3b82c4']]);
+      vctx.fillStyle = linGrad(vctx, 0, 0, 0, TS, [[0, '#133163'], [0.55, '#2563a6'], [1, '#4f97d8']]);
       vctx.fillRect(0, 0, TS, TS);
-      vctx.fillStyle = 'rgba(255,255,255,0.22)';
-      vctx.beginPath(); vctx.ellipse(32, 62, 24, 11, 0, 0, Math.PI * 2); vctx.ellipse(66, 54, 22, 10, 0, 0, Math.PI * 2); vctx.fill();
-      [[20, 22], [74, 28], [48, 16]].forEach(([x, y]) => {
+      vctx.fillStyle = 'rgba(255,255,255,0.24)';
+      vctx.beginPath(); vctx.ellipse(28, 64, 28, 12, 0, 0, Math.PI * 2); vctx.ellipse(68, 52, 24, 11, 0, 0, Math.PI * 2); vctx.fill();
+      [[20, 22], [74, 28], [48, 14]].forEach(([x, y]) => {
         vctx.fillStyle = '#fef08a'; vctx.beginPath(); vctx.arc(x, y, 1.8, 0, Math.PI * 2); vctx.fill();
       });
       sprites.tiles.skyVoid = sv;
@@ -557,18 +579,26 @@
 
     // Cursed Witchwood Swamp & Glowing Mushroom Tree (Continent 7)
     {
-      const sw = makeCanvas(TS, TS);
-      const ctx = sw.getContext('2d');
-      ctx.fillStyle = '#243c35'; ctx.fillRect(0, 0, TS, TS);
-      [[30, 32, 22, 12, 'rgba(52,211,153,0.14)'], [66, 68, 22, 13, 'rgba(15,23,42,0.34)']]
-        .forEach(([x, y, rx, ry, col]) => { ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, -0.2, 0, Math.PI * 2); ctx.fill(); });
-      ctx.fillStyle = 'rgba(167,139,250,0.45)';
-      ctx.beginPath(); ctx.arc(28, 66, 3.2, 0, Math.PI * 2); ctx.arc(70, 28, 2.5, 0, Math.PI * 2); ctx.fill();
-      sprites.tiles.swamp = sw;
+      const makeSwamp = (v) => {
+        const sw = makeCanvas(TS, TS);
+        const ctx = sw.getContext('2d');
+        ctx.fillStyle = '#203832'; ctx.fillRect(0, 0, TS, TS);
+        const ox = (v * 19) % 34, oy = (v * 23) % 34;
+        [[24 + ox * 0.4, 26 + oy * 0.4, 24, 13, 'rgba(45,212,191,0.12)'],
+         [64 - ox * 0.3, 66 - oy * 0.3, 24, 14, 'rgba(15,23,42,0.3)']]
+          .forEach(([x, y, rx, ry, col]) => { ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(x, y, rx, ry, -0.2, 0, Math.PI * 2); ctx.fill(); });
+        if (v === 1 || v === 3) {
+          ctx.fillStyle = 'rgba(167,139,250,0.45)';
+          ctx.beginPath(); ctx.arc(26 + ox * 0.8, 60 - oy * 0.5, 2.8, 0, Math.PI * 2); ctx.fill();
+        }
+        return sw;
+      };
+      sprites.tiles.swamp = makeSwamp(0);
+      sprites.tileVariants.swamp = [0, 1, 2, 3].map(makeSwamp);
 
       const st = makeCanvas(TS, TS);
       const tctx = st.getContext('2d');
-      tctx.fillStyle = 'rgba(0,0,0,0.32)';
+      tctx.fillStyle = 'rgba(0,0,0,0.34)';
       tctx.beginPath(); tctx.ellipse(48, 84, 34, 11, 0, 0, Math.PI * 2); tctx.fill();
       rrect(tctx, 40, 56, 16, 30, 5);
       tctx.fillStyle = linGrad(tctx, 40, 56, 56, 86, [[0, '#312e45'], [0.5, '#4b4464'], [1, '#1e1b2e']]); tctx.fill();
@@ -581,29 +611,140 @@
       sprites.tiles.swampTree = st;
     }
 
-    // Cosmic Rift Floor & Dimensional Pillar Wall (Continents 9 & 10)
+    // Cosmic Rift Seamless Nebula Floor & Astral Pillar Wall (Continents 9 & 10)
     {
-      const vf = makeCanvas(TS, TS);
-      const ctx = vf.getContext('2d');
-      ctx.fillStyle = '#14122b'; ctx.fillRect(0, 0, TS, TS);
-      rrect(ctx, 4, 4, 88, 88, 8);
-      ctx.fillStyle = linGrad(ctx, 4, 4, 92, 92, [[0, '#221d47'], [0.5, '#1a1638'], [1, '#110e26']]); ctx.fill();
-      ctx.strokeStyle = 'rgba(56,189,248,0.28)'; ctx.lineWidth = 1.6; ctx.stroke();
-      [[24, 24], [72, 30], [44, 68], [76, 74]].forEach(([x, y]) => {
-        ctx.fillStyle = 'rgba(253,224,71,0.55)'; ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
-      });
-      sprites.tiles.voidFloor = vf;
+      const makeVoidFloor = (v) => {
+        const vf = makeCanvas(TS, TS);
+        const ctx = vf.getContext('2d');
+        ctx.fillStyle = '#151332'; ctx.fillRect(0, 0, TS, TS);
+        const ox = (v * 21) % 34, oy = (v * 17) % 34;
+        ctx.fillStyle = v % 2 === 0 ? 'rgba(99,102,241,0.16)' : 'rgba(56,189,248,0.14)';
+        ctx.beginPath(); ctx.ellipse(34 + ox * 0.5, 42 + oy * 0.4, 32, 18, 0.35, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(168,85,247,0.12)';
+        ctx.beginPath(); ctx.ellipse(66 - ox * 0.4, 62 - oy * 0.3, 24, 14, -0.3, 0, Math.PI * 2); ctx.fill();
+        [[18 + ox * 0.6, 22 + oy * 0.4], [74 - ox * 0.4, 68 - oy * 0.3]].forEach(([sx, sy], idx) => {
+          ctx.fillStyle = idx === 0 ? 'rgba(253,224,71,0.68)' : 'rgba(186,230,253,0.6)';
+          ctx.beginPath(); ctx.arc(sx, sy, idx === 0 ? 1.7 : 1.3, 0, Math.PI * 2); ctx.fill();
+        });
+        return vf;
+      };
+      sprites.tiles.voidFloor = makeVoidFloor(0);
+      sprites.tileVariants.voidFloor = [0, 1, 2, 3].map(makeVoidFloor);
 
       const vw = makeCanvas(TS, TS);
       const wctx = vw.getContext('2d');
-      wctx.fillStyle = '#080614'; wctx.fillRect(0, 0, TS, TS);
-      rrect(wctx, 6, 6, 84, 84, 10);
-      wctx.fillStyle = linGrad(wctx, 6, 6, 90, 90, [[0, '#38bdf8'], [0.22, '#312e81'], [0.78, '#1e1b4b'], [1, '#09071a']]);
+      wctx.fillStyle = '#09071a'; wctx.fillRect(0, 0, TS, TS);
+      rrect(wctx, 5, 5, 86, 86, 12);
+      wctx.fillStyle = linGrad(wctx, 5, 5, 91, 91, [[0, '#38bdf8'], [0.24, '#312e81'], [0.78, '#1e1b4b'], [1, '#09071a']]);
       wctx.fill();
-      wctx.strokeStyle = '#fde047'; wctx.lineWidth = 2; wctx.stroke();
-      wctx.fillStyle = '#7dd3fc';
-      wctx.beginPath(); wctx.moveTo(48, 22); wctx.lineTo(64, 48); wctx.lineTo(48, 74); wctx.lineTo(32, 48); wctx.closePath(); wctx.fill();
+      wctx.strokeStyle = 'rgba(253,224,71,0.65)'; wctx.lineWidth = 1.8; wctx.stroke();
+      wctx.fillStyle = 'rgba(125,211,252,0.82)';
+      wctx.beginPath(); wctx.moveTo(48, 22); wctx.lineTo(62, 48); wctx.lineTo(48, 74); wctx.lineTo(34, 48); wctx.closePath(); wctx.fill();
       sprites.tiles.voidWall = vw;
+    }
+
+    // Animated 2-Frame Molten Lava + Multi-Variant Grass / Sand / RedRock + 6 Biome-Matched Road Tiles
+    {
+      const makeLava = (f) => {
+        const lv = makeCanvas(TS, TS);
+        const lctx = lv.getContext('2d');
+        lctx.fillStyle = linGrad(lctx, 0, 0, TS, TS, [[0, '#b91c1c'], [0.5, '#ea580c'], [1, '#991b1b']]);
+        lctx.fillRect(0, 0, TS, TS);
+        const sh = f ? 14 : 0;
+        lctx.fillStyle = radGrad(lctx, 30 + sh, 36, 4, 30 + sh, 36, 28, [[0, '#fef08a'], [0.55, '#fb923c'], [1, 'rgba(234,88,12,0)']]);
+        lctx.beginPath(); lctx.arc(30 + sh, 36, 28, 0, Math.PI * 2); lctx.fill();
+        lctx.fillStyle = radGrad(lctx, 72 - sh, 68, 3, 72 - sh, 68, 24, [[0, '#fde047'], [0.55, '#f97316'], [1, 'rgba(234,88,12,0)']]);
+        lctx.beginPath(); lctx.arc(72 - sh, 68, 24, 0, Math.PI * 2); lctx.fill();
+        return lv;
+      };
+      sprites.tiles.lava0 = makeLava(0);
+      sprites.tiles.lava1 = makeLava(1);
+      sprites.tiles.lava = sprites.tiles.lava0;
+
+      // 4 natural variants for Grass, DarkGrass, Sand, RedRock so zero wallpaper grid appears
+      const makeGrassV = (isDark, v) => {
+        const c = makeCanvas(TS, TS), ctx = c.getContext('2d');
+        ctx.fillStyle = isDark ? '#27482d' : '#4a8543';
+        ctx.fillRect(0, 0, TS, TS);
+        const ox = (v * 23) % 38, oy = (v * 19) % 34;
+        ctx.fillStyle = isDark ? 'rgba(68,122,76,0.16)' : 'rgba(138,204,104,0.16)';
+        ctx.beginPath(); ctx.ellipse(26 + ox * 0.5, 28 + oy * 0.4, 24, 13, 0.25, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = isDark ? 'rgba(18,36,22,0.16)' : 'rgba(38,80,36,0.12)';
+        ctx.beginPath(); ctx.ellipse(68 - ox * 0.4, 66 - oy * 0.4, 24, 14, -0.2, 0, Math.PI * 2); ctx.fill();
+        const tufts = v === 0 ? [[22, 34], [68, 64]]
+          : (v === 1 ? [[56, 24], [30, 72]]
+            : (v === 2 ? [[44, 48]] : [[72, 30], [26, 56], [58, 76]]));
+        tufts.forEach(([bx, by], i) => {
+          ctx.strokeStyle = i % 2 === 0
+            ? (isDark ? 'rgba(92,148,99,0.44)' : 'rgba(154,220,120,0.5)')
+            : (isDark ? 'rgba(20,42,25,0.36)' : 'rgba(42,88,38,0.34)');
+          ctx.lineWidth = 1.7; ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(bx, by + 5); ctx.quadraticCurveTo(bx - 2.5, by, bx - 4.5, by - 3.5);
+          ctx.moveTo(bx + 2, by + 5); ctx.quadraticCurveTo(bx + 3.5, by, bx + 5, by - 2.5);
+          ctx.stroke();
+        });
+        return c;
+      };
+      sprites.tileVariants.grass = [0, 1, 2, 3].map((v) => makeGrassV(false, v));
+      sprites.tileVariants.darkGrass = [0, 1, 2, 3].map((v) => makeGrassV(true, v));
+
+      const makeSandV = (v) => {
+        const s = makeCanvas(TS, TS), ctx = s.getContext('2d');
+        ctx.fillStyle = '#e5cf9c'; ctx.fillRect(0, 0, TS, TS);
+        const ox = (v * 19) % 32, oy = (v * 23) % 32;
+        ctx.fillStyle = 'rgba(255,248,224,0.32)';
+        ctx.beginPath(); ctx.ellipse(26 + ox * 0.5, 28 + oy * 0.4, 24, 10, 0.18, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(189,154,96,0.2)';
+        ctx.beginPath(); ctx.ellipse(68 - ox * 0.4, 68 - oy * 0.4, 24, 11, -0.15, 0, Math.PI * 2); ctx.fill();
+        if (v === 2) {
+          ctx.fillStyle = '#fda4af'; ctx.beginPath(); ctx.arc(68, 28, 3.6, 0, Math.PI * 2); ctx.fill();
+        } else if (v === 3) {
+          ctx.fillStyle = '#fef3c7'; ctx.beginPath(); ctx.arc(30, 68, 3.2, 0, Math.PI * 2); ctx.fill();
+        }
+        return s;
+      };
+      sprites.tileVariants.sand = [0, 1, 2, 3].map(makeSandV);
+
+      const makeRockV = (v) => {
+        const r = makeCanvas(TS, TS), ctx = r.getContext('2d');
+        ctx.fillStyle = '#8f4f35'; ctx.fillRect(0, 0, TS, TS);
+        const ox = (v * 17) % 34, oy = (v * 21) % 34;
+        ctx.fillStyle = 'rgba(224,142,99,0.2)';
+        ctx.beginPath(); ctx.ellipse(28 + ox * 0.5, 30 + oy * 0.4, 24, 12, -0.15, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(72,28,16,0.24)';
+        ctx.beginPath(); ctx.ellipse(66 - ox * 0.4, 66 - oy * 0.4, 22, 12, 0.2, 0, Math.PI * 2); ctx.fill();
+        if (v === 1 || v === 3) {
+          ctx.strokeStyle = 'rgba(64,22,12,0.32)'; ctx.lineWidth = 1.6;
+          ctx.beginPath(); ctx.moveTo(16 + ox * 0.5, 56); ctx.lineTo(34 + ox * 0.5, 52); ctx.lineTo(42 + ox * 0.5, 62); ctx.stroke();
+        }
+        return r;
+      };
+      sprites.tileVariants.redRock = [0, 1, 2, 3].map(makeRockV);
+
+      // Helper for cohesive biome-themed flagstone road tiles
+      const makeBiomeRoad = (mortar, top, mid, bot, rim) => {
+        const c = makeCanvas(TS, TS), ctx = c.getContext('2d');
+        ctx.fillStyle = mortar; ctx.fillRect(0, 0, TS, TS);
+        const stones = [
+          [3, 3, 42, 27], [49, 3, 44, 27],
+          [3, 34, 26, 27], [33, 34, 36, 27], [73, 34, 20, 27],
+          [3, 65, 46, 28], [53, 65, 40, 28]
+        ];
+        stones.forEach(([x, y, w, h]) => {
+          rrect(ctx, x, y, w, h, 7);
+          ctx.fillStyle = linGrad(ctx, x, y, x, y + h, [[0, top], [0.3, mid], [1, bot]]);
+          ctx.fill();
+          ctx.strokeStyle = rim; ctx.lineWidth = 1.2; ctx.stroke();
+        });
+        return c;
+      };
+      sprites.tiles.snowPath    = makeBiomeRoad('#93b5d6', '#eef6ff', '#cbdcf0', '#a9c4e2', 'rgba(255,255,255,0.45)');
+      sprites.tiles.volcanoPath = makeBiomeRoad('#3b1c15', '#7c4c3c', '#5d372b', '#44261e', 'rgba(251,146,60,0.22)');
+      sprites.tiles.swampPath   = makeBiomeRoad('#162924', '#4a6b5d', '#344f45', '#253932', 'rgba(110,231,183,0.2)');
+      sprites.tiles.desertPath  = makeBiomeRoad('#a68049', '#f4e0b5', '#dfc188', '#c3a063', 'rgba(255,250,235,0.34)');
+      sprites.tiles.skyPath     = makeBiomeRoad('#b8cce6', '#ffffff', '#e6effb', '#ccdbf0', 'rgba(234,179,8,0.4)');
+      sprites.tiles.voidPath    = makeBiomeRoad('#0f0d26', '#3d3975', '#2a2657', '#1d1940', 'rgba(125,211,252,0.28)');
     }
 
     // =========================================================

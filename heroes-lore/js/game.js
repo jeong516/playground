@@ -2066,62 +2066,213 @@
       ctx.translate(-(this.camX + sx), -(this.camY + sy));
 
       const waterFrame = Math.floor(this.time * 2.5) % 2;
-      for (let ty = 0; ty < map.layout.length; ty++) {
+      const tiles = this.sprites.tiles;
+      const vars = this.sprites.tileVariants || {};
+      const pickV = (key, tx, ty) => {
+        const arr = vars[key];
+        if (!arr || !arr.length) return tiles[key];
+        return arr[((tx * 37 + ty * 17) ^ (tx * ty)) & 3];
+      };
+      const biome = map.biome || (
+        map.id === 'canyon' ? 'canyon'
+          : (map.id === 'coast' ? 'coast'
+            : (map.id === 'forest' ? 'forest'
+              : (map.id === 'altar' ? 'eternal'
+                : (map.id === 'citadel' || map.id === 'tower' ? 'void' : 'meadow'))))
+      );
+      const biomeRoad = biome === 'snow' ? tiles.snowPath
+        : ((biome === 'canyon' || biome === 'dragon') ? tiles.volcanoPath
+          : (biome === 'swamp' ? tiles.swampPath
+            : ((biome === 'desert' || biome === 'coast') ? tiles.desertPath
+              : ((biome === 'sky' || biome === 'eternal') ? tiles.skyPath
+                : (biome === 'void' ? tiles.voidPath : null)))));
+
+      const rowsH = map.layout.length;
+      const colsW = map.layout[0].length;
+      const txStart = Math.max(0, Math.floor((this.camX - TILE) / TILE));
+      const txEnd = Math.min(colsW - 1, Math.ceil((this.camX + this.viewW + TILE) / TILE));
+      const tyStart = Math.max(0, Math.floor((this.camY - TILE) / TILE));
+      const tyEnd = Math.min(rowsH - 1, Math.ceil((this.camY + this.viewH + TILE) / TILE));
+      const tileAt = (x, y) => (y >= 0 && y < rowsH && x >= 0 && x < colsW) ? map.layout[y][x] : null;
+      const isRoadCh = (c) => c === 'p' || c === 'c';
+      const isCastWall = (c) => c && (c === 'T' || c === 'D' || c === 'P' || c === 'M' || c === 'C' || c === 'I' || c === 'V' || c === 'W' || c === 'R' || c === '#' || c === 'X' || c === 'B');
+      const mapSeed = (map.zoneNum || 0) * 131 + (map.continentId || 0) * 37 + map.id.charCodeAt(0);
+
+      for (let ty = tyStart; ty <= tyEnd; ty++) {
         const row = map.layout[ty];
-        for (let tx = 0; tx < row.length; tx++) {
+        for (let tx = txStart; tx <= txEnd; tx++) {
           const ch = row[tx], px = tx * TILE, py = ty * TILE;
-          let base = this.sprites.tiles.grass;
-          if (ch === ';' || ch === 'D') base = this.sprites.tiles.darkGrass;
-          else if (ch === 's' || ch === 'P') base = this.sprites.tiles.sand;
-          else if (ch === 'r' || ch === 'C' || ch === 'L') base = this.sprites.tiles.redRock;
-          else if (ch === 'b' || ch === 'B') base = this.sprites.tiles.citadelFloor;
-          else if (ch === '_' || ch === '*' || ch === '#') base = this.sprites.tiles.ruinFloor;
-          else if (ch === 'a' || ch === 'X') base = this.sprites.tiles.altarFloor;
-          else if (ch === 'c' || ch === 'F') base = this.sprites.tiles.cobble;
-          else if (ch === 'n' || ch === 'I') base = this.sprites.tiles.snow;
-          else if (ch === 'k' || ch === 'K') base = this.sprites.tiles.skyFloor;
-          else if (ch === 'm' || ch === 'M') base = this.sprites.tiles.swamp;
-          else if (ch === 'v' || ch === 'V') base = this.sprites.tiles.voidFloor;
+          let base = pickV('grass', tx, ty);
+          if (ch === ';' || ch === 'D') base = pickV('darkGrass', tx, ty);
+          else if (ch === 's' || ch === 'P') base = pickV('sand', tx, ty);
+          else if (ch === 'r' || ch === 'C' || ch === 'L') base = pickV('redRock', tx, ty);
+          else if (ch === 'b' || ch === 'B') base = tiles.citadelFloor;
+          else if (ch === '_' || ch === '*' || ch === '#') base = tiles.ruinFloor;
+          else if (ch === 'a' || ch === 'X') base = tiles.altarFloor;
+          else if (ch === 'c' || ch === 'F') base = biomeRoad || tiles.cobble;
+          else if (ch === 'n' || ch === 'I') base = pickV('snow', tx, ty);
+          else if (ch === 'k' || ch === 'K') base = pickV('skyFloor', tx, ty);
+          else if (ch === 'm' || ch === 'M') base = pickV('swamp', tx, ty);
+          else if (ch === 'v' || ch === 'V') base = pickV('voidFloor', tx, ty);
           ctx.drawImage(base, px, py, TILE + 0.4, TILE + 0.4);
 
-          const tileMap = {
-            ',': this.sprites.tiles.flower, 'p': this.sprites.tiles.path, 'c': this.sprites.tiles.cobble,
-            '~': waterFrame ? this.sprites.tiles.water1 : this.sprites.tiles.water0, '=': this.sprites.tiles.bridge,
-            'T': this.sprites.tiles.tree, 'D': this.sprites.tiles.darkTree, 'R': this.sprites.tiles.houseRoof,
-            'W': this.sprites.tiles.houseWall, 'd': this.sprites.tiles.houseDoor,
-            'F': waterFrame ? this.sprites.tiles.fountain1 : this.sprites.tiles.fountain0,
-            '#': this.sprites.tiles.wall, '*': this.sprites.tiles.ruinRune, 'X': this.sprites.tiles.altarWall,
-            's': this.sprites.tiles.sand, 'P': this.sprites.tiles.palm,
-            'r': this.sprites.tiles.redRock, 'C': this.sprites.tiles.canyonWall, 'L': this.sprites.tiles.lava,
-            'b': this.sprites.tiles.citadelFloor, 'B': this.sprites.tiles.citadelWall,
-            'n': this.sprites.tiles.snow, 'I': this.sprites.tiles.iceWall,
-            'k': this.sprites.tiles.skyFloor, 'K': this.sprites.tiles.skyVoid,
-            'm': this.sprites.tiles.swamp, 'M': this.sprites.tiles.swampTree,
-            'v': this.sprites.tiles.voidFloor, 'V': this.sprites.tiles.voidWall
-          };
-          if (tileMap[ch]) ctx.drawImage(tileMap[ch], px, py, TILE + 0.4, TILE + 0.4);
+          let overlay = null;
+          if (ch === ',') overlay = tiles.flower;
+          else if (ch === 'p') overlay = biomeRoad || tiles.path;
+          else if (ch === 'c') overlay = biomeRoad || tiles.cobble;
+          else if (ch === '~') overlay = waterFrame ? tiles.water1 : tiles.water0;
+          else if (ch === '=') overlay = tiles.bridge;
+          else if (ch === 'T') overlay = tiles.tree;
+          else if (ch === 'D') overlay = tiles.darkTree;
+          else if (ch === 'R') overlay = tiles.houseRoof;
+          else if (ch === 'W') overlay = tiles.houseWall;
+          else if (ch === 'd') overlay = tiles.houseDoor;
+          else if (ch === 'F') overlay = waterFrame ? tiles.fountain1 : tiles.fountain0;
+          else if (ch === '#') overlay = tiles.wall;
+          else if (ch === '*') overlay = tiles.ruinRune;
+          else if (ch === 'X') overlay = tiles.altarWall;
+          else if (ch === 'P') overlay = tiles.palm;
+          else if (ch === 'C') overlay = tiles.canyonWall;
+          else if (ch === 'L') overlay = waterFrame ? (tiles.lava1 || tiles.lava) : (tiles.lava0 || tiles.lava);
+          else if (ch === 'B') overlay = tiles.citadelWall;
+          else if (ch === 'I') overlay = tiles.iceWall;
+          else if (ch === 'K') overlay = tiles.skyVoid;
+          else if (ch === 'M') overlay = tiles.swampTree;
+          else if (ch === 'V') overlay = tiles.voidWall;
+          if (overlay) ctx.drawImage(overlay, px, py, TILE + 0.4, TILE + 0.4);
+
+          // Organic Shoreline / Lava Crust / Floating Sky Island Cliff Rim
+          if (ch === '~') {
+            const n = tileAt(tx, ty - 1), s = tileAt(tx, ty + 1), w = tileAt(tx - 1, ty), e = tileAt(tx + 1, ty);
+            const isBank = (c) => c && c !== '~' && c !== '=';
+            const foam = waterFrame ? 'rgba(224,242,254,0.68)' : 'rgba(186,230,253,0.52)';
+            const shore = biome === 'snow' ? 'rgba(224,242,254,0.75)' : (biome === 'swamp' ? 'rgba(22,48,40,0.72)' : 'rgba(232,218,176,0.55)');
+            if (isBank(n)) { ctx.fillStyle = shore; ctx.fillRect(px, py, TILE, 3.2); ctx.fillStyle = foam; ctx.fillRect(px, py + 3, TILE, 1.5); }
+            if (isBank(s)) { ctx.fillStyle = shore; ctx.fillRect(px, py + TILE - 2.6, TILE, 2.6); }
+            if (isBank(w)) { ctx.fillStyle = shore; ctx.fillRect(px, py, 2.8, TILE); ctx.fillStyle = foam; ctx.fillRect(px + 2.6, py, 1.2, TILE); }
+            if (isBank(e)) { ctx.fillStyle = shore; ctx.fillRect(px + TILE - 2.8, py, 2.8, TILE); }
+          } else if (ch === 'L') {
+            const n = tileAt(tx, ty - 1), s = tileAt(tx, ty + 1), w = tileAt(tx - 1, ty), e = tileAt(tx + 1, ty);
+            const crust = 'rgba(48,14,10,0.72)', glow = 'rgba(253,186,116,0.45)';
+            if (n && n !== 'L') { ctx.fillStyle = crust; ctx.fillRect(px, py, TILE, 3); ctx.fillStyle = glow; ctx.fillRect(px, py + 3, TILE, 1.5); }
+            if (s && s !== 'L') { ctx.fillStyle = crust; ctx.fillRect(px, py + TILE - 2.6, TILE, 2.6); }
+            if (w && w !== 'L') { ctx.fillStyle = crust; ctx.fillRect(px, py, 2.8, TILE); }
+            if (e && e !== 'L') { ctx.fillStyle = crust; ctx.fillRect(px + TILE - 2.8, py, 2.8, TILE); }
+          } else if (ch === 'K') {
+            const n = tileAt(tx, ty - 1);
+            if (n && n !== 'K') {
+              // 3D floating marble island cliff underside with gilded trim
+              ctx.fillStyle = '#cbd5e1'; ctx.fillRect(px, py, TILE, 5.5);
+              ctx.fillStyle = '#94a3b8'; ctx.fillRect(px, py + 5.5, TILE, 3.5);
+              ctx.fillStyle = 'rgba(253,224,71,0.75)'; ctx.fillRect(px, py, TILE, 1.4);
+            }
+          } else if (!DATA.SOLID_TILES.has(ch)) {
+            // Soft 2.5D ambient occlusion drop shadows cast by walls/trees/buildings above & left
+            const n = tileAt(tx, ty - 1), w = tileAt(tx - 1, ty);
+            if (isCastWall(n)) {
+              const sg = ctx.createLinearGradient(px, py, px, py + 7);
+              sg.addColorStop(0, 'rgba(6,10,22,0.34)');
+              sg.addColorStop(1, 'rgba(6,10,22,0)');
+              ctx.fillStyle = sg; ctx.fillRect(px, py, TILE, 7);
+            }
+            if (isCastWall(w)) {
+              const sg = ctx.createLinearGradient(px, py, px + 5, py);
+              sg.addColorStop(0, 'rgba(6,10,22,0.22)');
+              sg.addColorStop(1, 'rgba(6,10,22,0)');
+              ctx.fillStyle = sg; ctx.fillRect(px, py, 5, TILE);
+            }
+            // Soft inlaid curb border where road meets natural floor
+            if (isRoadCh(ch)) {
+              const s = tileAt(tx, ty + 1), e = tileAt(tx + 1, ty);
+              const curb = 'rgba(15,20,32,0.22)';
+              if (n && !isRoadCh(n) && !DATA.SOLID_TILES.has(n)) { ctx.fillStyle = curb; ctx.fillRect(px, py, TILE, 1.4); }
+              if (s && !isRoadCh(s) && !DATA.SOLID_TILES.has(s)) { ctx.fillStyle = curb; ctx.fillRect(px, py + TILE - 1.4, TILE, 1.4); }
+              if (w && !isRoadCh(w) && !DATA.SOLID_TILES.has(w)) { ctx.fillStyle = curb; ctx.fillRect(px, py, 1.4, TILE); }
+              if (e && !isRoadCh(e) && !DATA.SOLID_TILES.has(e)) { ctx.fillStyle = curb; ctx.fillRect(px + TILE - 1.4, py, 1.4, TILE); }
+            } else {
+              // Deterministic handcrafted scenic micro-props on open ground
+              const h = (((tx * 92837111) ^ (ty * 689287499) ^ (mapSeed * 283923481)) >>> 0);
+              if (ch === '.' && h % 11 === 0) {
+                const col = (h & 4) ? '#fef08a' : ((h & 8) ? '#fda4af' : '#e0f2fe');
+                ctx.fillStyle = col;
+                ctx.beginPath();
+                ctx.arc(px + 7 + (h % 9), py + 8 + ((h >> 4) % 8), 1.6, 0, Math.PI * 2);
+                ctx.arc(px + 13 + (h % 6), py + 13 + ((h >> 5) % 6), 1.3, 0, Math.PI * 2);
+                ctx.fill();
+              } else if (ch === 'n' && h % 10 === 0) {
+                const sx = px + 6 + (h % 12), sy = py + 6 + ((h >> 4) % 12);
+                ctx.fillStyle = 'rgba(255,255,255,0.88)';
+                ctx.fillRect(sx - 2, sy, 4, 1); ctx.fillRect(sx, sy - 2, 1, 4);
+              } else if (ch === 'm' && h % 10 === 0) {
+                const sx = px + 7 + (h % 10), sy = py + 10 + ((h >> 4) % 8);
+                ctx.fillStyle = (h & 4) ? 'rgba(52,211,153,0.72)' : 'rgba(192,132,252,0.72)';
+                ctx.beginPath(); ctx.arc(sx, sy, 2.2, Math.PI, Math.PI * 2); ctx.fill();
+              } else if (ch === 'r' && h % 12 === 0) {
+                const sx = px + 8 + (h % 9), sy = py + 9 + ((h >> 4) % 8);
+                ctx.fillStyle = 'rgba(251,146,60,0.52)';
+                ctx.beginPath(); ctx.ellipse(sx, sy, 2.6, 1.3, 0.3, 0, Math.PI * 2); ctx.fill();
+              } else if (ch === 's' && h % 12 === 0) {
+                const sx = px + 8 + (h % 9), sy = py + 9 + ((h >> 4) % 8);
+                ctx.fillStyle = (h & 4) ? '#fda4af' : '#fef3c7';
+                ctx.beginPath(); ctx.arc(sx, sy, 1.8, 0, Math.PI * 2); ctx.fill();
+              } else if (ch === 'k' && h % 11 === 0) {
+                const sx = px + 12, sy = py + 12;
+                ctx.strokeStyle = 'rgba(234,179,8,0.34)'; ctx.lineWidth = 0.9;
+                ctx.beginPath(); ctx.moveTo(sx - 4, sy); ctx.lineTo(sx, sy - 4); ctx.lineTo(sx + 4, sy); ctx.lineTo(sx, sy + 4); ctx.closePath(); ctx.stroke();
+              } else if (ch === 'v' && h % 8 === 0) {
+                const sx = px + 5 + (h % 14), sy = py + 5 + ((h >> 4) % 14);
+                const tw = 0.4 + 0.5 * Math.sin(this.time * 3 + h);
+                ctx.fillStyle = `rgba(186,230,253,${tw.toFixed(2)})`;
+                ctx.beginPath(); ctx.arc(sx, sy, 1.3, 0, Math.PI * 2); ctx.fill();
+              }
+            }
+          }
         }
       }
 
-      // Portals with luminous arcane ring & sleek glass pill label
+      // Cozy Glowing Town Plaza Street Lanterns (all 10 Towns!)
+      if (map.isTown) {
+        const lanterns = [[7.5, 4.5], [16.5, 4.5], [7.5, 11.5], [16.5, 11.5]];
+        const flicker = 0.88 + Math.sin(this.time * 5.2) * 0.12;
+        lanterns.forEach(([lx, ly]) => {
+          const px = lx * TILE, py = ly * TILE;
+          const lg = ctx.createRadialGradient(px, py - 6, 2, px, py - 4, 24);
+          lg.addColorStop(0, `rgba(254,240,138,${0.34 * flicker})`);
+          lg.addColorStop(0.6, `rgba(251,191,36,${0.12 * flicker})`);
+          lg.addColorStop(1, 'rgba(251,191,36,0)');
+          ctx.fillStyle = lg;
+          ctx.beginPath(); ctx.arc(px, py - 4, 24, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#334155'; ctx.fillRect(px - 1.2, py - 10, 2.4, 11);
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath(); ctx.arc(px, py - 11, 2.8, 0, Math.PI * 2); ctx.fill();
+        });
+      }
+
+      // Portals with swirling luminous arcane rune ring & sleek glass pill label
       for (const p of map.portals || []) {
-        const px = p.tx * TILE, py = p.ty * TILE, pulse = 0.65 + Math.sin(this.time * 4.5) * 0.25;
+        const px = p.tx * TILE, py = p.ty * TILE, pulse = 0.68 + Math.sin(this.time * 4.5) * 0.25;
         ctx.save();
-        const pg = ctx.createRadialGradient(px, py, 2, px, py, 14);
-        pg.addColorStop(0, `rgba(186, 230, 253, ${pulse * 0.7})`);
-        pg.addColorStop(0.6, `rgba(96, 165, 250, ${pulse * 0.35})`);
+        const pg = ctx.createRadialGradient(px, py, 2, px, py, 16);
+        pg.addColorStop(0, `rgba(224, 242, 254, ${pulse * 0.78})`);
+        pg.addColorStop(0.55, `rgba(96, 165, 250, ${pulse * 0.38})`);
         pg.addColorStop(1, 'rgba(96, 165, 250, 0)');
         ctx.fillStyle = pg;
-        ctx.beginPath(); ctx.arc(px, py, 14, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = 'rgba(147, 197, 253, 0.9)'; ctx.lineWidth = 1.4;
-        ctx.beginPath(); ctx.arc(px, py, 10 + Math.sin(this.time * 4) * 1.5, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(px, py, 16, 0, Math.PI * 2); ctx.fill();
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(this.time * 1.4);
+        ctx.strokeStyle = 'rgba(186, 230, 253, 0.92)'; ctx.lineWidth = 1.4;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath(); ctx.arc(0, 0, 10.5 + Math.sin(this.time * 4) * 1.2, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.restore();
 
         ctx.font = '700 8px -apple-system, BlinkMacSystemFont, "Noto Sans KR", sans-serif';
         ctx.textAlign = 'center';
         const w = ctx.measureText(p.label).width + 10;
         this.roundPill(ctx, px - w / 2, py - 24, w, 12, 6);
-        ctx.fillStyle = 'rgba(13, 16, 24, 0.78)'; ctx.fill();
-        ctx.strokeStyle = 'rgba(251, 191, 36, 0.45)'; ctx.lineWidth = 0.7; ctx.stroke();
+        ctx.fillStyle = 'rgba(13, 16, 24, 0.8)'; ctx.fill();
+        ctx.strokeStyle = 'rgba(251, 191, 36, 0.5)'; ctx.lineWidth = 0.8; ctx.stroke();
         ctx.fillStyle = '#fef3c7'; ctx.fillText(p.label, px, py - 15.5);
         ctx.restore();
       }
@@ -2223,31 +2374,79 @@
 
       ctx.restore();
 
-      // Region-themed drifting atmospheric wind motes / fireflies
+      // Biome-specific atmospheric lighting, sunbeams & weather particles
       ctx.save();
-      const moteColor = (map.id === 'canyon' || map.id === 'altar') ? '253,186,116'
-        : (map.id === 'tower' || map.id === 'citadel' ? '147,197,253' : '255,242,196');
-      for (let i = 0; i < 14; i++) {
+      if (biome === 'meadow' || biome === 'coast' || biome === 'desert' || biome === 'sky' || biome === 'eternal') {
+        const sun = ctx.createRadialGradient(this.viewW * 0.85, -10, 10, this.viewW * 0.78, this.viewH * 0.12, this.viewW * 0.9);
+        const sunCol = biome === 'desert' ? 'rgba(253,224,71,0.14)'
+          : (biome === 'sky' || biome === 'eternal' ? 'rgba(254,249,195,0.16)' : 'rgba(255,248,214,0.11)');
+        sun.addColorStop(0, sunCol);
+        sun.addColorStop(1, 'rgba(255,248,214,0)');
+        ctx.fillStyle = sun;
+        ctx.fillRect(0, 0, this.viewW, this.viewH);
+      } else if (biome === 'canyon' || biome === 'dragon') {
+        const heat = ctx.createLinearGradient(0, this.viewH * 0.55, 0, this.viewH);
+        heat.addColorStop(0, 'rgba(234,88,12,0)');
+        heat.addColorStop(1, 'rgba(234,88,12,0.12)');
+        ctx.fillStyle = heat;
+        ctx.fillRect(0, 0, this.viewW, this.viewH);
+      } else if (biome === 'swamp') {
+        const mist = ctx.createLinearGradient(0, 0, 0, this.viewH);
+        mist.addColorStop(0, 'rgba(16,185,129,0.06)');
+        mist.addColorStop(1, 'rgba(88,28,135,0.12)');
+        ctx.fillStyle = mist;
+        ctx.fillRect(0, 0, this.viewW, this.viewH);
+      }
+
+      const particleCount = biome === 'snow' ? 24 : ((biome === 'canyon' || biome === 'dragon' || biome === 'swamp') ? 18 : 14);
+      for (let i = 0; i < particleCount; i++) {
         const seed = i * 73.13;
         const speed = 10 + (i % 5) * 4;
-        const mx = ((seed * 17 + this.time * speed) % (this.viewW + 40)) - 20;
-        const my = ((seed * 29 - this.time * (speed * 0.45) + Math.sin(this.time * 1.4 + i) * 14) % (this.viewH + 40) + this.viewH + 40) % (this.viewH + 40) - 20;
-        const alpha = 0.16 + 0.24 * (0.5 + 0.5 * Math.sin(this.time * 2.2 + i * 1.7));
-        const rad = 1.4 + (i % 3) * 0.75;
-        ctx.fillStyle = `rgba(${moteColor},${alpha.toFixed(3)})`;
+        let mx, my, rad, col;
+        const alpha = 0.22 + 0.28 * (0.5 + 0.5 * Math.sin(this.time * 2.4 + i * 1.7));
+        if (biome === 'snow') {
+          mx = ((seed * 19 + this.time * (8 + (i % 3) * 4) + Math.sin(this.time * 1.2 + i) * 14) % (this.viewW + 40) + this.viewW + 40) % (this.viewW + 40) - 20;
+          my = ((seed * 31 + this.time * (18 + (i % 4) * 6)) % (this.viewH + 40)) - 20;
+          rad = 1.2 + (i % 3) * 0.7;
+          col = `rgba(255,255,255,${(alpha * 1.15).toFixed(3)})`;
+        } else if (biome === 'canyon' || biome === 'dragon') {
+          mx = ((seed * 17 + Math.sin(this.time * 1.8 + i) * 18) % (this.viewW + 40) + this.viewW + 40) % (this.viewW + 40) - 20;
+          my = ((seed * 29 - this.time * (20 + (i % 4) * 7)) % (this.viewH + 40) + this.viewH + 40) % (this.viewH + 40) - 20;
+          rad = 1.3 + (i % 3) * 0.65;
+          col = i % 2 === 0 ? `rgba(253,186,116,${(alpha * 1.2).toFixed(3)})` : `rgba(249,115,22,${(alpha * 1.1).toFixed(3)})`;
+        } else if (biome === 'swamp') {
+          mx = ((seed * 23 + Math.sin(this.time * 0.9 + i * 2) * 24) % (this.viewW + 40) + this.viewW + 40) % (this.viewW + 40) - 20;
+          my = ((seed * 27 + Math.cos(this.time * 1.1 + i) * 20) % (this.viewH + 40) + this.viewH + 40) % (this.viewH + 40) - 20;
+          rad = 1.8 + (i % 3) * 0.8;
+          col = i % 2 === 0 ? `rgba(52,211,153,${alpha.toFixed(3)})` : `rgba(192,132,252,${alpha.toFixed(3)})`;
+        } else {
+          mx = ((seed * 17 + this.time * speed) % (this.viewW + 40)) - 20;
+          my = ((seed * 29 - this.time * (speed * 0.42) + Math.sin(this.time * 1.4 + i) * 14) % (this.viewH + 40) + this.viewH + 40) % (this.viewH + 40) - 20;
+          rad = 1.4 + (i % 3) * 0.7;
+          const rgb = biome === 'void' ? '147,197,253'
+            : (biome === 'eternal' ? '254,240,138'
+              : (biome === 'sky' ? '224,242,254' : '255,242,196'));
+          col = `rgba(${rgb},${alpha.toFixed(3)})`;
+        }
+        ctx.fillStyle = col;
         ctx.beginPath();
         ctx.arc(mx, my, rad, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.restore();
 
-      // Aspect-safe subtle atmospheric vignette (no oval ring artifact on portrait phones)
+      // Aspect-safe subtle biome-tinted atmospheric vignette
       const vigOuter = Math.hypot(this.viewW, this.viewH) * 0.56;
       const vigInner = Math.min(this.viewW, this.viewH) * 0.28;
       const vig = ctx.createRadialGradient(this.viewW / 2, this.viewH / 2, vigInner, this.viewW / 2, this.viewH / 2, vigOuter);
       vig.addColorStop(0, 'rgba(0,0,0,0)');
       vig.addColorStop(0.68, 'rgba(0,0,0,0)');
-      vig.addColorStop(1, map.id === 'altar' ? 'rgba(35,5,12,0.34)' : (map.id === 'ruins' ? 'rgba(8,14,26,0.3)' : 'rgba(8,10,16,0.18)'));
+      const vigCol = map.id === 'altar' ? 'rgba(35,5,12,0.34)'
+        : (biome === 'swamp' ? 'rgba(12,24,28,0.3)'
+          : (biome === 'void' ? 'rgba(10,8,30,0.32)'
+            : (biome === 'canyon' || biome === 'dragon' ? 'rgba(32,10,6,0.26)'
+              : (biome === 'snow' || biome === 'sky' ? 'rgba(15,32,64,0.14)' : 'rgba(8,10,16,0.16)'))));
+      vig.addColorStop(1, vigCol);
       ctx.fillStyle = vig;
       ctx.fillRect(0, 0, this.viewW, this.viewH);
     }
