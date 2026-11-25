@@ -1414,6 +1414,50 @@ canvas#hudPortrait {
 .qb-actions { display: flex; gap: 7px; flex-wrap: wrap; }
 .qb-actions .rpg-btn { flex: 1; text-align: center; white-space: nowrap; }
 
+/* Quantity Selector Bar for Bulk Selling */
+.qty-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+  border-top: 1px solid rgba(245, 208, 122, 0.14);
+}
+.qty-ctrl {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.qty-btn {
+  appearance: none;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 7px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 208, 122, 0.34);
+  background: rgba(24, 36, 68, 0.85);
+  color: var(--gold-hi);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.qty-btn:active { transform: scale(0.92); background: rgba(234, 185, 92, 0.25); }
+.qty-input {
+  width: 48px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid rgba(245, 208, 122, 0.45);
+  background: rgba(8, 13, 28, 0.88);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 /* Desktop / Tablet refinements */
 @media (min-width: 720px) {
   .modal-backdrop { align-items: center; padding: 20px; }

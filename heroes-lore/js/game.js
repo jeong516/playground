@@ -3107,8 +3107,8 @@
       this.renderShopModal();
     }
 
-    renderShopModal() {
-      this.renderModalTabs([{ id: 'buy', label: '잡화 구매' }, { id: 'sell', label: '장비 판매' }], (id) => { this.modalTab = id; this.renderShopModal(); });
+    renderShopModal(feedback = '') {
+      this.renderModalTabs([{ id: 'buy', label: '잡화 구매' }, { id: 'sell', label: '아이템 판매' }], (id) => { this.modalTab = id; this.renderShopModal(); });
       const body = this.el.modalBody, h = this.hero;
       if (this.modalTab === 'buy') {
         body.innerHTML = `<div class="panel-card"><h3>잡화상인 미나 · <span style="color:#fde047">${h.gold.toLocaleString()} G</span></h3><div class="list-grid">${DATA.SHOP_GENERAL.map((id) => {
@@ -3119,24 +3119,199 @@
           btn.addEventListener('click', () => {
             const id = btn.dataset.buy, it = DATA.ITEMS[id];
             if (h.gold < it.price) return;
-            h.gold -= it.price; this.giveItem(id, 1); this.audio.playSfx('coin'); this.renderShopModal();
+            h.gold -= it.price; this.giveItem(id, 1); this.audio.playSfx('coin'); this.saveGame(true); this.renderShopModal();
           });
         });
       } else {
-        const sellEq = h.bagEquip.map((eq, idx) => {
-          const price = Math.round(DATA.ITEMS[eq.itemId].price * 0.5 + (eq.enh || 0) * 40);
-          return `<div class="item-row"><div class="item-info"><div class="item-title">${this.formatEquipName(eq)}</div><div class="item-sub">${this.formatEquipStats(eq)}</div></div><div class="item-actions"><button class="rpg-btn secondary small" data-sell-eq="${idx}">+${price}G</button></div></div>`;
-        }).join('');
-        body.innerHTML = `<div class="panel-card"><h3>여분 장비 판매 · <span style="color:#fde047">${h.gold.toLocaleString()} G</span></h3><div class="list-grid">${sellEq || '<div class="item-sub">판매할 여분 장비가 없습니다.</div>'}</div></div>`;
-        body.querySelectorAll('[data-sell-eq]').forEach((btn) => {
-          btn.addEventListener('click', () => {
-            const eq = h.bagEquip.splice(Number(btn.dataset.sellEq), 1)[0];
-            if (!eq) return;
-            h.gold += Math.round(DATA.ITEMS[eq.itemId].price * 0.5 + (eq.enh || 0) * 40);
-            this.audio.playSfx('coin'); this.renderShopModal();
-          });
-        });
+        this.renderSellView(body, feedback, (msg) => this.renderShopModal(msg));
       }
+    }
+
+    renderSellView(body, feedback = '', onRerender) {
+      const h = this.hero;
+
+      // 1. Group identical spare equipment by (itemId + enh)
+      const eqGroups = [];
+      const eqMap = new Map();
+      h.bagEquip.forEach((eq) => {
+        const key = `${eq.itemId}__${eq.enh || 0}`;
+        if (!eqMap.has(key)) {
+          const it = DATA.ITEMS[eq.itemId];
+          if (!it) return;
+          const unitPrice = Math.round(it.price * 0.5 + (eq.enh || 0) * 40);
+          const grp = { key, itemId: eq.itemId, enh: eq.enh || 0, sample: eq, count: 0, unitPrice, name: it.name };
+          eqMap.set(key, grp);
+          eqGroups.push(grp);
+        }
+        eqMap.get(key).count++;
+      });
+
+      // 2. Gather stacked materials & consumables
+      const itemGroups = Object.entries(h.bagItems)
+        .filter(([id, qty]) => qty > 0 && DATA.ITEMS[id])
+        .map(([id, qty]) => {
+          const it = DATA.ITEMS[id];
+          const unitPrice = Math.max(5, Math.round((it.price || 20) * 0.5));
+          return { id, item: it, count: qty, unitPrice };
+        });
+
+      const buildQtyRow = ({ rowKey, titleHtml, subHtml, count, unitPrice, kind }) => {
+        const initQty = 1;
+        return `
+          <div class="item-row" style="flex-direction:column;align-items:stretch;gap:7px;" data-sell-row="${rowKey}" data-sell-kind="${kind}" data-max="${count}" data-unit="${unitPrice}">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+              <div class="item-info">
+                <div class="item-title">${titleHtml} <span class="badge">보유 ${count}개</span> <span style="font-size:11px;color:#fde68a;">개당 ${unitPrice.toLocaleString()}G</span></div>
+                <div class="item-sub">${subHtml}</div>
+              </div>
+              ${count === 1 ? `<div class="item-actions"><button class="rpg-btn primary small" data-exec-sell="${rowKey}">판매 (+${unitPrice.toLocaleString()}G)</button></div>` : ''}
+            </div>
+            ${count > 1 ? `
+              <div class="qty-bar">
+                <div class="qty-ctrl">
+                  <button type="button" class="qty-btn" data-qty-delta="-1" data-for="${rowKey}">−</button>
+                  <input type="number" class="qty-input" data-qty-input="${rowKey}" min="1" max="${count}" value="${initQty}" inputmode="numeric" />
+                  <button type="button" class="qty-btn" data-qty-delta="1" data-for="${rowKey}">+</button>
+                  <button type="button" class="qty-btn" data-qty-max="${rowKey}">최대</button>
+                </div>
+                <button type="button" class="rpg-btn primary small" data-exec-sell="${rowKey}">${initQty}개 판매 (+${unitPrice.toLocaleString()}G)</button>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      };
+
+      const eqHtml = eqGroups.length === 0
+        ? '<div class="item-sub">판매할 여분 장비가 없습니다.</div>'
+        : eqGroups.map((g) => buildQtyRow({
+            rowKey: `eq:${g.key}`,
+            titleHtml: this.formatEquipName(g.sample),
+            subHtml: this.formatEquipStats(g.sample),
+            count: g.count,
+            unitPrice: g.unitPrice,
+            kind: 'equip'
+          })).join('');
+
+      const matHtml = itemGroups.length === 0
+        ? '<div class="item-sub">판매할 소비/재료 아이템이 없습니다.</div>'
+        : itemGroups.map((g) => buildQtyRow({
+            rowKey: `it:${g.id}`,
+            titleHtml: `<span style="color:${DATA.RARITY[g.item.rarity].color}">${g.item.name}</span>`,
+            subHtml: g.item.desc,
+            count: g.count,
+            unitPrice: g.unitPrice,
+            kind: 'item'
+          })).join('');
+
+      body.innerHTML = `
+        ${feedback ? `<div style="margin-bottom:10px;padding:8px 12px;border-radius:10px;background:rgba(234,185,92,0.16);border:1px solid rgba(245,208,122,0.5);color:#fde68a;font-weight:800;font-size:12px;">${feedback}</div>` : ''}
+        <div class="panel-card" style="margin-bottom:10px;">
+          <h3>여분 장비 묶음 판매 <span class="badge" style="color:#fde047">${h.gold.toLocaleString()} G</span></h3>
+          <div class="item-sub" style="margin-bottom:8px;">같은 종류·강화 수치의 장비는 개수를 지정해 한 번에 판매할 수 있습니다.</div>
+          <div class="list-grid">${eqHtml}</div>
+        </div>
+        <div class="panel-card">
+          <h3>재료 · 소비 아이템 수량 판매</h3>
+          <div class="list-grid">${matHtml}</div>
+        </div>
+      `;
+
+      const syncRowBtn = (rowKey, normalize = true) => {
+        const row = body.querySelector(`[data-sell-row="${CSS.escape(rowKey)}"]`);
+        if (!row) return 1;
+        const max = Number(row.dataset.max) || 1;
+        const unit = Number(row.dataset.unit) || 0;
+        const inp = row.querySelector(`[data-qty-input="${CSS.escape(rowKey)}"]`);
+        const btn = row.querySelector(`[data-exec-sell="${CSS.escape(rowKey)}"]`);
+        const raw = inp ? inp.value.trim() : '1';
+        let q = parseInt(raw, 10);
+        if (!Number.isFinite(q) || q < 1) {
+          q = 1;
+          if (inp && (normalize || raw !== '')) inp.value = String(q);
+        } else if (q > max) {
+          q = max;
+          if (inp) inp.value = String(q);
+        } else if (inp && normalize) {
+          inp.value = String(q);
+        }
+        if (btn && max > 1) btn.textContent = `${q}개 판매 (+${(q * unit).toLocaleString()}G)`;
+        return q;
+      };
+
+      body.querySelectorAll('[data-qty-delta]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const rk = btn.dataset.for;
+          const inp = body.querySelector(`[data-qty-input="${CSS.escape(rk)}"]`);
+          if (!inp) return;
+          inp.value = String((parseInt(inp.value, 10) || 1) + Number(btn.dataset.qtyDelta));
+          this.audio.playSfx('ui');
+          syncRowBtn(rk, true);
+        });
+      });
+
+      body.querySelectorAll('[data-qty-max]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const rk = btn.dataset.qtyMax;
+          const row = body.querySelector(`[data-sell-row="${CSS.escape(rk)}"]`);
+          const inp = body.querySelector(`[data-qty-input="${CSS.escape(rk)}"]`);
+          if (!row || !inp) return;
+          inp.value = row.dataset.max;
+          this.audio.playSfx('ui');
+          syncRowBtn(rk, true);
+        });
+      });
+
+      body.querySelectorAll('[data-qty-input]').forEach((inp) => {
+        inp.addEventListener('input', () => syncRowBtn(inp.dataset.qtyInput, false));
+        inp.addEventListener('change', () => syncRowBtn(inp.dataset.qtyInput, true));
+        inp.addEventListener('blur', () => syncRowBtn(inp.dataset.qtyInput, true));
+      });
+
+      body.querySelectorAll('[data-exec-sell]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const rk = btn.dataset.execSell;
+          const row = body.querySelector(`[data-sell-row="${CSS.escape(rk)}"]`);
+          if (!row) return;
+          const qty = syncRowBtn(rk);
+          const kind = row.dataset.sellKind;
+          const unit = Number(row.dataset.unit) || 0;
+          let sold = 0;
+          let label = '';
+
+          if (kind === 'equip') {
+            const rawKey = rk.slice(3);
+            const [itemId, enhStr] = rawKey.split('__');
+            const targetEnh = Number(enhStr) || 0;
+            for (let i = h.bagEquip.length - 1; i >= 0 && sold < qty; i--) {
+              const e = h.bagEquip[i];
+              if (e.itemId === itemId && (e.enh || 0) === targetEnh) {
+                h.bagEquip.splice(i, 1);
+                sold++;
+              }
+            }
+            const it = DATA.ITEMS[itemId];
+            label = `${targetEnh > 0 ? `+${targetEnh} ` : ''}${it ? it.name : itemId}`;
+          } else {
+            const itemId = rk.slice(3);
+            const have = h.bagItems[itemId] || 0;
+            sold = Math.min(have, qty);
+            if (sold > 0) {
+              h.bagItems[itemId] = have - sold;
+              if (h.bagItems[itemId] <= 0) delete h.bagItems[itemId];
+            }
+            const it = DATA.ITEMS[itemId];
+            label = it ? it.name : itemId;
+          }
+
+          if (sold <= 0) return;
+          const totalGold = sold * unit;
+          h.gold += totalGold;
+          this.audio.playSfx('coin');
+          this.refreshQuickBar();
+          this.saveGame(true);
+          onRerender(`${label} ${sold}개 판매 완료! (+${totalGold.toLocaleString()}G)`);
+        });
+      });
     }
 
     openSmithModal(tab = 'enhance') {
@@ -3147,8 +3322,18 @@
     }
 
     renderSmithModal(feedback = '') {
-      this.renderModalTabs([{ id: 'enhance', label: '장비 강화' }, { id: 'craft', label: '장비 조합' }, { id: 'gear', label: '장비 구매' }], (id) => { this.modalTab = id; this.renderSmithModal(); });
+      this.renderModalTabs([
+        { id: 'enhance', label: '장비 강화' },
+        { id: 'craft', label: '장비 조합' },
+        { id: 'gear', label: '장비 구매' },
+        { id: 'sell', label: '아이템 판매' }
+      ], (id) => { this.modalTab = id; this.renderSmithModal(); });
       const body = this.el.modalBody, h = this.hero, stones = h.bagItems.mat_enhance || 0;
+
+      if (this.modalTab === 'sell') {
+        this.renderSellView(body, feedback, (msg) => this.renderSmithModal(msg));
+        return;
+      }
 
       if (this.modalTab === 'enhance') {
         const MAX_ENH = 25;
