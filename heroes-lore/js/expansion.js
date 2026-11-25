@@ -417,6 +417,9 @@
       if (DATA.SOLID_TILES.has(g[y][11])) g[y][11] = (g[y][11] === hz) ? '=' : pa;
       if (DATA.SOLID_TILES.has(g[y][12])) g[y][12] = (g[y][12] === hz) ? '=' : pa;
     }
+    if (zoneNum % 5 === 0) {
+      fillRect(2, 14, 11, 16, pa);
+    }
 
     return g.map((row) => row.join(''));
   }
@@ -466,15 +469,27 @@
     }
 
     const portals = [];
+    const nextContForZone = (localIdx === 19 && cIdx + 1 < CONTINENTS.length) ? CONTINENTS[cIdx + 1] : null;
     if (z === 1) {
-      portals.push({ tx: 11.5, ty: 16.2, toMap: 'meadow', toX: 21.0, toY: 8.5, label: '바람의 초원 ▼' });
+      portals.push({ tx: 11.5, ty: 16.2, toMap: 'meadow', toX: 16.5, toY: 2.4, label: '바람의 초원 ▼' });
+    } else if (localIdx === 0) {
+      // Entrance zone of Continents 2..10 connects South symmetrically back to its Continent Hub Town
+      portals.push({ tx: 11.5, ty: 16.2, toMap: cont.townId, toX: 11.5, toY: 2.4, label: `${cont.townName} ▼` });
     } else {
       portals.push({ tx: 11.5, ty: 16.2, toMap: `zone_${z - 1}`, toX: 11.5, toY: 3.2, label: `이전 구역 (${z - 1}) ▼` });
     }
-    if (z < 200) {
+
+    if (nextContForZone) {
+      // End zone of Continents 1..9 connects North symmetrically into the next Continent's Hub Town South gate
+      portals.push({ tx: 11.5, ty: 1.8, toMap: nextContForZone.townId, toX: 11.5, toY: 15.2, label: `${nextContForZone.townName} ▲` });
+    } else if (z < 200) {
       portals.push({ tx: 11.5, ty: 1.8, toMap: `zone_${z + 1}`, toX: 11.5, toY: 14.8, label: `다음 구역 (${z + 1}) ▲` });
+    } else {
+      // Zone 200 North connects symmetrically back to Town 10 East gate
+      portals.push({ tx: 11.5, ty: 1.8, toMap: 'town_10', toX: 21.4, toY: 8.5, label: '영원의 성전 마을 ▲' });
     }
-    if (z % 5 === 0 || localIdx === 0) {
+
+    if (z % 5 === 0) {
       portals.push({ tx: 3.2, ty: 15.2, toMap: cont.townId, toX: 11.5, toY: 11.5, label: `${cont.townName} 귀환` });
     }
 
@@ -568,7 +583,7 @@
       id: 'airship_1', name: '비공정 안내원 리아', sprite: 'aria', tx: 11.5, ty: 13.8, role: 'worldmap'
     });
     DATA.MAPS.town.portals.push({
-      tx: 22.8, ty: 11.5, toMap: 'town_2', toX: 2.2, toY: 8.5, label: '아틀란티아 항구마을 ▶'
+      tx: 22.8, ty: 11.5, toMap: 'town_2', toX: 2.4, toY: 8.5, label: '아틀란티아 항구마을 ▶'
     });
   }
 
@@ -578,19 +593,20 @@
     const prevCont = CONTINENTS[i - 1];
     const nextCont = CONTINENTS[i + 1] || null;
     const entryZone = `zone_${i * 20 + 1}`;
+    const prevEndZone = `zone_${i * 20}`;
     const prevExitY = prevCont.townId === 'town' ? 11.5 : 8.5;
     const townPortals = [
       { tx: 11.5, ty: 0.9, toMap: entryZone, toX: 11.5, toY: 14.8, label: `${i * 20 + 1}구역 사냥터 ▲` },
-      { tx: 1.2, ty: 8.5, toMap: prevCont.townId, toX: 21.5, toY: prevExitY, label: `◀ ${prevCont.townShort}` },
-      { tx: 11.5, ty: 16.9, toMap: 'town', toX: 11.5, toY: 11.5, label: '솔티아 본성 귀환 ▼' }
+      { tx: 1.2, ty: 8.5, toMap: prevCont.townId, toX: 21.4, toY: prevExitY, label: `◀ ${prevCont.townShort}` },
+      { tx: 11.5, ty: 16.9, toMap: prevEndZone, toX: 11.5, toY: 3.2, label: `이전 대륙 (${i * 20}구역) ▼` }
     ];
     if (nextCont) {
       townPortals.push({
-        tx: 22.8, ty: 8.5, toMap: nextCont.townId, toX: 2.2, toY: 8.5, label: `${nextCont.townShort} ▶`
+        tx: 22.8, ty: 8.5, toMap: nextCont.townId, toX: 2.4, toY: 8.5, label: `${nextCont.townShort} ▶`
       });
     } else {
       townPortals.push({
-        tx: 22.8, ty: 8.5, toMap: 'zone_200', toX: 11.5, toY: 14.8, label: '200구역 정상 ▶'
+        tx: 22.8, ty: 8.5, toMap: 'zone_200', toX: 11.5, toY: 3.2, label: '200구역 정상 ▶'
       });
     }
 
@@ -619,10 +635,13 @@
     };
   }
 
-  // Connect Meadow East border directly into Zone 1 (so players can walk from Town -> Meadow -> 200 Zones seamlessly!)
+  // Open a dedicated North Gate (cols 16..17) on Meadow for Zone 1 so it never collides with Forest East portal!
   if (DATA.MAPS.meadow && DATA.MAPS.meadow.portals) {
+    if (Array.isArray(DATA.MAPS.meadow.layout) && DATA.MAPS.meadow.layout[0]) {
+      DATA.MAPS.meadow.layout[0] = DATA.MAPS.meadow.layout[0].slice(0, 16) + 'pp' + DATA.MAPS.meadow.layout[0].slice(18);
+    }
     DATA.MAPS.meadow.portals.push({
-      tx: 21.8, ty: 8.5, toMap: 'zone_1', toX: 11.5, toY: 14.8, label: '200구역 대륙 원정 ▶'
+      tx: 16.5, ty: 0.9, toMap: 'zone_1', toX: 11.5, toY: 14.8, label: '200구역 대륙 원정 ▲'
     });
   }
 

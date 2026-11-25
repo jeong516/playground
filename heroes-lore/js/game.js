@@ -2333,37 +2333,37 @@
       const flipX = (h.dir === 'left' || (h.dir !== 'right' && h.lastHorizDir === 'left')) ? -1 : 1;
 
       // Ground contact shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.44)';
-      ctx.beginPath(); ctx.ellipse(h.x, h.y + 12, 13.5, 5.2, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.42)';
+      ctx.beginPath(); ctx.ellipse(h.x, h.y + 10, 10, 3.8, 0, 0, Math.PI * 2); ctx.fill();
 
       // Luminous Rotating Hero Aura Ring beneath feet
       const auraColor = h.classId === 'knight' ? 'rgba(251, 191, 36,'
         : (h.classId === 'rogue' ? 'rgba(56, 189, 248,' : 'rgba(147, 197, 253,');
       const auraAlpha = enh >= 10 ? 0.55 : (enh >= 5 ? 0.42 : 0.3);
       ctx.save();
-      ctx.translate(h.x, h.y + 11.5);
+      ctx.translate(h.x, h.y + 9.5);
       ctx.scale(1, 0.44);
       ctx.rotate(this.time * 0.9);
       ctx.strokeStyle = `${auraColor}${auraAlpha})`;
-      ctx.lineWidth = 1.8;
-      ctx.setLineDash([7, 5]);
-      ctx.beginPath(); ctx.arc(0, 0, 17.5 + Math.sin(this.time * 3) * 0.8, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.arc(0, 0, 13 + Math.sin(this.time * 3) * 0.6, 0, Math.PI * 2); ctx.stroke();
       ctx.setLineDash([]);
       if (enh >= 7) {
         ctx.strokeStyle = this.getWeaponGlowColor();
         ctx.globalAlpha = 0.42;
-        ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.arc(0, 0, 21.5, 0, Math.PI * 2); ctx.stroke();
+        ctx.lineWidth = 1.1;
+        ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.stroke();
       }
       ctx.restore();
 
       if (h.buffDefTimer > 0) {
-        ctx.strokeStyle = 'rgba(96, 165, 250, 0.88)'; ctx.lineWidth = 1.8;
-        ctx.beginPath(); ctx.arc(h.x, h.y - 2, 22 + Math.sin(this.time * 8), 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(96, 165, 250, 0.88)'; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.arc(h.x, h.y - 2, 16.5 + Math.sin(this.time * 8), 0, Math.PI * 2); ctx.stroke();
       }
       if (h.buffSpdTimer > 0) {
-        ctx.strokeStyle = 'rgba(52, 211, 153, 0.88)'; ctx.lineWidth = 1.8;
-        ctx.beginPath(); ctx.arc(h.x, h.y - 2, 24, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.88)'; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.arc(h.x, h.y - 2, 18.5, 0, Math.PI * 2); ctx.stroke();
       }
 
       ctx.save();
@@ -2372,14 +2372,14 @@
       if (sheet && sheet.complete && sheet.naturalWidth >= 1024) {
         const fw = Math.floor(sheet.naturalWidth / 4);
         const fh = sheet.naturalHeight;
-        const size = 54;
+        const size = 38;
 
         // Draw dash afterimage trails using actual sprint sprite frame
         for (const g of this.dashGhosts) {
           const ga = clamp(g.life / g.maxLife, 0, 1) * 0.42;
           ctx.save();
           ctx.globalAlpha = ga;
-          ctx.translate(g.x, g.y + 12);
+          ctx.translate(g.x, g.y + 10);
           ctx.scale(g.flipX, 1);
           ctx.drawImage(sheet, g.frameIdx * fw, 0, fw, fh, -size / 2, -size + 2, size, size);
           ctx.restore();
@@ -2397,24 +2397,24 @@
         }
 
         // Crisp forward lunge offset ONLY during actual strike frame; otherwise rock-solid stance
-        const lungeX = (frameIdx === 3 && h.attackTimer > 0) ? flipX * (h.attackTimer / 0.16) * 3.5 : 0;
-        const strideLift = (frameIdx === 2 && moving) ? -1.4 : 0;
+        const lungeX = (frameIdx === 3 && h.attackTimer > 0) ? flipX * (h.attackTimer / 0.16) * 2.8 : 0;
+        const strideLift = (frameIdx === 2 && moving) ? -1.1 : 0;
 
-        ctx.translate(h.x + lungeX, h.y + 12 + strideLift);
+        ctx.translate(h.x + lungeX, h.y + 10 + strideLift);
         ctx.scale(flipX, 1);
         if (h.invulnTimer > 0 && Math.floor(this.time * 24) % 2 === 0) ctx.globalAlpha = 0.5;
         ctx.drawImage(sheet, frameIdx * fw, 0, fw, fh, -size / 2, -size + 2, size, size);
       } else {
         const spr = h.dir === 'left' ? (walkF ? set.walkLeft : set.idleLeft) : (walkF ? set.walk : set.idle);
-        const breath = moving ? Math.abs(Math.sin(h.walkAnim * Math.PI)) * -1.2 : Math.sin(this.time * 3.5) * 0.8;
+        const breath = moving ? Math.abs(Math.sin(h.walkAnim * Math.PI)) * -1.0 : Math.sin(this.time * 3.5) * 0.6;
         ctx.translate(h.x, h.y - 2 + breath);
         if (h.attackTimer > 0) {
           const lean = (h.dir === 'left' ? -1 : 1) * (h.attackTimer / 0.16) * 0.18;
           ctx.rotate(lean);
-          ctx.scale(1.06, 0.96);
+          ctx.scale(1.05, 0.96);
         }
         if (h.invulnTimer > 0 && Math.floor(this.time * 24) % 2 === 0) ctx.globalAlpha = 0.5;
-        ctx.drawImage(spr, -18, -21, 36, 36);
+        ctx.drawImage(spr, -15, -18, 30, 30);
       }
       ctx.restore();
     }
@@ -3303,18 +3303,18 @@
 
       if (selCont === 0) {
         routeNodes = [
-          { id: 'town', x: 180, y: 244, wx: 11.5, wy: 11.5, isTown: true, short: '솔티아 마을' },
-          { id: 'meadow', x: 180, y: 194, wx: 11.5, wy: 15.5, short: '바람의 초원' },
-          { id: 'coast', x: 74, y: 194, wx: 20.5, wy: 8.5, short: '물안개 해안' },
-          { id: 'forest', x: 180, y: 142, wx: 2.5, wy: 8.5, short: '속삭이는 숲' },
-          { id: 'canyon', x: 286, y: 142, wx: 2.5, wy: 8.5, short: '불꽃 협곡' },
-          { id: 'ruins', x: 286, y: 88, wx: 11.5, wy: 15.5, short: '고대 유적' },
-          { id: 'citadel', x: 180, y: 88, wx: 11.5, wy: 15.5, short: '심연 성채' },
-          { id: 'altar', x: 180, y: 36, wx: 11.5, wy: 15.5, isBoss: true, short: '심연의 제단' }
+          { id: 'town', x: 140, y: 244, wx: 11.5, wy: 11.5, isTown: true, short: '솔티아 마을' },
+          { id: 'meadow', x: 140, y: 190, wx: 11.5, wy: 15.5, short: '바람의 초원' },
+          { id: 'coast', x: 52, y: 190, wx: 20.5, wy: 8.5, short: '물안개 해안' },
+          { id: 'forest', x: 226, y: 190, wx: 2.5, wy: 8.5, short: '고요한 숲' },
+          { id: 'canyon', x: 312, y: 190, wx: 2.5, wy: 8.5, short: '붉은 협곡' },
+          { id: 'ruins', x: 226, y: 134, wx: 11.5, wy: 15.5, short: '잊혀진 유적' },
+          { id: 'citadel', x: 226, y: 82, wx: 11.5, wy: 15.5, short: '흑요석 성채' },
+          { id: 'altar', x: 226, y: 34, wx: 11.5, wy: 15.5, isBoss: true, short: '봉인의 제단' }
         ];
         routeEdges = [
           ['town', 'meadow'], ['meadow', 'coast'], ['meadow', 'forest'],
-          ['forest', 'canyon'], ['canyon', 'ruins'], ['ruins', 'citadel'], ['citadel', 'altar']
+          ['forest', 'canyon'], ['forest', 'ruins'], ['ruins', 'citadel'], ['citadel', 'altar']
         ];
       } else if (cont) {
         regionTitle = `${cont.name} · 세부 루트`;
