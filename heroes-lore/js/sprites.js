@@ -1611,16 +1611,16 @@
     ].forEach(({ cid, file }) => {
       const set = sprites.heroes[cid];
       if (!set) return;
-      loadImg(`sprite_${file}`, `assets/sprite_${file}.webp?v=8`, (img) => {
-        set.hdSprite = img;
+      loadImg(`sheet_${file}`, `assets/sheet_${file}.webp?v=9`, (img) => {
+        set.hdSheet = img;
       });
-      loadImg(`portrait_${file}`, `assets/portrait_${file}.webp?v=8`, (img) => {
+      loadImg(`portrait_${file}`, `assets/portrait_${file}.webp?v=9`, (img) => {
         set.hdPortrait = img;
         set.portrait = img;
       });
     });
 
-    loadImg('title_bg', 'assets/title_bg.webp?v=8', (img) => {
+    loadImg('title_bg', 'assets/title_bg.webp?v=9', (img) => {
       sprites.art.titleBg = img;
     });
 

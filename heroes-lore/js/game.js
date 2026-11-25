@@ -70,6 +70,8 @@
       this.projectiles = [];
       this.effects = [];
       this.particles = [];
+      this.dashGhosts = [];
+      this.lastRunStep = -1;
       this.floatTexts = [];
       this.drops = [];
       this.telegraphs = [];
@@ -456,6 +458,7 @@
       this.projectiles = [];
       this.effects = [];
       this.particles = [];
+      this.dashGhosts = [];
       this.drops = [];
       this.telegraphs = [];
       this.respawnQueue = [];
@@ -1097,7 +1100,8 @@
       const isFinisher = h.comboStep === 2;
       const speedFactor = clamp(1 - (st.agi * 0.008), 0.72, 1);
       h.attackCooldown = (isFinisher ? 0.33 : 0.23) * speedFactor;
-      h.attackTimer = 0.16;
+      h.attackTimer = 0.24;
+      if (Math.abs(h.facingX) > 0.15) h.lastHorizDir = h.facingX < 0 ? 'left' : 'right';
 
       this.audio.playSfx(isFinisher ? 'swingHeavy' : 'swing');
 
@@ -1137,6 +1141,8 @@
 
       const st = this.getHeroStats();
       h.mp -= sk.mp;
+      h.castTimer = 0.28;
+      if (Math.abs(h.facingX) > 0.15) h.lastHorizDir = h.facingX < 0 ? 'left' : 'right';
       h.skillCds[slotIdx] = Math.max(1.5, sk.cd * (1 - (skLv - 1) * 0.06));
       const lvBoost = 1 + (skLv - 1) * 0.22;
       const basePower = (h.classId === 'runeblade' ? st.magicAtk : st.atk) * sk.mult * lvBoost;
@@ -1454,6 +1460,7 @@
       if (map.safe) h.hp = Math.min(st.maxHp, h.hp + 12 * dt);
 
       if (h.attackTimer > 0) h.attackTimer = Math.max(0, h.attackTimer - dt);
+      if (h.castTimer > 0) h.castTimer = Math.max(0, h.castTimer - dt);
       if (h.attackCooldown > 0) h.attackCooldown = Math.max(0, h.attackCooldown - dt);
       if (h.comboResetTimer > 0) h.comboResetTimer = Math.max(0, h.comboResetTimer - dt);
       if (h.invulnTimer > 0) h.invulnTimer = Math.max(0, h.invulnTimer - dt);
@@ -1462,6 +1469,11 @@
       if (h.buffDefTimer > 0) h.buffDefTimer = Math.max(0, h.buffDefTimer - dt);
       if (h.buffSpdTimer > 0) h.buffSpdTimer = Math.max(0, h.buffSpdTimer - dt);
       for (let i = 0; i < 4; i++) if (h.skillCds[i] > 0) h.skillCds[i] = Math.max(0, h.skillCds[i] - dt);
+
+      for (let i = this.dashGhosts.length - 1; i >= 0; i--) {
+        this.dashGhosts[i].life -= dt;
+        if (this.dashGhosts[i].life <= 0) this.dashGhosts.splice(i, 1);
+      }
 
       let ix = 0, iy = 0;
       if (this.keys.ArrowLeft || this.keys.KeyA || this.virtualDir.left) ix -= 1;
@@ -1472,14 +1484,34 @@
 
       if (h.dashTimer > 0) {
         this.moveEntity(h, h.facingX * st.speed * 2.55, h.facingY * st.speed * 2.55, dt);
-        if (Math.random() < 0.6) this.particles.push({ x: h.x, y: h.y, vx: 0, vy: 0, color: '#93c5fd', size: 4, life: 0.16, maxLife: 0.16 });
+        const flipX = (h.lastHorizDir === 'left' || h.dir === 'left') ? -1 : 1;
+        if (this.dashGhosts.length === 0 || dist(h.x, h.y, this.dashGhosts[this.dashGhosts.length - 1].x, this.dashGhosts[this.dashGhosts.length - 1].y) > 9) {
+          this.dashGhosts.push({ x: h.x, y: h.y, flipX, frameIdx: 2, life: 0.22, maxLife: 0.22 });
+        }
+        if (Math.random() < 0.45) this.particles.push({ x: h.x, y: h.y + 8, vx: -h.facingX * 18, vy: -6, color: '#93c5fd', size: 3.5, life: 0.18, maxLife: 0.18 });
       } else if (ix !== 0 || iy !== 0) {
         const len = Math.hypot(ix, iy), mag = Math.min(1, len), nx = ix / len, ny = iy / len;
         h.facingX = nx; h.facingY = ny;
+        if (Math.abs(nx) > 0.15) h.lastHorizDir = nx < 0 ? 'left' : 'right';
         if (Math.abs(nx) >= Math.abs(ny)) h.dir = nx < 0 ? 'left' : 'right';
         else h.dir = ny < 0 ? 'up' : 'down';
-        h.walkAnim += dt * (6 + mag * 4);
+        h.walkAnim += dt * (4.2 + mag * 2.8);
+        const stepBeat = Math.floor(h.walkAnim) % 4;
+        if (stepBeat !== this.lastRunStep) {
+          this.lastRunStep = stepBeat;
+          if (stepBeat === 0 || stepBeat === 2) {
+            this.particles.push({
+              x: h.x - nx * 4, y: h.y + 11,
+              vx: -nx * 14 + (Math.random() - 0.5) * 8,
+              vy: -6 - Math.random() * 6,
+              color: 'rgba(226, 232, 240, 0.7)',
+              size: 3.2, life: 0.24, maxLife: 0.24
+            });
+          }
+        }
         this.moveEntity(h, nx * st.speed * mag, ny * st.speed * mag, dt);
+      } else {
+        this.lastRunStep = -1;
       }
 
       if (this.holdingAttack && h.attackCooldown <= 0) this.performBasicAttack();
@@ -2006,8 +2038,9 @@
         this.virtualDir.left || this.virtualDir.right || this.virtualDir.up || this.virtualDir.down ||
         Math.hypot(this.stickX, this.stickY) > 0.12;
       const walkF = moving && Math.floor(h.walkAnim) % 2 === 1;
-      const hd = set && set.hdSprite;
+      const sheet = set && set.hdSheet;
       const enh = (h.equip && h.equip.weapon && h.equip.weapon.enh) || 0;
+      const flipX = (h.dir === 'left' || (h.dir !== 'right' && h.lastHorizDir === 'left')) ? -1 : 1;
 
       // Ground contact shadow
       ctx.fillStyle = 'rgba(0,0,0,0.44)';
@@ -2046,27 +2079,41 @@
       ctx.save();
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
-      if (hd) {
-        // Live studio-grade SD animation anchored cleanly at feet!
-        const hop = moving ? -Math.abs(Math.sin(h.walkAnim * Math.PI)) * 3.4 : Math.sin(this.time * 3.2) * 0.7;
-        const tilt = moving ? Math.sin(h.walkAnim * Math.PI) * 0.065 : 0;
-        const breatheX = moving ? 1 : 1 + Math.sin(this.time * 3.2) * 0.016;
-        const breatheY = moving ? 1 : 1 - Math.sin(this.time * 3.2) * 0.02;
-        const flipX = h.dir === 'left' ? -1 : 1;
+      if (sheet && sheet.complete && sheet.naturalWidth >= 1024) {
+        const fw = Math.floor(sheet.naturalWidth / 4);
+        const fh = sheet.naturalHeight;
+        const size = 54;
 
-        ctx.translate(h.x, h.y + 12 + hop);
-        if (h.attackTimer > 0) {
-          const p = h.attackTimer / 0.16;
-          ctx.translate(flipX * p * 4.5, -p * 1.8);
-          ctx.rotate(flipX * p * 0.18);
-          ctx.scale(flipX * 1.11, 0.93);
-        } else {
-          ctx.rotate(tilt);
-          ctx.scale(flipX * breatheX, breatheY);
+        // Draw dash afterimage trails using actual sprint sprite frame
+        for (const g of this.dashGhosts) {
+          const ga = clamp(g.life / g.maxLife, 0, 1) * 0.42;
+          ctx.save();
+          ctx.globalAlpha = ga;
+          ctx.translate(g.x, g.y + 12);
+          ctx.scale(g.flipX, 1);
+          ctx.drawImage(sheet, g.frameIdx * fw, 0, fw, fh, -size / 2, -size + 2, size, size);
+          ctx.restore();
         }
+
+        // Authentic 4-frame RPG pose state machine (NO cheesy wobbling or tilting!)
+        let frameIdx = 0; // 0: idle, 1: run1, 2: run2, 3: attack/cast
+        if (h.attackTimer > 0 || h.castTimer > 0) {
+          frameIdx = 3;
+        } else if (h.dashTimer > 0) {
+          frameIdx = 2;
+        } else if (moving) {
+          const runCycle = [1, 0, 2, 0];
+          frameIdx = runCycle[Math.floor(h.walkAnim) % 4];
+        }
+
+        // Crisp forward lunge offset ONLY during actual strike frame; otherwise rock-solid stance
+        const lungeX = (frameIdx === 3 && h.attackTimer > 0) ? flipX * (h.attackTimer / 0.16) * 3.5 : 0;
+        const strideLift = (frameIdx === 2 && moving) ? -1.4 : 0;
+
+        ctx.translate(h.x + lungeX, h.y + 12 + strideLift);
+        ctx.scale(flipX, 1);
         if (h.invulnTimer > 0 && Math.floor(this.time * 24) % 2 === 0) ctx.globalAlpha = 0.5;
-        const size = 50;
-        ctx.drawImage(hd, -size / 2, -size + 2, size, size);
+        ctx.drawImage(sheet, frameIdx * fw, 0, fw, fh, -size / 2, -size + 2, size, size);
       } else {
         const spr = h.dir === 'left' ? (walkF ? set.walkLeft : set.idleLeft) : (walkF ? set.walk : set.idle);
         const breath = moving ? Math.abs(Math.sin(h.walkAnim * Math.PI)) * -1.2 : Math.sin(this.time * 3.5) * 0.8;
