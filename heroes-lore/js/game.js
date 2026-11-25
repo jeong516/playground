@@ -602,6 +602,7 @@
         else if (code === 'KeyI') this.openHeroModal('bag');
         else if (code === 'KeyK') this.openHeroModal('skills');
         else if (code === 'KeyJ') this.openHeroModal('quest');
+        else if (code === 'KeyM') this.openHeroModal('world');
       });
 
       window.addEventListener('keyup', (e) => { this.keys[e.code] = false; });
@@ -979,6 +980,10 @@
       if (npc.role === 'shop') this.openShopModal();
       else if (npc.role === 'smith') this.openSmithModal('enhance');
       else if (npc.role === 'quest') this.handleElderQuestDialog();
+      else if (npc.role === 'worldmap') {
+        this.worldMapMode = 'overworld';
+        this.openHeroModal('world');
+      }
       else if (npc.role === 'bard') {
         const st = this.getHeroStats();
         h.hp = st.maxHp; h.mp = st.maxMp;
@@ -1636,11 +1641,18 @@
 
     useReturnScroll() {
       if (!this.hero || this.state !== 'playing') return;
-      if (this.currentMapId === 'town') { this.addFloatText(this.hero.x, this.hero.y - 16, '이미 솔티아 마을입니다', '#cbd5e1'); return; }
+      const curMap = DATA.MAPS[this.currentMapId];
+      const targetTown = (curMap && curMap.continentId >= 2 && !curMap.isTown && DATA.MAPS[`town_${curMap.continentId}`])
+        ? `town_${curMap.continentId}`
+        : 'town';
+      if (this.currentMapId === targetTown) {
+        this.addFloatText(this.hero.x, this.hero.y - 16, '이미 솔티아 마을입니다', '#cbd5e1');
+        return;
+      }
       if ((this.hero.bagItems.scroll_town || 0) <= 0) { this.addFloatText(this.hero.x, this.hero.y - 16, '귀환 주문서 없음', '#94a3b8'); return; }
       this.hero.bagItems.scroll_town--;
       this.audio.playSfx('portal');
-      this.loadMap('town', 11.5, 11.5);
+      this.loadMap(targetTown, 11.5, 11.5);
       this.refreshQuickBar();
       this.saveGame(true);
     }
@@ -2974,128 +2986,536 @@
       const nextFl = Math.min(100, (h.towerBest || 0) + 1);
       const curQ = h.questState !== 'all_done' ? DATA.QUESTS[h.questIdx] : null;
       const qTargetMap = curQ ? curQ.targetMap : null;
+      const continents = DATA.CONTINENTS || [];
 
+      const classicSet = new Set(['meadow', 'coast', 'forest', 'canyon', 'ruins', 'citadel', 'altar']);
+      const getOverworldKey = (mapId) => {
+        if (!mapId) return 'cont_1';
+        if (mapId === 'tower') return 'tower';
+        if (classicSet.has(mapId)) return 'classic';
+        const m = DATA.MAPS[mapId];
+        if (m && m.continentId) return `cont_${m.continentId}`;
+        return 'cont_1';
+      };
+
+      const curOvKey = getOverworldKey(this.currentMapId);
+      const questOvKey = qTargetMap ? getOverworldKey(qTargetMap) : null;
+
+      if (!this.worldMapMode) this.worldMapMode = 'overworld';
+      if (!this.worldMapSelectedKey) this.worldMapSelectedKey = questOvKey || curOvKey;
       if (this.selectedContinentTab === undefined) {
         const curMapObj = DATA.MAPS[this.currentMapId];
         this.selectedContinentTab = (curMapObj && curMapObj.continentId) ? curMapObj.continentId : 1;
       }
-      const selCont = this.selectedContinentTab; // 0 = Classic 8 regions, 1..10 = 10 Continents (200 Zones!)
 
-      const classicOrder = [
-        { id: 'town', tx: 11.5, ty: 11.5 },
-        { id: 'meadow', tx: 11.5, ty: 15.5 },
-        { id: 'coast', tx: 20.5, ty: 8.5 },
-        { id: 'forest', tx: 2.5, ty: 8.5 },
-        { id: 'canyon', tx: 2.5, ty: 8.5 },
-        { id: 'ruins', tx: 11.5, ty: 15.5 },
-        { id: 'citadel', tx: 11.5, ty: 15.5 },
-        { id: 'altar', tx: 11.5, ty: 15.5 }
+      // Overworld nodes & inter-town road / airship graph
+      const ovNodes = {
+        classic: {
+          key: 'classic', kind: 'field', x: 42, y: 124, r: 11,
+          short: '고전 7필드', name: '고전 솔티아 필드 (초원~제단)',
+          sub: '바람의 초원 · 물안개 해안 · 속삭이는 숲 · 불꽃 협곡 · 성채 · 제단',
+          islandColor: '#1f6f54', accentColor: '#86efac',
+          contId: 0, warpMap: 'meadow', wx: 11.5, wy: 15.5, recLv: '1~18'
+        },
+        tower: {
+          key: 'tower', kind: 'tower', x: 196, y: 156, r: 14,
+          short: '심연의 탑', name: '심연의 탑 (1~100층)',
+          sub: '5층마다 탑 보스 등장 · 클리어 시 성좌의 은하수 가루 & 강화석 확정!',
+          islandColor: '#4c1d95', accentColor: '#c084fc',
+          contId: null, warpMap: 'tower', wx: 11.5, wy: 14.5, recLv: '1~160+'
+        }
+      };
+      continents.forEach((c) => {
+        const startZ = (c.id - 1) * 20 + 1;
+        const endZ = c.id * 20;
+        const lvA = Math.max(2, Math.round(startZ * 0.78 + 1));
+        const lvB = Math.max(2, Math.round(endZ * 0.78 + 1));
+        ovNodes[`cont_${c.id}`] = {
+          key: `cont_${c.id}`, kind: 'town', x: c.mapX, y: c.mapY, r: c.id === 1 ? 15 : 13,
+          short: c.townShort, name: c.townName, contName: c.name,
+          sub: c.townSubtitle, islandColor: c.islandColor, accentColor: c.accentColor,
+          contId: c.id, warpMap: c.townId, wx: 11.5, wy: 11.5,
+          recLv: `${lvA}~${lvB}`, matId: c.matId, bonusMatId: c.bonusMatId || null,
+          zoneRange: `${startZ}~${endZ}구역`
+        };
+      });
+
+      const ovEdges = [
+        { a: 'classic', b: 'cont_1', type: 'road' },
+        { a: 'cont_1', b: 'cont_2', type: 'road' },
+        { a: 'cont_2', b: 'cont_3', type: 'road' },
+        { a: 'cont_3', b: 'cont_4', type: 'road' },
+        { a: 'cont_4', b: 'cont_5', type: 'road' },
+        { a: 'cont_5', b: 'cont_6', type: 'road' },
+        { a: 'cont_6', b: 'cont_7', type: 'road' },
+        { a: 'cont_7', b: 'cont_8', type: 'road' },
+        { a: 'cont_8', b: 'cont_9', type: 'road' },
+        { a: 'cont_9', b: 'cont_10', type: 'road' },
+        { a: 'cont_1', b: 'tower', type: 'air' },
+        { a: 'cont_6', b: 'tower', type: 'air' },
+        { a: 'cont_10', b: 'tower', type: 'air' }
       ];
 
-      const contPills = [
-        `<button type="button" class="tab-btn${selCont === 0 ? ' active' : ''}" data-pick-cont="0" style="padding:5px 9px;font-size:11px;">마을·고전8</button>`,
-        ...(DATA.CONTINENTS || []).map((c) => {
-          const active = selCont === c.id;
-          return `<button type="button" class="tab-btn${active ? ' active' : ''}" data-pick-cont="${c.id}" style="padding:5px 9px;font-size:11px;">${c.short}</button>`;
-        })
-      ].join('');
+      const findShortestPath = (start, goal) => {
+        if (start === goal) return [start];
+        const adj = {};
+        ovEdges.forEach((e) => {
+          (adj[e.a] = adj[e.a] || []).push(e.b);
+          (adj[e.b] = adj[e.b] || []).push(e.a);
+        });
+        const q = [[start]];
+        const seen = new Set([start]);
+        while (q.length) {
+          const path = q.shift();
+          const cur = path[path.length - 1];
+          for (const nxt of (adj[cur] || [])) {
+            if (nxt === goal) return [...path, nxt];
+            if (!seen.has(nxt)) {
+              seen.add(nxt);
+              q.push([...path, nxt]);
+            }
+          }
+        }
+        return [start, goal];
+      };
 
-      let mapRows = '';
-      let sectionHeading = '클래식 솔티아 8지역';
-      if (selCont === 0) {
-        mapRows = classicOrder.map((entry) => {
-          const m = DATA.MAPS[entry.id];
-          if (!m) return '';
-          const unlocked = !!h.unlockedMaps[entry.id] || season >= 2 || entry.id === 'town' || entry.id === 'meadow';
-          const isHere = this.currentMapId === entry.id;
-          const isTarget = qTargetMap === entry.id;
+      // =========================================================
+      // MODE A: OVERWORLD TOWN-TO-TOWN ARCHIPELAGO MAP
+      // =========================================================
+      if (this.worldMapMode === 'overworld') {
+        const selNode = ovNodes[this.worldMapSelectedKey] || ovNodes.cont_1;
+        const activePath = findShortestPath(curOvKey, selNode.key);
+        const activePairs = new Set();
+        for (let i = 0; i < activePath.length - 1; i++) {
+          activePairs.add(`${activePath[i]}|${activePath[i + 1]}`);
+          activePairs.add(`${activePath[i + 1]}|${activePath[i]}`);
+        }
+
+        const islandSvg = Object.values(ovNodes).map((n) => {
+          const rx = n.kind === 'tower' ? 24 : (n.kind === 'field' ? 22 : 28);
+          const ry = n.kind === 'tower' ? 17 : (n.kind === 'field' ? 15 : 19);
           return `
-            <div class="item-row" style="${isHere ? 'border-color:rgba(251,191,36,0.65);' : (isTarget ? 'border-color:rgba(56,189,248,0.65);' : (!unlocked ? 'opacity:0.55;' : ''))}">
-              <div class="item-info">
-                <div class="item-title">${m.name} ${isHere ? '<span class="badge" style="color:#4ade80">현재</span>' : ''} ${isTarget ? '<span class="badge" style="color:#38bdf8">⭐ 퀘스트</span>' : ''}</div>
-                <div class="item-sub">${m.subtitle}</div>
-              </div>
-              <div class="item-actions">
-                <button class="rpg-btn ${isHere ? 'secondary' : 'primary'} small" data-warp-map="${entry.id}" data-wx="${entry.tx}" data-wy="${entry.ty}" ${(!unlocked || isHere) ? 'disabled' : ''}>${unlocked ? (isHere ? '위치 중' : '이동') : '미발견'}</button>
-              </div>
-            </div>
+            <ellipse cx="${n.x}" cy="${n.y + 3}" rx="${rx + 4}" ry="${ry + 3}" fill="rgba(56,189,248,0.12)" />
+            <ellipse cx="${n.x}" cy="${n.y}" rx="${rx}" ry="${ry}" fill="${n.islandColor}" stroke="${n.accentColor}" stroke-opacity="0.45" stroke-width="1.2" />
           `;
         }).join('');
-      } else {
-        const cont = (DATA.CONTINENTS || [])[selCont - 1];
-        sectionHeading = cont ? `${cont.name} (${(selCont - 1) * 20 + 1}~${selCont * 20}구역)` : `제${selCont}대륙`;
-        const startZ = (selCont - 1) * 20 + 1;
-        const rows = [];
-        for (let z = startZ; z < startZ + 20; z++) {
-          const m = DATA.MAPS[`zone_${z}`];
-          if (!m) continue;
-          const isHere = this.currentMapId === m.id;
-          const isTarget = qTargetMap === m.id;
-          const hasChest = m.chests && m.chests.some((ch) => !h.openedChests[ch.id]);
-          rows.push(`
-            <div class="item-row" style="${isHere ? 'border-color:rgba(251,191,36,0.7);' : (isTarget ? 'border-color:rgba(56,189,248,0.75);' : '')}">
-              <div class="item-info">
-                <div class="item-title">
-                  ${m.name}
-                  <span class="badge">Lv.${m.recLv}</span>
-                  ${m.isBossZone ? '<span class="badge" style="color:#fb7185;border-color:rgba(244,63,94,0.45)">👑 보스</span>' : ''}
-                  ${hasChest ? '<span class="badge" style="color:#fde047">🎁</span>' : ''}
-                  ${isHere ? '<span class="badge" style="color:#4ade80">현재</span>' : ''}
-                  ${isTarget ? '<span class="badge" style="color:#38bdf8">⭐ 목표</span>' : ''}
-                </div>
-                <div class="item-sub">${m.subtitle}</div>
+
+        const edgesSvg = ovEdges.map((e) => {
+          const na = ovNodes[e.a], nb = ovNodes[e.b];
+          if (!na || !nb) return '';
+          const mx = (na.x + nb.x) / 2;
+          const my = (na.y + nb.y) / 2 - (e.type === 'air' ? 10 : 6);
+          const d = `M ${na.x} ${na.y} Q ${mx} ${my} ${nb.x} ${nb.y}`;
+          const isAct = activePairs.has(`${e.a}|${e.b}`);
+          return `
+            <path d="${d}" class="${e.type === 'air' ? 'wmap-route-air' : 'wmap-route-base'}" />
+            ${isAct ? `<path d="${d}" class="wmap-route-active" />` : ''}
+          `;
+        }).join('');
+
+        const nodesSvg = Object.values(ovNodes).map((n) => {
+          const isHere = curOvKey === n.key;
+          const isQuest = questOvKey === n.key;
+          const isSel = selNode.key === n.key;
+          const fill = n.kind === 'town' ? '#0284c7' : (n.kind === 'tower' ? '#7e22ce' : '#16a34a');
+          const stroke = isSel ? '#fde047' : (isHere ? '#4ade80' : '#f8fafc');
+          const sw = isSel ? 2.8 : 1.8;
+          const glyph = n.kind === 'town'
+            ? `<path d="M ${n.x - 5} ${n.y + 1} L ${n.x} ${n.y - 4.5} L ${n.x + 5} ${n.y + 1} V ${n.y + 5} H ${n.x - 5} Z" fill="#fff8dc" />`
+            : (n.kind === 'tower'
+              ? `<path d="M ${n.x} ${n.y - 6} L ${n.x + 4} ${n.y + 5} H ${n.x - 4} Z" fill="#f5d0fe" />`
+              : `<circle cx="${n.x}" cy="${n.y}" r="3.6" fill="#dcfce7" />`);
+          return `
+            <g class="wmap-node${isSel ? ' selected' : ''}" data-ov-pick="${n.key}">
+              ${isHere ? `<circle cx="${n.x}" cy="${n.y}" r="${n.r + 3}" class="wmap-pulse-ring" stroke="#4ade80" />` : ''}
+              ${isSel && !isHere ? `<circle cx="${n.x}" cy="${n.y}" r="${n.r + 3}" class="wmap-pulse-ring" stroke="#fde047" />` : ''}
+              <circle cx="${n.x}" cy="${n.y}" r="${n.r}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />
+              ${glyph}
+              ${isQuest ? `<text x="${n.x + n.r - 1}" y="${n.y - n.r + 4}" font-size="11" text-anchor="middle">⭐</text>` : ''}
+              ${isHere ? `<text x="${n.x - n.r + 1}" y="${n.y - n.r + 4}" font-size="10" text-anchor="middle">📍</text>` : ''}
+              <text x="${n.x}" y="${n.y + n.r + 11}" class="wmap-label">${n.short}</text>
+            </g>
+          `;
+        }).join('');
+
+        const routeSummary = activePath.length > 1
+          ? `경로: ${activePath.map((k) => ovNodes[k]?.short || k).join(' → ')}`
+          : '현재 머무르고 있는 지역입니다.';
+
+        const matNames = [];
+        if (selNode.matId && DATA.ITEMS[selNode.matId]) matNames.push(DATA.ITEMS[selNode.matId].name);
+        if (selNode.bonusMatId && DATA.ITEMS[selNode.bonusMatId]) matNames.push(DATA.ITEMS[selNode.bonusMatId].name);
+
+        let cardActions = '';
+        if (selNode.kind === 'tower') {
+          cardActions = `
+            <button type="button" class="rpg-btn primary" id="btnEnterTowerNext">⚡ 다음 층 도전 (${nextFl}층)</button>
+            ${(h.towerBest || 0) >= 5 ? `<button type="button" class="rpg-btn secondary" id="btnEnterTowerBoss">👑 직전 보스층 (${Math.floor((h.towerBest || 5) / 5) * 5}층)</button>` : ''}
+          `;
+        } else if (selNode.kind === 'town') {
+          const isAlreadyInTown = this.currentMapId === selNode.warpMap;
+          cardActions = `
+            <button type="button" class="rpg-btn primary" data-warp-map="${selNode.warpMap}" data-wx="${selNode.wx}" data-wy="${selNode.wy}" ${isAlreadyInTown ? 'disabled' : ''}>${isAlreadyInTown ? '현재 마을 위치 중' : `✈ ${selNode.short} 마을 이동`}</button>
+            <button type="button" class="rpg-btn secondary" data-open-region="${selNode.contId}">🗺 세부 루트 (${selNode.zoneRange.replace('구역', '')})</button>
+          `;
+        } else {
+          cardActions = `
+            <button type="button" class="rpg-btn primary" data-open-region="0">🗺 고전 솔티아 루트 지도</button>
+            <button type="button" class="rpg-btn secondary" data-warp-map="meadow" data-wx="11.5" data-wy="15.5">⚡ 바람의 초원 이동</button>
+          `;
+        }
+
+        const kindBadge = selNode.kind === 'town'
+          ? '<span class="badge" style="color:#7dd3fc;border-color:rgba(56,189,248,0.5)">🔵 마을 · 안전지대</span>'
+          : (selNode.kind === 'tower'
+            ? `<span class="badge" style="color:#d8b4fe;border-color:rgba(192,132,252,0.55)">🟣 최고 ${h.towerBest || 0} / 100층</span>`
+            : '<span class="badge" style="color:#86efac;border-color:rgba(74,222,128,0.5)">🟢 클래식 8지역</span>');
+
+        body.innerHTML = `
+          <div class="wmap-shell">
+            <div class="wmap-topbar">
+              <div class="wmap-title-group">
+                <span class="wmap-title">솔티아 대륙 월드맵</span>
+                <span class="badge" style="color:#fde047">10마을 · ${Object.keys(DATA.MAPS).length}맵</span>
               </div>
-              <div class="item-actions">
-                <button class="rpg-btn ${isHere ? 'secondary' : 'primary'} small" data-warp-map="${m.id}" data-wx="11.5" data-wy="14.8" ${isHere ? 'disabled' : ''}>${isHere ? '위치 중' : '이동'}</button>
+              <button type="button" class="tab-btn" id="btnJumpCurrentRegion" style="padding:5px 10px;font-size:11px;">현재 대륙 세부지도 ▸</button>
+            </div>
+
+            <div class="wmap-stage">
+              <svg viewBox="0 0 360 276" class="wmap-svg" role="img" aria-label="솔티아 대륙 월드맵">
+                <defs>
+                  <radialGradient id="wmOcean" cx="50%" cy="46%" r="65%">
+                    <stop offset="0%" stop-color="#173e72" />
+                    <stop offset="60%" stop-color="#0b2042" />
+                    <stop offset="100%" stop-color="#051024" />
+                  </radialGradient>
+                </defs>
+                <rect width="360" height="276" fill="url(#wmOcean)" />
+                <g opacity="0.16" stroke="#7dd3fc" stroke-width="0.6">
+                  <line x1="0" y1="69" x2="360" y2="69" />
+                  <line x1="0" y1="138" x2="360" y2="138" />
+                  <line x1="0" y1="207" x2="360" y2="207" />
+                  <line x1="90" y1="0" x2="90" y2="276" />
+                  <line x1="180" y1="0" x2="180" y2="276" />
+                  <line x1="270" y1="0" x2="270" y2="276" />
+                </g>
+                <g opacity="0.55" transform="translate(26,252)">
+                  <circle cx="0" cy="0" r="13" fill="rgba(6,14,32,0.7)" stroke="#fde68a" stroke-width="1" />
+                  <path d="M0 -9 L2.5 -2 L9 0 L2.5 2 L0 9 L-2.5 2 L-9 0 L-2.5 -2 Z" fill="#fde68a" />
+                  <text x="0" y="-15" font-size="7" font-weight="900" fill="#fde68a" text-anchor="middle">N</text>
+                </g>
+                ${islandSvg}
+                ${edgesSvg}
+                ${nodesSvg}
+              </svg>
+              <div class="wmap-legend">
+                <span><i class="wmap-dot town"></i>마을</span>
+                <span><i class="wmap-dot here"></i>현위치</span>
+                <span><i class="wmap-dot quest"></i>퀘스트</span>
+                <span>━━ 도로</span>
+                <span>╌╌ 비공정</span>
               </div>
             </div>
-          `);
+
+            <div class="wmap-card">
+              <div class="wmap-card-head">
+                <div class="wmap-card-title">${selNode.name}</div>
+                ${kindBadge}
+              </div>
+              <div class="wmap-card-desc">${selNode.contName ? `<strong style="color:#fde68a">${selNode.contName}</strong> · ` : ''}${selNode.sub}</div>
+              <div class="wmap-meta-row">
+                <span class="wmap-meta-chip">권장 Lv.${selNode.recLv}</span>
+                ${selNode.kind === 'town' ? '<span class="wmap-meta-chip">상점·대장간·치유분수</span>' : ''}
+                ${matNames.length ? `<span class="wmap-meta-chip">재료: ${matNames.join(', ')}</span>` : ''}
+                <span class="wmap-meta-chip" style="color:#bae6fd">${routeSummary}</span>
+              </div>
+              <div class="wmap-actions">${cardActions}</div>
+            </div>
+          </div>
+        `;
+
+        body.querySelectorAll('[data-ov-pick]').forEach((el) => {
+          el.addEventListener('click', () => {
+            this.audio.playSfx('ui');
+            this.worldMapSelectedKey = el.getAttribute('data-ov-pick');
+            this.renderHeroModal();
+          });
+        });
+        body.querySelectorAll('[data-open-region]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            this.audio.playSfx('ui');
+            this.selectedContinentTab = Number(btn.dataset.openRegion);
+            this.worldMapMode = 'region';
+            this.worldMapSelectedZoneId = null;
+            this.renderHeroModal();
+          });
+        });
+        const jumpCurBtn = body.querySelector('#btnJumpCurrentRegion');
+        if (jumpCurBtn) {
+          jumpCurBtn.addEventListener('click', () => {
+            this.audio.playSfx('ui');
+            const curM = DATA.MAPS[this.currentMapId];
+            this.selectedContinentTab = classicSet.has(this.currentMapId) ? 0 : ((curM && curM.continentId) ? curM.continentId : 1);
+            this.worldMapMode = 'region';
+            this.worldMapSelectedZoneId = this.currentMapId;
+            this.renderHeroModal();
+          });
         }
-        mapRows = rows.join('');
+        const nextBtn = body.querySelector('#btnEnterTowerNext');
+        if (nextBtn) {
+          nextBtn.addEventListener('click', () => {
+            this.closeModal();
+            this.audio.playSfx('portal');
+            this.enterTowerFloor(nextFl);
+          });
+        }
+        const bossBtn = body.querySelector('#btnEnterTowerBoss');
+        if (bossBtn) {
+          bossBtn.addEventListener('click', () => {
+            this.closeModal();
+            this.audio.playSfx('portal');
+            this.enterTowerFloor(Math.max(5, Math.floor((h.towerBest || 5) / 5) * 5));
+          });
+        }
+        body.querySelectorAll('[data-warp-map]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const mid = btn.dataset.warpMap;
+            const wx = Number(btn.dataset.wx), wy = Number(btn.dataset.wy);
+            this.closeModal();
+            this.audio.playSfx('portal');
+            this.loadMap(mid, wx, wy);
+            this.saveGame(true);
+          });
+        });
+        return;
       }
 
-      body.innerHTML = `
-        <div class="panel-card" style="margin-bottom:10px;border-color:rgba(192,132,252,0.5);">
-          <h3>심연의 탑 (1~100층 도전) <span class="badge" style="color:#c084fc">최고 ${h.towerBest || 0} / 100층</span></h3>
-          <div class="item-sub" style="margin-bottom:10px;">5층마다 강력한 탑 수호 보스가 등장하며, 보스층 클리어 시 막대한 골드·경험치·강화석과 <strong style="color:#fde68a">성좌의 은하수 가루</strong>를 획득합니다!</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="rpg-btn primary" id="btnEnterTowerNext">다음 층 도전 (${nextFl}층)</button>
-            ${(h.towerBest || 0) >= 5 ? `<button class="rpg-btn secondary" id="btnEnterTowerBoss">직전 보스층 (${Math.floor((h.towerBest || 5) / 5) * 5}층)</button>` : ''}
+      // =========================================================
+      // MODE B: REGION ROUTE MAP (TOWN <-> 20 ZONES OR CLASSIC 8)
+      // =========================================================
+      const selCont = this.selectedContinentTab;
+      const cont = selCont > 0 ? continents[selCont - 1] : null;
+
+      let routeNodes = [];
+      let routeEdges = [];
+      let regionTitle = '클래식 솔티아 루트 지도';
+      let bgGradA = '#164e3b', bgGradB = '#071b1a';
+
+      if (selCont === 0) {
+        routeNodes = [
+          { id: 'town', x: 180, y: 244, wx: 11.5, wy: 11.5, isTown: true, short: '솔티아 마을' },
+          { id: 'meadow', x: 180, y: 194, wx: 11.5, wy: 15.5, short: '바람의 초원' },
+          { id: 'coast', x: 74, y: 194, wx: 20.5, wy: 8.5, short: '물안개 해안' },
+          { id: 'forest', x: 180, y: 142, wx: 2.5, wy: 8.5, short: '속삭이는 숲' },
+          { id: 'canyon', x: 286, y: 142, wx: 2.5, wy: 8.5, short: '불꽃 협곡' },
+          { id: 'ruins', x: 286, y: 88, wx: 11.5, wy: 15.5, short: '고대 유적' },
+          { id: 'citadel', x: 180, y: 88, wx: 11.5, wy: 15.5, short: '심연 성채' },
+          { id: 'altar', x: 180, y: 36, wx: 11.5, wy: 15.5, isBoss: true, short: '심연의 제단' }
+        ];
+        routeEdges = [
+          ['town', 'meadow'], ['meadow', 'coast'], ['meadow', 'forest'],
+          ['forest', 'canyon'], ['canyon', 'ruins'], ['ruins', 'citadel'], ['citadel', 'altar']
+        ];
+      } else if (cont) {
+        regionTitle = `${cont.name} · 세부 루트`;
+        bgGradA = cont.islandColor;
+        bgGradB = '#081226';
+        const startZ = (selCont - 1) * 20 + 1;
+        routeNodes.push({
+          id: cont.townId, x: 180, y: 26, wx: 11.5, wy: 11.5, isTown: true, short: cont.townName
+        });
+        const cols = [44, 112, 180, 248, 316];
+        const rowsY = [78, 134, 190, 246];
+        for (let idx = 0; idx < 20; idx++) {
+          const z = startZ + idx;
+          const r = Math.floor(idx / 5);
+          const c = (r % 2 === 0) ? (idx % 5) : (4 - (idx % 5));
+          const m = DATA.MAPS[`zone_${z}`];
+          routeNodes.push({
+            id: `zone_${z}`,
+            x: cols[c],
+            y: rowsY[r],
+            wx: 11.5,
+            wy: 14.8,
+            zoneNum: z,
+            isBoss: Boolean(m && m.isBossZone),
+            short: `${z}`
+          });
+        }
+        routeEdges.push([cont.townId, `zone_${startZ}`]);
+        for (let idx = 0; idx < 19; idx++) {
+          routeEdges.push([`zone_${startZ + idx}`, `zone_${startZ + idx + 1}`]);
+        }
+      }
+
+      const nodeById = {};
+      routeNodes.forEach((n) => { nodeById[n.id] = n; });
+
+      if (!this.worldMapSelectedZoneId || !nodeById[this.worldMapSelectedZoneId]) {
+        if (nodeById[this.currentMapId]) this.worldMapSelectedZoneId = this.currentMapId;
+        else if (qTargetMap && nodeById[qTargetMap]) this.worldMapSelectedZoneId = qTargetMap;
+        else this.worldMapSelectedZoneId = routeNodes[0] ? routeNodes[0].id : 'town';
+      }
+      const selR = nodeById[this.worldMapSelectedZoneId] || routeNodes[0];
+      const selMap = DATA.MAPS[selR.id];
+
+      const regEdgesSvg = routeEdges.map(([aId, bId]) => {
+        const na = nodeById[aId], nb = nodeById[bId];
+        if (!na || !nb) return '';
+        return `<line x1="${na.x}" y1="${na.y}" x2="${nb.x}" y2="${nb.y}" class="wmap-route-base" />`;
+      }).join('');
+
+      const regNodesSvg = routeNodes.map((n) => {
+        const m = DATA.MAPS[n.id];
+        if (!m) return '';
+        const isHere = this.currentMapId === n.id;
+        const isQuest = qTargetMap === n.id;
+        const isSel = selR.id === n.id;
+        const hasChest = m.chests && m.chests.some((ch) => !h.openedChests[ch.id]);
+        const unlocked = selCont !== 0 || !!h.unlockedMaps[n.id] || season >= 2 || n.id === 'town' || n.id === 'meadow';
+        const rad = n.isTown ? 15 : (n.isBoss ? 13 : 11);
+        const fill = !unlocked ? '#334155' : (n.isTown ? '#0284c7' : (n.isBoss ? '#e11d48' : '#d97706'));
+        const stroke = isSel ? '#fde047' : (isHere ? '#4ade80' : '#f8fafc');
+        const label = n.isTown
+          ? `<text x="${n.x}" y="${n.y + rad + 11}" class="wmap-label">${n.short}</text>`
+          : (selCont === 0
+            ? `<text x="${n.x}" y="${n.y + rad + 11}" class="wmap-label">${n.short}</text>`
+            : `<text x="${n.x}" y="${n.y + 3.5}" font-size="8.5" font-weight="900" fill="#fff" text-anchor="middle" pointer-events="none">${n.short}</text>`);
+        return `
+          <g class="wmap-node${isSel ? ' selected' : ''}" data-pick-zone="${n.id}" opacity="${unlocked ? 1 : 0.55}">
+            ${isHere ? `<circle cx="${n.x}" cy="${n.y}" r="${rad + 3}" class="wmap-pulse-ring" stroke="#4ade80" />` : ''}
+            ${isSel && !isHere ? `<circle cx="${n.x}" cy="${n.y}" r="${rad + 3}" class="wmap-pulse-ring" stroke="#fde047" />` : ''}
+            <circle cx="${n.x}" cy="${n.y}" r="${rad}" fill="${fill}" stroke="${stroke}" stroke-width="${isSel ? 2.6 : 1.7}" />
+            ${n.isTown ? `<path d="M ${n.x - 5} ${n.y + 1} L ${n.x} ${n.y - 4.5} L ${n.x + 5} ${n.y + 1} V ${n.y + 5} H ${n.x - 5} Z" fill="#fff8dc" />` : ''}
+            ${n.isBoss ? `<text x="${n.x}" y="${n.y - rad - 2}" font-size="9.5" text-anchor="middle" pointer-events="none">👑</text>` : ''}
+            ${hasChest ? `<circle cx="${n.x + rad - 2}" cy="${n.y + rad - 2}" r="3.4" fill="#fde047" stroke="#1e293b" stroke-width="1" />` : ''}
+            ${isQuest ? `<text x="${n.x + rad}" y="${n.y - rad + 4}" font-size="10" text-anchor="middle" pointer-events="none">⭐</text>` : ''}
+            ${isHere ? `<text x="${n.x - rad}" y="${n.y - rad + 4}" font-size="9.5" text-anchor="middle" pointer-events="none">📍</text>` : ''}
+            ${label}
+          </g>
+        `;
+      }).join('');
+
+      const contPills = [
+        `<button type="button" class="tab-btn${selCont === 0 ? ' active' : ''}" data-pick-cont="0" style="padding:4px 8px;font-size:10.5px;">고전8</button>`,
+        ...continents.map((c) => `<button type="button" class="tab-btn${selCont === c.id ? ' active' : ''}" data-pick-cont="${c.id}" style="padding:4px 8px;font-size:10.5px;">${c.townShort}</button>`)
+      ].join('');
+
+      const selUnlocked = selCont !== 0 || !!h.unlockedMaps[selR.id] || season >= 2 || selR.id === 'town' || selR.id === 'meadow';
+      const selIsHere = this.currentMapId === selR.id;
+      const selHasChest = selMap && selMap.chests && selMap.chests.some((ch) => !h.openedChests[ch.id]);
+      const selMats = [];
+      if (selMap && selMap.matId && DATA.ITEMS[selMap.matId]) selMats.push(DATA.ITEMS[selMap.matId].name);
+      if (selMap && selMap.bonusMatId && DATA.ITEMS[selMap.bonusMatId]) selMats.push(DATA.ITEMS[selMap.bonusMatId].name);
+
+      const quickListHtml = routeNodes.map((n) => {
+        const m = DATA.MAPS[n.id];
+        if (!m) return '';
+        const isHere = this.currentMapId === n.id;
+        const isTarget = qTargetMap === n.id;
+        const hasChest = m.chests && m.chests.some((ch) => !h.openedChests[ch.id]);
+        const unlocked = selCont !== 0 || !!h.unlockedMaps[n.id] || season >= 2 || n.id === 'town' || n.id === 'meadow';
+        return `
+          <div class="item-row" style="${isHere ? 'border-color:rgba(74,222,128,0.65);' : (isTarget ? 'border-color:rgba(56,189,248,0.65);' : '')}">
+            <div class="item-info">
+              <div class="item-title">
+                ${n.isTown ? '🔵 ' : ''}${m.name}
+                ${m.recLv ? `<span class="badge">Lv.${m.recLv}</span>` : ''}
+                ${m.isBossZone ? '<span class="badge" style="color:#fb7185">👑</span>' : ''}
+                ${hasChest ? '<span class="badge" style="color:#fde047">🎁</span>' : ''}
+                ${isHere ? '<span class="badge" style="color:#4ade80">현재</span>' : ''}
+                ${isTarget ? '<span class="badge" style="color:#38bdf8">⭐</span>' : ''}
+              </div>
+              <div class="item-sub">${m.subtitle}</div>
+            </div>
+            <div class="item-actions">
+              <button class="rpg-btn ${isHere ? 'secondary' : 'primary'} small" data-warp-map="${n.id}" data-wx="${n.wx}" data-wy="${n.wy}" ${(!unlocked || isHere) ? 'disabled' : ''}>${unlocked ? (isHere ? '위치 중' : '이동') : '미발견'}</button>
+            </div>
           </div>
-        </div>
-        <div class="panel-card">
-          <h3>솔티아 10대륙 · 200구역 월드맵 <span class="badge" style="color:#fde047">총 ${Object.keys(DATA.MAPS).length}맵</span></h3>
-          <div class="item-sub" style="margin-bottom:8px;">원하는 대륙과 구역(1~200구역)을 선택해 즉시 탐험·보스 사냥·보물상자 파밍을 떠날 수 있습니다!</div>
-          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;">${contPills}</div>
-          <div style="font-size:12px;font-weight:900;color:#fff6d2;margin-bottom:6px;">${sectionHeading}</div>
-          <div class="list-grid">${mapRows}</div>
+        `;
+      }).join('');
+
+      body.innerHTML = `
+        <div class="wmap-shell">
+          <div class="wmap-topbar">
+            <button type="button" class="rpg-btn secondary small" id="btnBackOverworld" style="padding:6px 10px;">← 전체 월드맵</button>
+            <span class="wmap-title" style="font-size:13px;">${regionTitle}</span>
+          </div>
+
+          <div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;">${contPills}</div>
+
+          <div class="wmap-stage">
+            <svg viewBox="0 0 360 282" class="wmap-svg" role="img" aria-label="${regionTitle}">
+              <defs>
+                <radialGradient id="wmRegBg" cx="50%" cy="35%" r="75%">
+                  <stop offset="0%" stop-color="${bgGradA}" stop-opacity="0.72" />
+                  <stop offset="100%" stop-color="${bgGradB}" />
+                </radialGradient>
+              </defs>
+              <rect width="360" height="282" fill="url(#wmRegBg)" />
+              ${regEdgesSvg}
+              ${regNodesSvg}
+            </svg>
+            <div class="wmap-legend">
+              <span><i class="wmap-dot town"></i>마을</span>
+              <span><i class="wmap-dot field"></i>사냥터</span>
+              <span><i class="wmap-dot boss"></i>보스</span>
+              <span><i class="wmap-dot here"></i>현위치</span>
+              <span>🟡 상자</span>
+            </div>
+          </div>
+
+          <div class="wmap-card">
+            <div class="wmap-card-head">
+              <div class="wmap-card-title">${selMap ? selMap.name : selR.short}</div>
+              ${selR.isTown
+                ? '<span class="badge" style="color:#7dd3fc">🔵 안전 마을</span>'
+                : (selR.isBoss ? '<span class="badge" style="color:#fb7185">👑 보스 구역</span>' : (selMap && selMap.recLv ? `<span class="badge">권장 Lv.${selMap.recLv}</span>` : ''))}
+            </div>
+            <div class="wmap-card-desc">${selMap ? selMap.subtitle : ''}</div>
+            <div class="wmap-meta-row">
+              ${selR.isTown ? '<span class="wmap-meta-chip">상점 · 대장간 · 치유분수 · 비공정</span>' : ''}
+              ${selMats.length ? `<span class="wmap-meta-chip">드랍 재료: ${selMats.join(', ')}</span>` : ''}
+              ${selHasChest ? '<span class="wmap-meta-chip" style="color:#fde047">🎁 미개봉 보물상자 있음</span>' : ''}
+              ${qTargetMap === selR.id ? '<span class="wmap-meta-chip" style="color:#38bdf8">⭐ 현재 퀘스트 목표</span>' : ''}
+            </div>
+            <div class="wmap-actions">
+              <button type="button" class="rpg-btn primary" data-warp-map="${selR.id}" data-wx="${selR.wx}" data-wy="${selR.wy}" ${(!selUnlocked || selIsHere) ? 'disabled' : ''}>${selUnlocked ? (selIsHere ? '현재 위치 중' : '⚡ 여기로 즉시 이동') : '미발견 지역'}</button>
+              ${cont && selR.id !== cont.townId ? `<button type="button" class="rpg-btn secondary" data-warp-map="${cont.townId}" data-wx="11.5" data-wy="11.5">🔵 ${cont.townShort} 마을</button>` : ''}
+            </div>
+          </div>
+
+          <details class="wmap-list-details">
+            <summary><span>📋 전체 구역 목록으로 한눈에 보기 (${routeNodes.length}곳)</span><span>▾</span></summary>
+            <div class="list-grid">${quickListHtml}</div>
+          </details>
         </div>
       `;
 
+      const backBtn = body.querySelector('#btnBackOverworld');
+      if (backBtn) {
+        backBtn.addEventListener('click', () => {
+          this.audio.playSfx('ui');
+          this.worldMapMode = 'overworld';
+          this.worldMapSelectedKey = selCont === 0 ? 'classic' : `cont_${selCont}`;
+          this.renderHeroModal();
+        });
+      }
       body.querySelectorAll('[data-pick-cont]').forEach((btn) => {
         btn.addEventListener('click', () => {
           this.audio.playSfx('ui');
           this.selectedContinentTab = Number(btn.dataset.pickCont);
+          this.worldMapSelectedZoneId = null;
           this.renderHeroModal();
         });
       });
-
-      const nextBtn = body.querySelector('#btnEnterTowerNext');
-      if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
-          this.closeModal();
-          this.audio.playSfx('portal');
-          this.enterTowerFloor(nextFl);
+      body.querySelectorAll('[data-pick-zone]').forEach((el) => {
+        el.addEventListener('click', () => {
+          this.audio.playSfx('ui');
+          this.worldMapSelectedZoneId = el.getAttribute('data-pick-zone');
+          this.renderHeroModal();
         });
-      }
-      const bossBtn = body.querySelector('#btnEnterTowerBoss');
-      if (bossBtn) {
-        bossBtn.addEventListener('click', () => {
-          this.closeModal();
-          this.audio.playSfx('portal');
-          this.enterTowerFloor(Math.max(5, Math.floor((h.towerBest || 5) / 5) * 5));
-        });
-      }
+      });
       body.querySelectorAll('[data-warp-map]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const mid = btn.dataset.warpMap;

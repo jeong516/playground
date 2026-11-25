@@ -1458,6 +1458,218 @@ canvas#hudPortrait {
   -webkit-user-select: text;
 }
 
+/* MapleStory / Pokemon Style Interactive World Map */
+.wmap-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.wmap-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.wmap-title-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.wmap-title {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--gold-hi);
+  letter-spacing: -0.01em;
+}
+.wmap-stage {
+  position: relative;
+  width: 100%;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1.5px solid rgba(245, 208, 122, 0.52);
+  background: radial-gradient(circle at 50% 42%, #13315c 0%, #0a1b38 62%, #061022 100%);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.58),
+    inset 0 0 26px rgba(56, 189, 248, 0.14),
+    inset 0 1px 0 rgba(255, 244, 210, 0.35);
+}
+.wmap-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.wmap-route-base {
+  fill: none;
+  stroke: rgba(253, 230, 138, 0.36);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.wmap-route-air {
+  fill: none;
+  stroke: rgba(125, 211, 252, 0.42);
+  stroke-width: 2;
+  stroke-dasharray: 5 5;
+  stroke-linecap: round;
+}
+.wmap-route-active {
+  fill: none;
+  stroke: #fde047;
+  stroke-width: 3.6;
+  stroke-dasharray: 7 5;
+  stroke-linecap: round;
+  animation: wmapDash 1.1s linear infinite;
+  filter: drop-shadow(0 0 5px rgba(250, 204, 21, 0.85));
+}
+@keyframes wmapDash {
+  to { stroke-dashoffset: -24; }
+}
+.wmap-node {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.wmap-node:active {
+  transform: scale(0.92);
+}
+.wmap-pulse-ring {
+  fill: none;
+  stroke-width: 2.2;
+  animation: wmapPulse 1.8s ease-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes wmapPulse {
+  0% { transform: scale(0.95); opacity: 0.95; }
+  100% { transform: scale(1.75); opacity: 0; }
+}
+.wmap-label {
+  font-size: 9.5px;
+  font-weight: 900;
+  fill: #fff8e1;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: rgba(6, 12, 28, 0.92);
+  stroke-width: 3.2px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.wmap-sublabel {
+  font-size: 7.5px;
+  font-weight: 800;
+  fill: #bae6fd;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: rgba(6, 12, 28, 0.92);
+  stroke-width: 2.6px;
+  pointer-events: none;
+}
+.wmap-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 6px 10px;
+  background: rgba(7, 13, 28, 0.82);
+  border-top: 1px solid rgba(245, 208, 122, 0.18);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #dbe6ff;
+}
+.wmap-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.wmap-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1.5px solid #fff;
+}
+.wmap-dot.town { background: #38bdf8; box-shadow: 0 0 6px #38bdf8; }
+.wmap-dot.field { background: #f59e0b; }
+.wmap-dot.boss { background: #f43f5e; box-shadow: 0 0 6px #f43f5e; }
+.wmap-dot.here { background: #4ade80; box-shadow: 0 0 6px #4ade80; }
+.wmap-dot.quest { background: #fde047; box-shadow: 0 0 6px #fde047; }
+.wmap-card {
+  background: linear-gradient(155deg, rgba(26, 40, 78, 0.78), rgba(10, 16, 34, 0.94));
+  border: 1.5px solid rgba(245, 208, 122, 0.44);
+  border-radius: 16px;
+  padding: 12px 13px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 248, 224, 0.2);
+}
+.wmap-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+.wmap-card-title {
+  font-size: 15px;
+  font-weight: 900;
+  color: #fff6d2;
+}
+.wmap-card-desc {
+  font-size: 11.5px;
+  color: #cbd5f5;
+  line-height: 1.45;
+  margin-bottom: 8px;
+}
+.wmap-meta-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.wmap-meta-chip {
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(8, 14, 30, 0.75);
+  border: 1px solid rgba(245, 208, 122, 0.28);
+  color: #fde68a;
+}
+.wmap-actions {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.wmap-actions .rpg-btn {
+  flex: 1;
+  min-width: 120px;
+  text-align: center;
+}
+.wmap-list-details {
+  border-radius: 14px;
+  background: rgba(12, 18, 36, 0.72);
+  border: 1px solid rgba(245, 208, 122, 0.22);
+  padding: 8px 11px;
+}
+.wmap-list-details summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--gold-hi);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.wmap-list-details summary::-webkit-details-marker { display: none; }
+.wmap-list-details[open] summary { margin-bottom: 8px; }
+
 /* Desktop / Tablet refinements */
 @media (min-width: 720px) {
   .modal-backdrop { align-items: center; padding: 20px; }

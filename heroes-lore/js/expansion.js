@@ -148,6 +148,8 @@
   const CONTINENTS = [
     {
       id: 1, name: '제1대륙 · 솔티아 변방', short: '1대륙·초원', biome: 'meadow',
+      townId: 'town', townName: '솔티아 마을', townShort: '솔티아', townSubtitle: '바람이 머무는 솔티아 대륙의 중심 수도',
+      mapX: 62, mapY: 186, islandColor: '#2d6a4f', accentColor: '#4ade80',
       floor: '.', accent: ',', path: 'p', wall: 'T', hazard: '~',
       matId: 'mat_slime_core', mobs: ['slime_green', 'boar', 'slime_blue', 'goblin'],
       bosses: ['goblin_chief', 'kraken_guard'],
@@ -161,6 +163,8 @@
     },
     {
       id: 2, name: '제2대륙 · 심해 제국 아틀란티아', short: '2대륙·심해', biome: 'coast',
+      townId: 'town_2', townName: '아틀란티아 항구마을', townShort: '아틀란티아', townSubtitle: '산호빛 파도와 진주 상단이 모이는 항구 마을',
+      mapX: 132, mapY: 224, islandColor: '#0e7490', accentColor: '#38bdf8',
       floor: 's', accent: 'p', path: 'c', wall: 'P', hazard: '~',
       matId: 'mat_coral_shard', mobs: ['coral_crab', 'pirate_skel', 'slime_blue', 'dark_mage'],
       bosses: ['kraken_guard', 'golem'],
@@ -174,6 +178,8 @@
     },
     {
       id: 3, name: '제3대륙 · 작열의 흑요석 화산령', short: '3대륙·화산', biome: 'canyon',
+      townId: 'town_3', townName: '흑요석 대장간 마을', townShort: '흑요석마을', townSubtitle: '불꽃 용광로와 대장장이들이 모인 화산 거점',
+      mapX: 218, mapY: 228, islandColor: '#9a3412', accentColor: '#fb923c',
       floor: 'r', accent: 'p', path: 'c', wall: 'C', hazard: 'L',
       matId: 'mat_magma_core', mobs: ['wyvern', 'lava_golem', 'goblin_shaman', 'skeleton'],
       bosses: ['ignis_boss', 'golem'],
@@ -187,6 +193,8 @@
     },
     {
       id: 4, name: '제4대륙 · 은빛 설원과 빙하 성채', short: '4대륙·설원', biome: 'snow',
+      townId: 'town_4', townName: '은빛 설원 마을', townShort: '은빛설원', townSubtitle: '오로라와 따뜻한 화로가 반기는 설원의 쉼터',
+      mapX: 296, mapY: 194, islandColor: '#3b82f6', accentColor: '#bae6fd',
       floor: 'n', accent: 'p', path: 'c', wall: 'I', hazard: '~',
       matId: 'mat_frost_crystal', mobs: ['slime_blue', 'skeleton', 'dark_mage', 'fallen_knight'],
       bosses: ['golem', 'cassius_boss'],
@@ -200,6 +208,8 @@
     },
     {
       id: 5, name: '제5대륙 · 황금 사막과 태양 신전', short: '5대륙·사막', biome: 'desert',
+      townId: 'town_5', townName: '오아시스 교역 마을', townShort: '오아시스', townSubtitle: '황금 사막 한가운데 피어난 푸른 오아시스 교역소',
+      mapX: 304, mapY: 126, islandColor: '#b45309', accentColor: '#fcd34d',
       floor: 's', accent: 'r', path: 'c', wall: 'C', hazard: 'L',
       matId: 'mat_sun_relic', mobs: ['skeleton', 'pirate_skel', 'wyvern', 'golem'],
       bosses: ['ignis_boss', 'goblin_chief'],
@@ -213,6 +223,8 @@
     },
     {
       id: 6, name: '제6대륙 · 천공 부유섬 에테리아', short: '6대륙·천공', biome: 'sky',
+      townId: 'town_6', townName: '에테리아 천공 마을', townShort: '에테리아', townSubtitle: '구름 위 비공정이 정박하는 순백의 천공 도시',
+      mapX: 232, mapY: 92, islandColor: '#0284c7', accentColor: '#e0f2fe',
       floor: 'k', accent: '*', path: 'c', wall: 'K', hazard: 'K',
       matId: 'mat_sky_feather', mobs: ['wyvern', 'dark_mage', 'abyss_assassin', 'fallen_knight'],
       bosses: ['cassius_boss', 'golem'],
@@ -226,6 +238,8 @@
     },
     {
       id: 7, name: '제7대륙 · 저주받은 그림자 늪지', short: '7대륙·늪지', biome: 'swamp',
+      townId: 'town_7', townName: '월식 늪지 피난처', townShort: '월식늪지', townSubtitle: '보랏빛 등불이 안개를 밝히는 늪지의 안전 피난처',
+      mapX: 148, mapY: 120, islandColor: '#5b21b6', accentColor: '#c084fc',
       floor: 'm', accent: ';', path: 'p', wall: 'M', hazard: '~',
       matId: 'mat_cursed_spore', mobs: ['goblin_shaman', 'dark_mage', 'abyss_assassin', 'skeleton'],
       bosses: ['goblin_chief', 'cassius_boss'],
@@ -239,6 +253,8 @@
     },
     {
       id: 8, name: '제8대륙 · 태고의 용의 협곡', short: '8대륙·용곡', biome: 'dragon',
+      townId: 'town_8', townName: '용기사단 성채 마을', townShort: '용기사단', townSubtitle: '고룡의 협곡을 수호하는 용기사단의 철옹성 마을',
+      mapX: 114, mapY: 62, islandColor: '#9f1239', accentColor: '#fb7185',
       floor: 'r', accent: '_', path: 'b', wall: 'C', hazard: 'L',
       matId: 'mat_dragon_scale', mobs: ['lava_golem', 'fallen_knight', 'abyss_assassin', 'wyvern'],
       bosses: ['ignis_boss', 'vargas'],
@@ -252,6 +268,8 @@
     },
     {
       id: 9, name: '제9대륙 · 차원의 틈새와 별의 회랑', short: '9대륙·차원', biome: 'void',
+      townId: 'town_9', townName: '별빛 관측소 마을', townShort: '별빛관측소', townSubtitle: '은하수와 시공간을 관측하는 성좌의 거점 마을',
+      mapX: 206, mapY: 38, islandColor: '#3730a3', accentColor: '#818cf8',
       floor: 'v', accent: '*', path: 'b', wall: 'V', hazard: 'K',
       matId: 'mat_void_essence', bonusMatId: 'mat_star_dust', mobs: ['fallen_knight', 'abyss_assassin', 'dark_mage', 'lava_golem'],
       bosses: ['cassius_boss', 'vargas'],
@@ -265,6 +283,8 @@
     },
     {
       id: 10, name: '제10대륙 · 영원의 성역 솔티아 코어', short: '10대륙·영원', biome: 'eternal',
+      townId: 'town_10', townName: '영원의 성전 마을', townShort: '영원성전', townSubtitle: '솔티아 최후의 성역을 지키는 황금빛 영원의 도시',
+      mapX: 296, mapY: 52, islandColor: '#a16207', accentColor: '#fde047',
       floor: 'a', accent: '*', path: 'k', wall: 'X', hazard: 'V',
       matId: 'mat_eternal_petal', bonusMatId: 'mat_star_dust', mobs: ['fallen_knight', 'abyss_assassin', 'lava_golem', 'dark_mage'],
       bosses: ['vargas', 'cassius_boss'],
@@ -454,8 +474,8 @@
     if (z < 200) {
       portals.push({ tx: 11.5, ty: 1.8, toMap: `zone_${z + 1}`, toX: 11.5, toY: 14.8, label: `다음 구역 (${z + 1}) ▲` });
     }
-    if (z % 5 === 0 || z === 1) {
-      portals.push({ tx: 3.2, ty: 15.2, toMap: 'town', toX: 11.5, toY: 11.5, label: '솔티아 마을 귀환' });
+    if (z % 5 === 0 || localIdx === 0) {
+      portals.push({ tx: 3.2, ty: 15.2, toMap: cont.townId, toX: 11.5, toY: 11.5, label: `${cont.townName} 귀환` });
     }
 
     const chests = [];
@@ -498,6 +518,107 @@
     };
   }
 
+  // Build cozy biome-themed safe Town Hub layouts for Continents 2..10
+  function buildTownLayout(cont) {
+    const fl = cont.floor, pa = cont.path, wa = cont.wall, hz = cont.hazard === 'K' ? fl : cont.hazard;
+    const raw = [
+      'WWWWWWWWWWWppWWWWWWWWWWW',
+      'W..RRR.....pp.....RRR..W',
+      'W..HHH..cccccccc..HHH..W',
+      'W..HdH..c......c..HdH..W',
+      'W.......c..cc..c.......W',
+      'W......cc.cccc.cc......W',
+      'W......c.ccFFcc.c......W',
+      'W......c.ccFFcc.c......W',
+      'pppppppc.cccccc.cppppppp',
+      'pppppppc.cccccc.cppppppp',
+      'W......cc.cccc.cc......W',
+      'W..RRR..cccccccc..RRR..W',
+      'W..HHH....cccc....HHH..W',
+      'W..HdH....cccc....HdH..W',
+      'W.........cccc.........W',
+      'W..~~~....pppp....~~~..W',
+      'W..........pp..........W',
+      'WWWWWWWWWWWppWWWWWWWWWWW'
+    ];
+    return raw.map((row) => row.split('').map((ch) => {
+      if (ch === 'W') return wa;
+      if (ch === '.') return fl;
+      if (ch === 'p') return pa;
+      if (ch === 'H') return 'W';
+      if (ch === '~') return hz;
+      return ch;
+    }).join(''));
+  }
+
+  // Upgrade Soltia Capital Town with Continent 1 metadata, Airship WorldMap Guide, and East Highway Portal
+  if (DATA.MAPS.town) {
+    DATA.MAPS.town.isTown = true;
+    DATA.MAPS.town.continentId = 1;
+    DATA.MAPS.town.continentName = CONTINENTS[0].name;
+    // Open east gate at rows 11..12 on cols 22..23 (clear of buildings)
+    if (Array.isArray(DATA.MAPS.town.layout)) {
+      [11, 12].forEach((r) => {
+        if (DATA.MAPS.town.layout[r]) {
+          DATA.MAPS.town.layout[r] = DATA.MAPS.town.layout[r].slice(0, 22) + 'pp';
+        }
+      });
+    }
+    DATA.MAPS.town.npcs.push({
+      id: 'airship_1', name: '비공정 안내원 리아', sprite: 'aria', tx: 11.5, ty: 13.8, role: 'worldmap'
+    });
+    DATA.MAPS.town.portals.push({
+      tx: 22.8, ty: 11.5, toMap: 'town_2', toX: 2.2, toY: 8.5, label: '아틀란티아 항구마을 ▶'
+    });
+  }
+
+  // Generate Safe Hub Towns for Continents 2..10 (interconnected MapleStory / Pokemon style!)
+  for (let i = 1; i < CONTINENTS.length; i++) {
+    const cont = CONTINENTS[i];
+    const prevCont = CONTINENTS[i - 1];
+    const nextCont = CONTINENTS[i + 1] || null;
+    const entryZone = `zone_${i * 20 + 1}`;
+    const prevExitY = prevCont.townId === 'town' ? 11.5 : 8.5;
+    const townPortals = [
+      { tx: 11.5, ty: 0.9, toMap: entryZone, toX: 11.5, toY: 14.8, label: `${i * 20 + 1}구역 사냥터 ▲` },
+      { tx: 1.2, ty: 8.5, toMap: prevCont.townId, toX: 21.5, toY: prevExitY, label: `◀ ${prevCont.townShort}` },
+      { tx: 11.5, ty: 16.9, toMap: 'town', toX: 11.5, toY: 11.5, label: '솔티아 본성 귀환 ▼' }
+    ];
+    if (nextCont) {
+      townPortals.push({
+        tx: 22.8, ty: 8.5, toMap: nextCont.townId, toX: 2.2, toY: 8.5, label: `${nextCont.townShort} ▶`
+      });
+    } else {
+      townPortals.push({
+        tx: 22.8, ty: 8.5, toMap: 'zone_200', toX: 11.5, toY: 14.8, label: '200구역 정상 ▶'
+      });
+    }
+
+    DATA.MAPS[cont.townId] = {
+      id: cont.townId,
+      isTown: true,
+      continentId: cont.id,
+      continentName: cont.name,
+      biome: cont.biome,
+      name: cont.townName,
+      subtitle: `${cont.townSubtitle} · 안전지대`,
+      bgm: 'town',
+      safe: true,
+      layout: null,
+      npcs: [
+        { id: `elder_${cont.id}`, name: cont.cast[0], sprite: 'elder', tx: 11.5, ty: 4.6, role: 'quest' },
+        { id: `aria_${cont.id}`, name: '치유사 아리아', sprite: 'aria', tx: 14.8, ty: 5.5, role: 'bard' },
+        { id: `shop_${cont.id}`, name: '잡화상인 미나', sprite: 'shop', tx: 5.5, ty: 14.3, role: 'shop' },
+        { id: `smith_${cont.id}`, name: '대장장이 볼칸', sprite: 'smith', tx: 18.5, ty: 14.3, role: 'smith' },
+        { id: `airship_${cont.id}`, name: '비공정 안내원 리아', sprite: 'aria', tx: 11.5, ty: 12.2, role: 'worldmap' }
+      ],
+      fountains: [{ tx: 11.5, ty: 6.5 }],
+      chests: [],
+      portals: townPortals,
+      spawns: []
+    };
+  }
+
   // Connect Meadow East border directly into Zone 1 (so players can walk from Town -> Meadow -> 200 Zones seamlessly!)
   if (DATA.MAPS.meadow && DATA.MAPS.meadow.portals) {
     DATA.MAPS.meadow.portals.push({
@@ -507,7 +628,10 @@
 
   DATA.ensureZoneLayout = function (map) {
     if (!map || map.layout) return;
-    if (map.zoneNum && map.continentId) {
+    if (map.isTown && map.continentId) {
+      const cont = CONTINENTS[map.continentId - 1];
+      map.layout = buildTownLayout(cont);
+    } else if (map.zoneNum && map.continentId) {
       const cont = CONTINENTS[map.continentId - 1];
       map.layout = buildZoneLayout(map.zoneNum, cont);
     }
