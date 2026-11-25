@@ -45,7 +45,7 @@
     mat_cursed_spore:   { id: 'mat_cursed_spore', name: '저주받은 늪 포자', type: 'material', rarity: 'heroic', price: 225, desc: '제7대륙 그림자 늪지의 몽환적인 마력 포자.' },
     mat_dragon_scale:   { id: 'mat_dragon_scale', name: '태고의 용비늘', type: 'material', rarity: 'legendary', price: 290, desc: '제8대륙 용의 협곡에서 얻는 단단한 용의 비늘.' },
     mat_void_essence:   { id: 'mat_void_essence', name: '차원 균열 정수', type: 'material', rarity: 'legendary', price: 340, desc: '제9대륙 별의 회랑에서 응축된 시공간의 파편.' },
-    mat_star_dust:      { id: 'mat_star_dust', name: '성좌의 은하수 가루', type: 'material', rarity: 'mythic', price: 420, desc: '별의 영혼이 깃든 최상급 신화 연성 재료.' },
+    mat_star_dust:      { id: 'mat_star_dust', name: '성좌의 은하수 가루', type: 'material', rarity: 'mythic', price: 420, desc: '제9·10대륙(161~200구역)과 심연의 탑 보스층(5층 단위)에서 얻는 최상급 신화 연성 재료.' },
     mat_eternal_petal:  { id: 'mat_eternal_petal', name: '영원의 바람 꽃잎', type: 'material', rarity: 'eternal', price: 580, desc: '제10대륙 솔티아 코어에만 피어나는 영원의 꽃잎.' },
 
     // --- 22 New Elemental & Build-Defining Weapons ---
@@ -253,7 +253,7 @@
     {
       id: 9, name: '제9대륙 · 차원의 틈새와 별의 회랑', short: '9대륙·차원', biome: 'void',
       floor: 'v', accent: '*', path: 'b', wall: 'V', hazard: 'K',
-      matId: 'mat_void_essence', mobs: ['fallen_knight', 'abyss_assassin', 'dark_mage', 'lava_golem'],
+      matId: 'mat_void_essence', bonusMatId: 'mat_star_dust', mobs: ['fallen_knight', 'abyss_assassin', 'dark_mage', 'lava_golem'],
       bosses: ['cassius_boss', 'vargas'],
       cast: ['시간의 직조자 아이온', '타락한 카시우스', '음유시인 아리아', '촌장 엘더'],
       zoneNames: [
@@ -266,7 +266,7 @@
     {
       id: 10, name: '제10대륙 · 영원의 성역 솔티아 코어', short: '10대륙·영원', biome: 'eternal',
       floor: 'a', accent: '*', path: 'k', wall: 'X', hazard: 'V',
-      matId: 'mat_eternal_petal', mobs: ['fallen_knight', 'abyss_assassin', 'lava_golem', 'dark_mage'],
+      matId: 'mat_eternal_petal', bonusMatId: 'mat_star_dust', mobs: ['fallen_knight', 'abyss_assassin', 'lava_golem', 'dark_mage'],
       bosses: ['vargas', 'cassius_boss'],
       cast: ['각성한 바르가스', '음유시인 아리아', '촌장 엘더', '대장장이 볼칸'],
       zoneNames: [
@@ -460,7 +460,10 @@
 
     const chests = [];
     if (z % 3 === 0) {
-      const rewardItem = (z % 6 === 0) ? zoneRewardPool[Math.floor((z / 6 - 1) % zoneRewardPool.length)] : cont.matId;
+      const useBonusMat = cont.bonusMatId && z % 6 === 3 && ((z - 3) / 6) % 2 === 1;
+      const rewardItem = (z % 6 === 0)
+        ? zoneRewardPool[Math.floor((z / 6 - 1) % zoneRewardPool.length)]
+        : (useBonusMat ? cont.bonusMatId : cont.matId);
       chests.push({
         id: `chest_z${z}`,
         tx: (z % 2 === 0) ? 19 : 4,
@@ -481,6 +484,7 @@
       isBossZone,
       zoneBossName,
       matId: cont.matId,
+      bonusMatId: cont.bonusMatId || null,
       name: `${z}구역 · ${zoneName}`,
       subtitle: `${cont.name} · 권장 Lv.${recLv}${isBossZone ? ' · 👑 보스 출현' : ''}`,
       safe: false,

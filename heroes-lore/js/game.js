@@ -1516,6 +1516,9 @@
       if (map && map.matId && DATA.ITEMS[map.matId] && Math.random() < (def.isBoss ? 0.95 : 0.45)) {
         this.drops.push({ kind: 'item', itemId: map.matId, x: m.x + randInt(-14, 14), y: m.y + randInt(-14, 14), life: 32 });
       }
+      if (map && map.bonusMatId && DATA.ITEMS[map.bonusMatId] && Math.random() < (def.isBoss ? 0.9 : 0.35)) {
+        this.drops.push({ kind: 'item', itemId: map.bonusMatId, x: m.x + randInt(-14, 14), y: m.y + randInt(-14, 14), life: 32 });
+      }
 
       const h = this.hero;
       // Main 200-chapter story quest kill & boss_hunt tracking
@@ -1555,16 +1558,21 @@
           const bonusGold = Math.round((150 + fl * 45) * (fl % 5 === 0 ? 2 : 1));
           const bonusExp = Math.round((180 + fl * 55) * (fl % 5 === 0 ? 2 : 1));
           const enhQty = fl % 5 === 0 ? 3 : 1;
+          const starDustQty = fl % 5 === 0 ? (fl >= 50 ? 2 : 1) : 0;
           h.gold += bonusGold;
           this.gainExp(bonusExp);
           this.giveItem('mat_enhance', enhQty);
+          if (starDustQty > 0 && DATA.ITEMS.mat_star_dust) {
+            this.giveItem('mat_star_dust', starDustQty);
+          }
           this.checkCollectQuest();
           this.audio.playSfx('levelup');
           this.saveGame(true);
 
           const nextFl = fl < 100 ? fl + 1 : 100;
+          const starTxt = starDustQty > 0 ? ` · 성좌의 은하수 가루 x${starDustQty}` : '';
           this.openDialog([
-            `[심연의 탑 ${fl}층 돌파!] ${firstClear ? '최초 클리어 달성! ' : ''}${bonusGold.toLocaleString()}G · EXP +${bonusExp.toLocaleString()} · 강화석 x${enhQty}`,
+            `[심연의 탑 ${fl}층 돌파!] ${firstClear ? '최초 클리어 달성! ' : ''}${bonusGold.toLocaleString()}G · EXP +${bonusExp.toLocaleString()} · 강화석 x${enhQty}${starTxt}`,
             fl < 100
               ? `[안내] 터치하면 즉시 ${nextFl}층으로 올라갑니다! (마을로 돌아가려면 남쪽 포털을 이용하세요)`
               : '[축하합니다!] 심연의 탑 100층을 모두 정복하셨습니다!'
@@ -3049,7 +3057,7 @@
       body.innerHTML = `
         <div class="panel-card" style="margin-bottom:10px;border-color:rgba(192,132,252,0.5);">
           <h3>심연의 탑 (1~100층 도전) <span class="badge" style="color:#c084fc">최고 ${h.towerBest || 0} / 100층</span></h3>
-          <div class="item-sub" style="margin-bottom:10px;">5층마다 강력한 탑 수호 보스가 등장하며, 최초 돌파 시 막대한 골드·경험치·강화석을 획득합니다!</div>
+          <div class="item-sub" style="margin-bottom:10px;">5층마다 강력한 탑 수호 보스가 등장하며, 보스층 클리어 시 막대한 골드·경험치·강화석과 <strong style="color:#fde68a">성좌의 은하수 가루</strong>를 획득합니다!</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="rpg-btn primary" id="btnEnterTowerNext">다음 층 도전 (${nextFl}층)</button>
             ${(h.towerBest || 0) >= 5 ? `<button class="rpg-btn secondary" id="btnEnterTowerBoss">직전 보스층 (${Math.floor((h.towerBest || 5) / 5) * 5}층)</button>` : ''}
