@@ -1587,6 +1587,43 @@
     };
     sprites.monsters.cassius_boss = [makeCassiusBoss(0), makeCassiusBoss(1)];
 
+    // =========================================================
+    // 5. AAA ILLUSTRATED SD HERO SPRITES & ANIME PORTRAITS
+    // =========================================================
+    const artData = global.HERO_ART_DATA || {};
+    sprites.art = { titleBg: null };
+    const loadImg = (key, fallbackUrl, onLoad) => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = () => {
+        onLoad(img);
+        if (global.game && typeof global.game.onArtLoaded === 'function') {
+          global.game.onArtLoaded(key);
+        }
+      };
+      img.src = artData[key] || fallbackUrl;
+    };
+
+    [
+      { cid: 'knight', file: 'knight' },
+      { cid: 'rogue', file: 'rogue' },
+      { cid: 'runeblade', file: 'mage' }
+    ].forEach(({ cid, file }) => {
+      const set = sprites.heroes[cid];
+      if (!set) return;
+      loadImg(`sprite_${file}`, `assets/sprite_${file}.webp?v=8`, (img) => {
+        set.hdSprite = img;
+      });
+      loadImg(`portrait_${file}`, `assets/portrait_${file}.webp?v=8`, (img) => {
+        set.hdPortrait = img;
+        set.portrait = img;
+      });
+    });
+
+    loadImg('title_bg', 'assets/title_bg.webp?v=8', (img) => {
+      sprites.art.titleBg = img;
+    });
+
     return sprites;
   }
 

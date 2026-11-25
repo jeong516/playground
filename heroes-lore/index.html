@@ -9,7 +9,7 @@
   <title>영웅서기: 솔티아의 바람</title>
   <meta name="description" content="최신 스마트폰 풀스크린 최적화 액션 RPG 영웅서기: 솔티아의 바람" />
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=7" />
+  <link rel="stylesheet" href="style.css?v=8" />
 </head>
 <body>
   <div id="appViewport" class="app-viewport">
@@ -23,7 +23,7 @@
         <!-- Hero Status Glass Pill -->
         <div class="hero-pill" data-open-menu="status" role="button" tabindex="0">
           <div class="portrait-ring">
-            <canvas id="hudPortrait" width="96" height="96"></canvas>
+            <canvas id="hudPortrait" width="144" height="144"></canvas>
             <span id="hudLv" class="lv-chip">1</span>
           </div>
           <div class="hero-meters">
@@ -187,10 +187,13 @@
 
     <!-- Cinematic Full-Screen Title Screen -->
     <div id="titleScreen" class="overlay-screen title-screen">
+      <div id="titleBgArt" class="title-bg-art" aria-hidden="true"></div>
       <div class="title-hero-block">
-        <div class="title-kicker">HEROES LORE · MOBILE EDITION</div>
+        <div class="title-crest-ornament" aria-hidden="true"><span></span><i>✦</i><span></span></div>
+        <div class="title-kicker">HEROES LORE · GRAND CHRONICLE</div>
         <h1 class="title-display">영웅서기</h1>
         <p class="title-tagline">솔티아의 바람</p>
+        <div class="title-edition-sub">10부작 200장 대연대기 · 심연의 탑 100층</div>
       </div>
       <div class="title-bottom-dock">
         <button id="btnNewGame" class="cta-btn primary" type="button">새 모험 시작</button>
@@ -203,7 +206,7 @@
       <div class="sheet-container">
         <div class="sheet-handle"></div>
         <div class="title-kicker">SELECT HERO</div>
-        <h2 class="sheet-title">영웅을 선택하세요</h2>
+        <h2 class="sheet-title">운명의 영웅을 선택하세요</h2>
         <div id="classGrid" class="class-grid"></div>
         <div class="sheet-actions">
           <button id="btnBackTitle" class="cta-btn ghost" type="button">뒤로</button>
@@ -257,10 +260,10 @@
   <!-- Hidden desktop skill container fallback kept empty for compatibility -->
   <div id="skillSlots" style="display:none"></div>
 
-  <script src="js/audio.js?v=7"></script>
-  <script src="js/sprites.js?v=7"></script>
-  <script src="js/data.js?v=7"></script>
-  <script src="js/story.js?v=7"></script>
-  <script src="js/game.js?v=7"></script>
+  <script src="js/audio.js?v=8"></script>
+  <script src="js/sprites.js?v=8"></script>
+  <script src="js/data.js?v=8"></script>
+  <script src="js/story.js?v=8"></script>
+  <script src="js/game.js?v=8"></script>
 </body>
 </html>

@@ -204,6 +204,17 @@
       };
     }
 
+    onArtLoaded(key) {
+      if (key === 'title_bg' && this.sprites.art && this.sprites.art.titleBg) {
+        const bgEl = document.getElementById('titleBgArt');
+        if (bgEl) bgEl.style.backgroundImage = `url("${this.sprites.art.titleBg.src}")`;
+      }
+      if (key && key.startsWith('portrait_')) {
+        this.renderClassCards();
+        this.drawHudPortrait();
+      }
+    }
+
     renderClassCards() {
       this.el.classGrid.innerHTML = '';
       Object.values(DATA.CLASSES).forEach((cls) => {
@@ -212,13 +223,14 @@
         card.dataset.classId = cls.id;
 
         const preview = document.createElement('canvas');
-        preview.width = 144;
-        preview.height = 144;
+        preview.width = 160;
+        preview.height = 160;
         preview.className = 'class-preview';
         const pctx = preview.getContext('2d');
         pctx.imageSmoothingEnabled = true;
         pctx.imageSmoothingQuality = 'high';
-        pctx.drawImage(this.sprites.heroes[cls.id].portrait || this.sprites.heroes[cls.id].idle, 0, 0, 144, 144);
+        const set = this.sprites.heroes[cls.id];
+        pctx.drawImage(set.hdPortrait || set.portrait || set.idle, 0, 0, 160, 160);
 
         card.innerHTML = `
           <div class="class-head">
@@ -252,17 +264,22 @@
       let hasSave = false;
       try { hasSave = !!localStorage.getItem(SAVE_KEY); } catch (_) {}
       this.el.btnContinue.disabled = !hasSave;
+      if (this.sprites.art && this.sprites.art.titleBg) {
+        const bgEl = document.getElementById('titleBgArt');
+        if (bgEl) bgEl.style.backgroundImage = `url("${this.sprites.art.titleBg.src}")`;
+      }
     }
 
     drawHudPortrait() {
       if (!this.hero || !this.el.hudPortrait) return;
-      const w = this.el.hudPortrait.width || 96;
-      const h = this.el.hudPortrait.height || 96;
+      const w = this.el.hudPortrait.width || 144;
+      const h = this.el.hudPortrait.height || 144;
       const pctx = this.el.hudPortrait.getContext('2d');
       pctx.clearRect(0, 0, w, h);
       pctx.imageSmoothingEnabled = true;
       pctx.imageSmoothingQuality = 'high';
-      const src = this.sprites.heroes[this.hero.classId].portrait || this.sprites.heroes[this.hero.classId].idle;
+      const set = this.sprites.heroes[this.hero.classId];
+      const src = set.hdPortrait || set.portrait || set.idle;
       pctx.drawImage(src, 0, 0, w, h);
     }
 
@@ -1884,6 +1901,24 @@
 
       ctx.restore();
 
+      // Region-themed drifting atmospheric wind motes / fireflies
+      ctx.save();
+      const moteColor = (map.id === 'canyon' || map.id === 'altar') ? '253,186,116'
+        : (map.id === 'tower' || map.id === 'citadel' ? '147,197,253' : '255,242,196');
+      for (let i = 0; i < 14; i++) {
+        const seed = i * 73.13;
+        const speed = 10 + (i % 5) * 4;
+        const mx = ((seed * 17 + this.time * speed) % (this.viewW + 40)) - 20;
+        const my = ((seed * 29 - this.time * (speed * 0.45) + Math.sin(this.time * 1.4 + i) * 14) % (this.viewH + 40) + this.viewH + 40) % (this.viewH + 40) - 20;
+        const alpha = 0.16 + 0.24 * (0.5 + 0.5 * Math.sin(this.time * 2.2 + i * 1.7));
+        const rad = 1.4 + (i % 3) * 0.75;
+        ctx.fillStyle = `rgba(${moteColor},${alpha.toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(mx, my, rad, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
       // Aspect-safe subtle atmospheric vignette (no oval ring artifact on portrait phones)
       const vigOuter = Math.hypot(this.viewW, this.viewH) * 0.56;
       const vigInner = Math.min(this.viewW, this.viewH) * 0.28;
@@ -1971,42 +2006,106 @@
         this.virtualDir.left || this.virtualDir.right || this.virtualDir.up || this.virtualDir.down ||
         Math.hypot(this.stickX, this.stickY) > 0.12;
       const walkF = moving && Math.floor(h.walkAnim) % 2 === 1;
-      const spr = h.dir === 'left' ? (walkF ? set.walkLeft : set.idleLeft) : (walkF ? set.walk : set.idle);
-      const breath = moving ? Math.abs(Math.sin(h.walkAnim * Math.PI)) * -1.2 : Math.sin(this.time * 3.5) * 0.8;
+      const hd = set && set.hdSprite;
+      const enh = (h.equip && h.equip.weapon && h.equip.weapon.enh) || 0;
 
       // Ground contact shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.4)';
-      ctx.beginPath(); ctx.ellipse(h.x, h.y + 11, 11, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.44)';
+      ctx.beginPath(); ctx.ellipse(h.x, h.y + 12, 13.5, 5.2, 0, 0, Math.PI * 2); ctx.fill();
+
+      // Luminous Rotating Hero Aura Ring beneath feet
+      const auraColor = h.classId === 'knight' ? 'rgba(251, 191, 36,'
+        : (h.classId === 'rogue' ? 'rgba(56, 189, 248,' : 'rgba(147, 197, 253,');
+      const auraAlpha = enh >= 10 ? 0.55 : (enh >= 5 ? 0.42 : 0.3);
+      ctx.save();
+      ctx.translate(h.x, h.y + 11.5);
+      ctx.scale(1, 0.44);
+      ctx.rotate(this.time * 0.9);
+      ctx.strokeStyle = `${auraColor}${auraAlpha})`;
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([7, 5]);
+      ctx.beginPath(); ctx.arc(0, 0, 17.5 + Math.sin(this.time * 3) * 0.8, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      if (enh >= 7) {
+        ctx.strokeStyle = this.getWeaponGlowColor();
+        ctx.globalAlpha = 0.42;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(0, 0, 21.5, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.restore();
 
       if (h.buffDefTimer > 0) {
-        ctx.strokeStyle = 'rgba(96, 165, 250, 0.85)'; ctx.lineWidth = 1.6;
-        ctx.beginPath(); ctx.arc(h.x, h.y, 18 + Math.sin(this.time * 8), 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(96, 165, 250, 0.88)'; ctx.lineWidth = 1.8;
+        ctx.beginPath(); ctx.arc(h.x, h.y - 2, 22 + Math.sin(this.time * 8), 0, Math.PI * 2); ctx.stroke();
       }
       if (h.buffSpdTimer > 0) {
-        ctx.strokeStyle = 'rgba(52, 211, 153, 0.85)'; ctx.lineWidth = 1.6;
-        ctx.beginPath(); ctx.arc(h.x, h.y, 20, 0, Math.PI * 2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.88)'; ctx.lineWidth = 1.8;
+        ctx.beginPath(); ctx.arc(h.x, h.y - 2, 24, 0, Math.PI * 2); ctx.stroke();
       }
 
       ctx.save();
-      ctx.translate(h.x, h.y - 2 + breath);
-      // Dynamic attack lean & subtle dash squash
-      if (h.attackTimer > 0) {
-        const lean = (h.dir === 'left' ? -1 : 1) * (h.attackTimer / 0.16) * 0.18;
-        ctx.rotate(lean);
-        ctx.scale(1.06, 0.96);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      if (hd) {
+        // Live studio-grade SD animation anchored cleanly at feet!
+        const hop = moving ? -Math.abs(Math.sin(h.walkAnim * Math.PI)) * 3.4 : Math.sin(this.time * 3.2) * 0.7;
+        const tilt = moving ? Math.sin(h.walkAnim * Math.PI) * 0.065 : 0;
+        const breatheX = moving ? 1 : 1 + Math.sin(this.time * 3.2) * 0.016;
+        const breatheY = moving ? 1 : 1 - Math.sin(this.time * 3.2) * 0.02;
+        const flipX = h.dir === 'left' ? -1 : 1;
+
+        ctx.translate(h.x, h.y + 12 + hop);
+        if (h.attackTimer > 0) {
+          const p = h.attackTimer / 0.16;
+          ctx.translate(flipX * p * 4.5, -p * 1.8);
+          ctx.rotate(flipX * p * 0.18);
+          ctx.scale(flipX * 1.11, 0.93);
+        } else {
+          ctx.rotate(tilt);
+          ctx.scale(flipX * breatheX, breatheY);
+        }
+        if (h.invulnTimer > 0 && Math.floor(this.time * 24) % 2 === 0) ctx.globalAlpha = 0.5;
+        const size = 50;
+        ctx.drawImage(hd, -size / 2, -size + 2, size, size);
+      } else {
+        const spr = h.dir === 'left' ? (walkF ? set.walkLeft : set.idleLeft) : (walkF ? set.walk : set.idle);
+        const breath = moving ? Math.abs(Math.sin(h.walkAnim * Math.PI)) * -1.2 : Math.sin(this.time * 3.5) * 0.8;
+        ctx.translate(h.x, h.y - 2 + breath);
+        if (h.attackTimer > 0) {
+          const lean = (h.dir === 'left' ? -1 : 1) * (h.attackTimer / 0.16) * 0.18;
+          ctx.rotate(lean);
+          ctx.scale(1.06, 0.96);
+        }
+        if (h.invulnTimer > 0 && Math.floor(this.time * 24) % 2 === 0) ctx.globalAlpha = 0.5;
+        ctx.drawImage(spr, -18, -21, 36, 36);
       }
-      if (h.invulnTimer > 0 && Math.floor(this.time * 24) % 2 === 0) ctx.globalAlpha = 0.5;
-      ctx.drawImage(spr, -18, -21, 36, 36);
       ctx.restore();
     }
 
     drawMonster(ctx, m) {
       const def = DATA.MONSTERS[m.typeId], frames = this.sprites.monsters[m.typeId];
       const spr = frames[Math.floor(m.anim) % frames.length];
-      const drawSize = def.isFinalBoss ? 56 : (def.isBoss ? 44 : Math.max(30, def.size + 8));
+      const drawSize = def.isFinalBoss ? 58 : (def.isBoss ? 46 : Math.max(30, def.size + 8));
 
-      ctx.fillStyle = 'rgba(0,0,0,0.38)';
-      ctx.beginPath(); ctx.ellipse(m.x, m.y + drawSize * 0.34, drawSize * 0.32, 4.2, 0, 0, Math.PI * 2); ctx.fill();
+      // Boss Ground Magic Seal Circle
+      if (def.isBoss) {
+        ctx.save();
+        ctx.translate(m.x, m.y + drawSize * 0.34);
+        ctx.scale(1, 0.44);
+        ctx.rotate(-this.time * 0.75);
+        ctx.strokeStyle = def.isFinalBoss ? 'rgba(244, 63, 94, 0.65)' : 'rgba(251, 146, 60, 0.55)';
+        ctx.lineWidth = 2.2;
+        ctx.setLineDash([8, 6]);
+        ctx.beginPath(); ctx.arc(0, 0, drawSize * 0.56, 0, Math.PI * 2); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.38)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(0, 0, drawSize * 0.42, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+      }
+
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.beginPath(); ctx.ellipse(m.x, m.y + drawSize * 0.34, drawSize * 0.32, 4.4, 0, 0, Math.PI * 2); ctx.fill();
 
       ctx.save();
       if (m.hitFlash > 0) ctx.globalAlpha = 0.7;
@@ -2227,19 +2326,35 @@
 
     renderStatusTab(body) {
       const h = this.hero, st = this.getHeroStats();
+      const cls = DATA.CLASSES[h.classId];
+      const power = Math.round(st.atk * 14 + st.magicAtk * 10 + st.def * 12 + st.maxHp * 0.9 + st.crit * 25);
+      const season = this.getStorySeason();
+      const set = this.sprites.heroes[h.classId];
       body.innerHTML = `
+        <div class="hero-showcase-banner">
+          <div class="hero-showcase-portrait" id="statusPortraitSlot"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <strong style="font-size:16px;color:#fff6d2;">${h.name}</strong>
+              <span class="badge">Lv.${h.lv}</span>
+              ${h.title ? `<span class="badge" style="color:#7dd3fc;border-color:rgba(125,211,252,0.45)">${h.title}</span>` : ''}
+            </div>
+            <div style="font-size:11.5px;color:#93c5fd;font-weight:700;margin-top:3px;">${cls ? cls.role : ''} · 제${season}부 진행 중</div>
+            <div style="margin-top:6px;font-size:12px;font-weight:800;color:#fde68a;">전투력 ${power.toLocaleString()} <span style="color:#94a3b8;font-weight:600;">· 심연의 탑 ${h.towerBest || 0}층</span></div>
+          </div>
+        </div>
         <div class="stat-layout">
           <div class="panel-card">
-            <h3>${h.name} · Lv.${h.lv} ${h.title ? `<span class="badge">${h.title}</span>` : ''}</h3>
+            <h3>영웅 능력치 <span class="badge" style="color:#fde047">${h.gold.toLocaleString()} G</span></h3>
             <div class="stat-row"><span>HP</span><strong>${Math.ceil(h.hp)} / ${st.maxHp}</strong></div>
             <div class="stat-row"><span>MP</span><strong>${Math.ceil(h.mp)} / ${st.maxMp}</strong></div>
             <div class="stat-row"><span>공격력 / 마력</span><strong>${st.atk} / ${st.magicAtk}</strong></div>
             <div class="stat-row"><span>방어력</span><strong>${st.def}</strong></div>
             <div class="stat-row"><span>치명타율</span><strong>${st.crit}%</strong></div>
-            <div class="stat-row"><span>보유 골드</span><strong style="color:#fde047">${h.gold.toLocaleString()} G</strong></div>
+            <div class="stat-row"><span>다음 레벨 EXP</span><strong>${h.exp.toLocaleString()} / ${h.expNext.toLocaleString()}</strong></div>
           </div>
           <div class="panel-card">
-            <h3>능력치 분배 (포인트: <span style="color:#fde047">${h.statPoints}</span>)</h3>
+            <h3>능력치 분배 <span class="badge">포인트 ${h.statPoints}</span></h3>
             ${['str', 'agi', 'vit', 'int'].map((k) => {
               const names = { str: '힘 (STR)', agi: '민첩 (AGI)', vit: '체력 (VIT)', int: '지능 (INT)' };
               return `<div class="stat-row"><span>${names[k]}</span><span style="display:flex;align-items:center;gap:8px;"><strong>${st[k]}</strong><button class="rpg-btn primary small" data-add-stat="${k}" ${h.statPoints <= 0 ? 'disabled' : ''}>+1</button></span></div>`;
@@ -2247,6 +2362,16 @@
           </div>
         </div>
       `;
+      const pSlot = body.querySelector('#statusPortraitSlot');
+      if (pSlot && set) {
+        const pc = document.createElement('canvas');
+        pc.width = 160; pc.height = 160;
+        const pctx = pc.getContext('2d');
+        pctx.imageSmoothingEnabled = true;
+        pctx.imageSmoothingQuality = 'high';
+        pctx.drawImage(set.hdPortrait || set.portrait || set.idle, 0, 0, 160, 160);
+        pSlot.appendChild(pc);
+      }
       body.querySelectorAll('[data-add-stat]').forEach((btn) => {
         btn.addEventListener('click', () => {
           if (h.statPoints <= 0) return;
