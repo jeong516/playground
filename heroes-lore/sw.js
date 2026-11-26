@@ -1,17 +1,17 @@
-// 영웅서기: 솔티아의 바람 — PWA Service Worker (v20)
-const CACHE_NAME = 'heroes-lore-pwa-v20';
+// 영웅서기: 솔티아의 바람 — PWA Service Worker (v21)
+const CACHE_NAME = 'heroes-lore-pwa-v21';
 const PRECACHE_URLS = [
   './',
   './index.html',
-  './style.css?v=20',
-  './manifest.json?v=20',
-  './js/audio.js?v=20',
-  './js/sprites.js?v=20',
-  './js/data.js?v=20',
-  './js/story.js?v=20',
-  './js/expansion.js?v=20',
-  './js/monsters.js?v=20',
-  './js/game.js?v=20',
+  './style.css?v=21',
+  './manifest.json?v=21',
+  './js/audio.js?v=21',
+  './js/sprites.js?v=21',
+  './js/data.js?v=21',
+  './js/story.js?v=21',
+  './js/expansion.js?v=21',
+  './js/monsters.js?v=21',
+  './js/game.js?v=21',
   './assets/icon-180.png',
   './assets/icon-192.png',
   './assets/icon-512.png',
@@ -42,6 +42,19 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+function fetchWithTimeout(req, ms = 3000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    fetch(req).then((res) => {
+      clearTimeout(timer);
+      resolve(res);
+    }, (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
@@ -65,9 +78,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // App shell (HTML / CSS / JS / manifest): Network-First so new updates apply immediately, with offline fallback
+  // App shell: Network-First with 3s timeout so flaky mobile connections never freeze launch
   event.respondWith(
-    fetch(req)
+    fetchWithTimeout(req, 3000)
       .then((res) => {
         if (res && res.ok) {
           const copy = res.clone();

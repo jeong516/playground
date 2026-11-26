@@ -558,17 +558,20 @@
     spawnMonster(typeId, x, y, spawnIdx, scale = 1, customName = null, customLv = null) {
       const def = DATA.MONSTERS[typeId];
       if (!def) return;
-      const hp = Math.round(def.hp * scale);
-      const atk = Math.round(def.atk * Math.pow(scale, 0.72));
-      const mdef = Math.round(def.def * Math.pow(scale, 0.65));
-      const exp = Math.round(def.exp * Math.pow(scale, 0.88));
-      const goldMult = Math.pow(scale, 0.78);
+      if (this.monsters.length >= 24) return;
+      const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 1;
+      const hp = Math.round(def.hp * safeScale);
+      const atk = Math.round(def.atk * Math.pow(safeScale, 0.72));
+      const mdef = Math.round(def.def * Math.pow(safeScale, 0.65));
+      const exp = Math.round(def.exp * Math.pow(safeScale, 0.88));
+      const goldMult = Math.pow(safeScale, 0.78);
       this.monsters.push({
         uid: 'm_' + Math.random().toString(36).slice(2, 9),
         typeId, spawnIdx, homeX: x, homeY: y, x, y, vx: 0, vy: 0,
+        scale: safeScale,
         hp, maxHp: hp, atk, def: mdef, exp,
         goldMin: Math.round(def.gold[0] * goldMult), goldMax: Math.round(def.gold[1] * goldMult),
-        customName, customLv: customLv || Math.round(def.lv + (scale > 1 ? (this.getStorySeason() - 1) * 10 : 0)),
+        customName, customLv: customLv || Math.round(def.lv + (safeScale > 1 ? (this.getStorySeason() - 1) * 10 : 0)),
         speed: def.speed, size: def.size,
         hitFlash: 0, stunTimer: 0, slowTimer: 0, attackCd: 1.0 + Math.random() * 0.7,
         specialCd: 3.5, wanderTimer: 0, wanderAngle: Math.random() * Math.PI * 2, phase2: false, anim: Math.random() * 10
@@ -902,7 +905,7 @@
       };
       zone.addEventListener('pointerdown', (e) => {
         e.preventDefault(); this.audio.init();
-        if (this.stickPointerId !== null) return;
+        // Always accept a fresh touch (prevents permanent lockout if an earlier OS gesture dropped pointerup)
         this.stickPointerId = e.pointerId; zone.classList.add('active');
         try { zone.setPointerCapture(e.pointerId); } catch (_) {}
         updateStick(e.clientX, e.clientY);
@@ -910,6 +913,16 @@
       zone.addEventListener('pointermove', (e) => { if (e.pointerId !== this.stickPointerId) return; e.preventDefault(); updateStick(e.clientX, e.clientY); });
       zone.addEventListener('pointerup', (e) => { if (e.pointerId === this.stickPointerId) resetStick(); });
       zone.addEventListener('pointercancel', (e) => { if (e.pointerId === this.stickPointerId) resetStick(); });
+      zone.addEventListener('lostpointercapture', (e) => { if (e.pointerId === this.stickPointerId) resetStick(); });
+      window.addEventListener('pointerup', (e) => { if (e.pointerId === this.stickPointerId) resetStick(); });
+      window.addEventListener('pointercancel', (e) => { if (e.pointerId === this.stickPointerId) resetStick(); });
+      window.addEventListener('blur', () => { this.clearTouchInputs(); this.keys = {}; });
+      document.addEventListener('visibilitychange', () => {
+        this.clearTouchInputs();
+        this.keys = {};
+        this.lastTs = performance.now();
+        if (!document.hidden && this.audio) this.audio.init();
+      });
     }
 
     hideAllScreens() {
@@ -921,6 +934,10 @@
 
     // --- DIALOG ---
     openDialog(lines, onDone = null) {
+      if (!Array.isArray(lines) || lines.length === 0) {
+        if (onDone) onDone();
+        return;
+      }
       this.clearTouchInputs();
       this.dialogLines = lines; this.dialogIdx = 0; this.dialogOnDone = onDone; this.state = 'dialog';
       if (this.el.gameHud) this.el.gameHud.classList.add('dialog-active');
@@ -1212,8 +1229,10 @@
 
     gainExp(amount) {
       const h = this.hero;
+      if (!h || !Number.isFinite(amount) || amount <= 0) return;
       h.exp += amount;
-      while (h.exp >= h.expNext) {
+      let guard = 0;
+      while (h.exp >= h.expNext && h.expNext > 0 && guard++ < 250) {
         h.exp -= h.expNext;
         h.lv++;
         // Smooth RPG leveling curve supporting Lv.1 through Lv.150+ across 200 chapters & 100 tower floors
@@ -1490,9 +1509,9 @@
           this.hitMonster(m, rawDmg, knock, ox, oy, forceCrit, stunSec, 0);
           return;
         }
-        let diff = Math.atan2(m.y - oy, m.x - ox) - dirAng;
-        while (diff > Math.PI) diff -= Math.PI * 2;
-        while (diff < -Math.PI) diff += Math.PI * 2;
+        const rawDiff = Math.atan2(m.y - oy, m.x - ox) - dirAng;
+        if (!Number.isFinite(rawDiff)) return;
+        const diff = ((rawDiff + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
         if (Math.abs(diff) <= arcWidth) {
           this.hitMonster(m, rawDmg, knock, ox, oy, forceCrit, stunSec, 0);
         }
@@ -1551,16 +1570,20 @@
       this.gainExp(expGain);
       this.addFloatText(m.x, m.y - 26, `+${expGain} EXP`, '#fbbf24');
 
-      this.drops.push({ kind: 'gold', amount: randInt(gMin, gMax), x: m.x + randInt(-8, 8), y: m.y + randInt(-8, 8), life: 25 });
-      (def.drops || []).forEach((dr) => {
-        if (Math.random() <= dr.rate) this.drops.push({ kind: 'item', itemId: dr.id, x: m.x + randInt(-12, 12), y: m.y + randInt(-12, 12), life: 30 });
-      });
-      // Continent-specific material drops in the 200 World Zones!
-      if (map && map.matId && DATA.ITEMS[map.matId] && Math.random() < (def.isBoss ? 0.95 : 0.45)) {
-        this.drops.push({ kind: 'item', itemId: map.matId, x: m.x + randInt(-14, 14), y: m.y + randInt(-14, 14), life: 32 });
-      }
-      if (map && map.bonusMatId && DATA.ITEMS[map.bonusMatId] && Math.random() < (def.isBoss ? 0.9 : 0.35)) {
-        this.drops.push({ kind: 'item', itemId: map.bonusMatId, x: m.x + randInt(-14, 14), y: m.y + randInt(-14, 14), life: 32 });
+      if (this.drops.length < 45) {
+        this.drops.push({ kind: 'gold', amount: randInt(gMin, gMax), x: m.x + randInt(-8, 8), y: m.y + randInt(-8, 8), life: 25 });
+        (def.drops || []).forEach((dr) => {
+          if (dr && DATA.ITEMS[dr.id] && Math.random() <= dr.rate && this.drops.length < 45) {
+            this.drops.push({ kind: 'item', itemId: dr.id, x: m.x + randInt(-12, 12), y: m.y + randInt(-12, 12), life: 30 });
+          }
+        });
+        // Continent-specific material drops in the 200 World Zones!
+        if (map && map.matId && DATA.ITEMS[map.matId] && Math.random() < (def.isBoss ? 0.95 : 0.45) && this.drops.length < 45) {
+          this.drops.push({ kind: 'item', itemId: map.matId, x: m.x + randInt(-14, 14), y: m.y + randInt(-14, 14), life: 32 });
+        }
+        if (map && map.bonusMatId && DATA.ITEMS[map.bonusMatId] && Math.random() < (def.isBoss ? 0.9 : 0.35) && this.drops.length < 45) {
+          this.drops.push({ kind: 'item', itemId: map.bonusMatId, x: m.x + randInt(-14, 14), y: m.y + randInt(-14, 14), life: 32 });
+        }
       }
 
       const h = this.hero;
@@ -1636,8 +1659,17 @@
           '[알림] 바르가스를 격파했습니다! 좌상단 황금 퀘스트 배지를 터치해 이야기를 이어가세요.'
         ]);
         this.saveGame(true);
-      } else {
-        this.respawnQueue.push({ typeId: m.typeId, spawnIdx: m.spawnIdx, x: m.homeX, y: m.homeY, timer: def.isBoss ? 20 : 10 });
+      } else if (this.respawnQueue.length < 30) {
+        this.respawnQueue.push({
+          typeId: m.typeId,
+          spawnIdx: m.spawnIdx,
+          x: m.homeX,
+          y: m.homeY,
+          scale: m.scale || 1,
+          customName: m.customName || null,
+          customLv: m.customLv || null,
+          timer: def.isBoss ? 20 : 10
+        });
       }
     }
 
@@ -1769,6 +1801,14 @@
       }
       if (!this.hero) return;
 
+      // Self-healing state watchdog: never allow invisible dialog/modal soft-locks
+      if (this.state === 'dialog' && this.el.dialogBox && this.el.dialogBox.classList.contains('hidden')) {
+        this.state = 'playing';
+        if (this.el.gameHud) this.el.gameHud.classList.remove('dialog-active');
+      } else if (this.state === 'modal' && this.el.modalBackdrop && this.el.modalBackdrop.classList.contains('hidden')) {
+        this.state = 'playing';
+      }
+
       this.syncHtmlHud();
       if (this.state !== 'playing') return;
 
@@ -1846,7 +1886,7 @@
         this.respawnQueue[i].timer -= dt;
         if (this.respawnQueue[i].timer <= 0) {
           const r = this.respawnQueue.splice(i, 1)[0];
-          this.spawnMonster(r.typeId, r.x, r.y, r.spawnIdx);
+          this.spawnMonster(r.typeId, r.x, r.y, r.spawnIdx, r.scale || 1, r.customName || null, r.customLv || null);
         }
       }
 
@@ -1900,15 +1940,18 @@
           d.y += ((h.y - d.y) / Math.max(1, dd)) * 175 * dt;
         }
         if (dd < 14) {
+          this.drops.splice(i, 1);
           if (d.kind === 'gold') {
             h.gold += d.amount; this.audio.playSfx('coin');
             this.addFloatText(h.x, h.y - 16, `+${d.amount}G`, '#fde047');
           } else {
-            this.giveItem(d.itemId, 1); this.audio.playSfx('coin');
             const it = DATA.ITEMS[d.itemId];
-            this.addFloatText(h.x, h.y - 20, `${it.name}`, DATA.RARITY[it.rarity].color);
+            if (it) {
+              this.giveItem(d.itemId, 1); this.audio.playSfx('coin');
+              const rar = DATA.RARITY[it.rarity] || { color: '#f8fafc' };
+              this.addFloatText(h.x, h.y - 20, `${it.name}`, rar.color);
+            }
           }
-          this.drops.splice(i, 1);
         } else if (d.life <= 0) this.drops.splice(i, 1);
       }
 
@@ -2021,13 +2064,16 @@
     shake(duration, mag) { this.shakeTimer = Math.max(this.shakeTimer, duration); this.shakeMag = Math.max(this.shakeMag, mag); }
 
     spawnParticles(x, y, color, count) {
-      for (let i = 0; i < count; i++) {
+      const room = Math.max(0, 160 - this.particles.length);
+      const n = Math.min(count, room);
+      for (let i = 0; i < n; i++) {
         const a = Math.random() * Math.PI * 2, sp = 24 + Math.random() * 88;
         this.particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, color, size: 2 + Math.random() * 2.5, life: 0.25 + Math.random() * 0.32, maxLife: 0.55 });
       }
     }
 
     addFloatText(x, y, text, color = '#fff', big = false) {
+      if (this.floatTexts.length >= 30) this.floatTexts.shift();
       this.floatTexts.push({ x, y, text, color, big, life: 0.95, maxLife: 0.95 });
     }
 

@@ -17,25 +17,29 @@
 
     init() {
       if (this.ctx) {
-        if (this.ctx.state === 'suspended') {
+        if (this.ctx.state !== 'running') {
           this.ctx.resume().catch(() => {});
         }
         return;
       }
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;
-      this.ctx = new AudioCtx();
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = 0.6;
-      this.masterGain.connect(this.ctx.destination);
+      try {
+        this.ctx = new AudioCtx();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.gain.value = 0.6;
+        this.masterGain.connect(this.ctx.destination);
 
-      this.bgmGain = this.ctx.createGain();
-      this.bgmGain.gain.value = 0.22;
-      this.bgmGain.connect(this.masterGain);
+        this.bgmGain = this.ctx.createGain();
+        this.bgmGain.gain.value = 0.22;
+        this.bgmGain.connect(this.masterGain);
 
-      this.sfxGain = this.ctx.createGain();
-      this.sfxGain.gain.value = 0.55;
-      this.sfxGain.connect(this.masterGain);
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.gain.value = 0.55;
+        this.sfxGain.connect(this.masterGain);
+      } catch (_) {
+        this.ctx = null;
+      }
     }
 
     toggleBgm() {
@@ -67,44 +71,48 @@
     }
 
     playTone(freq, duration, type, volume, target, delay = 0, slideTo = null) {
-      if (!this.ctx || !freq) return;
-      const now = this.ctx.currentTime + delay;
-      const osc = this.ctx.createOscillator();
-      const gain = this.ctx.createGain();
-      osc.type = type || 'square';
-      osc.frequency.setValueAtTime(freq, now);
-      if (slideTo) {
-        osc.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), now + duration);
-      }
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.linearRampToValueAtTime(volume, now + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-      osc.connect(gain);
-      gain.connect(target || this.sfxGain);
-      osc.start(now);
-      osc.stop(now + duration + 0.02);
+      if (!this.ctx || this.ctx.state !== 'running' || !freq) return;
+      try {
+        const now = this.ctx.currentTime + delay;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type || 'square';
+        osc.frequency.setValueAtTime(freq, now);
+        if (slideTo) {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(20, slideTo), now + duration);
+        }
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(volume, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        osc.connect(gain);
+        gain.connect(target || this.sfxGain);
+        osc.start(now);
+        osc.stop(now + duration + 0.02);
+      } catch (_) {}
     }
 
     playNoise(duration, volume, filterFreq = 1200) {
-      if (!this.ctx || !this.sfxEnabled) return;
-      const bufferSize = Math.floor(this.ctx.sampleRate * duration);
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
-      }
-      const src = this.ctx.createBufferSource();
-      src.buffer = buffer;
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.value = filterFreq;
-      const gain = this.ctx.createGain();
-      gain.gain.setValueAtTime(volume, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
-      src.connect(filter);
-      filter.connect(gain);
-      gain.connect(this.sfxGain);
-      src.start();
+      if (!this.ctx || this.ctx.state !== 'running' || !this.sfxEnabled) return;
+      try {
+        const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+        }
+        const src = this.ctx.createBufferSource();
+        src.buffer = buffer;
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = filterFreq;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(volume, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.sfxGain);
+        src.start();
+      } catch (_) {}
     }
 
     playSfx(name) {

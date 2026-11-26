@@ -264,9 +264,11 @@
       const gMin = Math.round(14 + baseLv * 5.2);
       const gMax = Math.round(gMin * 1.45);
       const speed = ai === 'charger' ? 70 : (ai === 'ranged' ? 54 : 62);
+      const hpPot = cid >= 7 ? 'pot_hp_xl' : (cid >= 4 ? 'pot_hp_l' : 'pot_hp_m');
+      const mpPot = cid >= 7 ? 'pot_mp_xl' : (cid >= 4 ? 'pot_mp_l' : 'pot_mp_s');
       const drops = [
         { id: cont.matId, rate: 0.42 },
-        { id: idx % 3 === 0 ? 'mat_enhance' : (idx % 2 === 0 ? 'pot_hp_m' : 'pot_mp_m'), rate: 0.2 }
+        { id: idx % 3 === 0 ? 'mat_enhance' : (idx % 2 === 0 ? hpPot : mpPot), rate: 0.2 }
       ];
       if (cont.bonusMatId && idx >= 12) drops.push({ id: cont.bonusMatId, rate: 0.25 });
 
