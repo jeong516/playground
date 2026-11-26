@@ -1,5 +1,5 @@
-// 영웅서기: 솔티아의 바람 — PWA Service Worker (v21)
-const CACHE_NAME = 'heroes-lore-pwa-v21';
+// 영웅서기: 솔티아의 바람 — PWA Service Worker (v22)
+const CACHE_NAME = 'heroes-lore-pwa-v22';
 const PRECACHE_URLS = [
   './',
   './index.html',

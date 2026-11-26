@@ -355,6 +355,7 @@
 
     getHeroStats() {
       const h = this.hero;
+      const m = (h && h.mastery) ? h.mastery : {};
       let str = h.base.str, agi = h.base.agi, vit = h.base.vit, intel = h.base.int;
       let bonusAtk = 0, bonusDef = 0, bonusHp = 0, bonusMp = 0, bonusCrit = 0;
       let lifesteal = 0, bonusSpd = 0, mpRegen = 0, skillDmg = 0;
@@ -370,21 +371,35 @@
         skillDmg += b.skillDmg || 0;
       });
 
-      const maxHp = 70 + vit * 14 + h.lv * 16 + bonusHp;
-      const maxMp = 32 + intel * 8 + h.lv * 6 + bonusMp;
-      let atk = Math.round(6 + str * 2.1 + agi * 0.5 + intel * 0.4 + h.lv * 2 + bonusAtk);
-      let magicAtk = Math.round(6 + intel * 2.4 + str * 0.6 + h.lv * 2 + bonusAtk);
+      const mAtkMult = 1 + (m.atkPct || 0) * 0.04;
+      const mHpMult = 1 + (m.defHpPct || 0) * 0.05;
+      const mDefMult = 1 + (m.defHpPct || 0) * 0.04;
+      skillDmg += (m.skillPct || 0) * 6;
+      mpRegen += (m.cdrSpd || 0) * 1.5;
+
+      const maxHp = Math.round((70 + vit * 14 + h.lv * 16 + bonusHp) * mHpMult);
+      const maxMp = Math.round(32 + intel * 8 + h.lv * 6 + bonusMp + (m.cdrSpd || 0) * 8);
+      let atk = Math.round((6 + str * 2.1 + agi * 0.5 + intel * 0.4 + h.lv * 2 + bonusAtk) * mAtkMult);
+      let magicAtk = Math.round((6 + intel * 2.4 + str * 0.6 + h.lv * 2 + bonusAtk) * mAtkMult);
       if (h.buffAtkTimer > 0) { atk = Math.round(atk * 1.35); magicAtk = Math.round(magicAtk * 1.35); }
-      let def = Math.round(3 + vit * 1.15 + agi * 0.25 + bonusDef);
+      let def = Math.round((3 + vit * 1.15 + agi * 0.25 + bonusDef) * mDefMult);
       if (h.buffDefTimer > 0) def = Math.round(def * 1.65);
 
-      let crit = clamp(6 + Math.round(agi * 0.85) + bonusCrit, 5, 80);
-      if (h.buffSpdTimer > 0) crit = clamp(crit + 25, 5, 95);
+      let crit = clamp(6 + Math.round(agi * 0.85) + bonusCrit + (m.critDmg || 0), 5, 95);
+      if (h.buffSpdTimer > 0) crit = clamp(crit + 25, 5, 98);
+      const critMult = 1.65 + (m.critDmg || 0) * 0.06;
 
-      let speed = 108 + Math.min(34, agi * 1.15) + Math.min(44, bonusSpd);
+      let speed = 108 + Math.min(34, agi * 1.15) + Math.min(44, bonusSpd) + Math.min(80, (m.cdrSpd || 0) * 2);
       if (h.buffSpdTimer > 0) speed *= 1.32;
 
-      return { str, agi, vit, int: intel, maxHp, maxMp, atk, magicAtk, def, crit, speed, lifesteal: Math.min(35, lifesteal), mpRegen, skillDmg };
+      const cdr = Math.min(0.50, (m.cdrSpd || 0) * 0.015);
+      const expBonus = (m.lootExp || 0) * 0.05;
+      const goldBonus = (m.lootExp || 0) * 0.06;
+
+      return {
+        str, agi, vit, int: intel, maxHp, maxMp, atk, magicAtk, def, crit, critMult,
+        speed, lifesteal: Math.min(35, lifesteal), mpRegen, skillDmg, cdr, expBonus, goldBonus
+      };
     }
 
     // --- SAVE / LOAD ---
@@ -405,6 +420,10 @@
       if (typeof h.towerBest !== 'number') h.towerBest = 0;
       if (typeof h.towerFloor !== 'number') h.towerFloor = 1;
       if (typeof h.buffAtkTimer !== 'number') h.buffAtkTimer = 0;
+      if (!h.mastery || typeof h.mastery !== 'object') h.mastery = {};
+      ['atkPct', 'skillPct', 'defHpPct', 'critDmg', 'cdrSpd', 'lootExp'].forEach((k) => {
+        if (typeof h.mastery[k] !== 'number' || !Number.isFinite(h.mastery[k])) h.mastery[k] = 0;
+      });
       const cls = DATA.CLASSES[h.classId];
       const skCount = cls ? cls.skills.length : 8;
       if (!Array.isArray(h.skillLevels)) h.skillLevels = [1];
@@ -1352,8 +1371,11 @@
       h.mp -= sk.mp;
       h.castTimer = 0.28;
       if (Math.abs(h.facingX) > 0.15) h.lastHorizDir = h.facingX < 0 ? 'left' : 'right';
-      h.skillCds[skillIdx] = Math.max(1.5, sk.cd * (1 - (skLv - 1) * 0.06));
-      const lvBoost = (1 + (skLv - 1) * 0.22) * (1 + (st.skillDmg || 0) / 100);
+      const skillCdr = Math.min(0.45, (skLv <= 5 ? (skLv - 1) * 0.06 : 0.24 + (skLv - 5) * 0.005));
+      const totalCdr = Math.min(0.68, skillCdr + (st.cdr || 0));
+      h.skillCds[skillIdx] = Math.max(0.8, sk.cd * (1 - totalCdr));
+      const rawLvMult = skLv <= 5 ? (1 + (skLv - 1) * 0.22) : (1.88 + (skLv - 5) * 0.10);
+      const lvBoost = rawLvMult * (1 + (st.skillDmg || 0) / 100);
       const basePower = (h.classId === 'runeblade' ? st.magicAtk : st.atk) * sk.mult * lvBoost;
       const ang = Math.atan2(h.facingY, h.facingX);
 
@@ -1530,7 +1552,7 @@
       if (!this.portraitEasterEggHeld && (m.hp <= 0 || m._dead)) return;
       const st = this.getHeroStats();
       const isCrit = forceCrit || Math.random() * 100 < st.crit;
-      const dmg = Math.max(2, Math.round((rawDmg * (0.9 + Math.random() * 0.2) - m.def * 0.55) * (isCrit ? 1.65 : 1)));
+      const dmg = Math.max(2, Math.round((rawDmg * (0.9 + Math.random() * 0.2) - m.def * 0.55) * (isCrit ? (st.critMult || 1.65) : 1)));
 
       m.hp -= dmg; m.hitFlash = 0.14;
       if (stunSec > 0 && !DATA.MONSTERS[m.typeId].isFinalBoss) m.stunTimer = Math.max(m.stunTimer, stunSec);
@@ -1561,9 +1583,10 @@
       m._dead = true;
       const def = DATA.MONSTERS[m.typeId];
       const map = DATA.MAPS[this.currentMapId];
-      const expGain = m.exp || def.exp;
-      const gMin = m.goldMin || def.gold[0];
-      const gMax = m.goldMax || def.gold[1];
+      const stKill = this.getHeroStats();
+      const expGain = Math.round((m.exp || def.exp) * (1 + (stKill.expBonus || 0)));
+      const gMin = Math.round((m.goldMin || def.gold[0]) * (1 + (stKill.goldBonus || 0)));
+      const gMax = Math.round((m.goldMax || def.gold[1]) * (1 + (stKill.goldBonus || 0)));
 
       this.audio.playSfx('kill');
       this.spawnParticles(m.x, m.y, def.isBoss ? '#f43f5e' : '#fbbf24', def.isBoss ? 38 : 16);
@@ -3310,18 +3333,19 @@
         <div class="stat-layout">
           <div class="panel-card">
             <h3>영웅 능력치 <span class="badge" style="color:#fde047">${h.gold.toLocaleString()} G</span></h3>
-            <div class="stat-row"><span>HP</span><strong>${Math.ceil(h.hp)} / ${st.maxHp}</strong></div>
-            <div class="stat-row"><span>MP</span><strong>${Math.ceil(h.mp)} / ${st.maxMp}</strong></div>
-            <div class="stat-row"><span>공격력 / 마력</span><strong>${st.atk} / ${st.magicAtk}</strong></div>
-            <div class="stat-row"><span>방어력</span><strong>${st.def}</strong></div>
-            <div class="stat-row"><span>치명타율</span><strong>${st.crit}%</strong></div>
+            <div class="stat-row"><span>HP</span><strong>${Math.ceil(h.hp).toLocaleString()} / ${st.maxHp.toLocaleString()}</strong></div>
+            <div class="stat-row"><span>MP</span><strong>${Math.ceil(h.mp).toLocaleString()} / ${st.maxMp.toLocaleString()}</strong></div>
+            <div class="stat-row"><span>공격력 / 마력</span><strong>${st.atk.toLocaleString()} / ${st.magicAtk.toLocaleString()}</strong></div>
+            <div class="stat-row"><span>방어력</span><strong>${st.def.toLocaleString()}</strong></div>
+            <div class="stat-row"><span>치명타 / 치명배율</span><strong>${st.crit}% · ${Math.round((st.critMult || 1.65) * 100)}%</strong></div>
+            <div class="stat-row"><span>스킬피해 / 쿨감</span><strong>+${st.skillDmg || 0}% · -${Math.round((st.cdr || 0) * 100)}%</strong></div>
             <div class="stat-row"><span>다음 레벨 EXP</span><strong>${h.exp.toLocaleString()} / ${h.expNext.toLocaleString()}</strong></div>
           </div>
           <div class="panel-card">
-            <h3>능력치 분배 <span class="badge">포인트 ${h.statPoints}</span></h3>
+            <h3>능력치 분배 <span class="badge">포인트 ${h.statPoints.toLocaleString()}</span></h3>
             ${['str', 'agi', 'vit', 'int'].map((k) => {
               const names = { str: '힘 (STR)', agi: '민첩 (AGI)', vit: '체력 (VIT)', int: '지능 (INT)' };
-              return `<div class="stat-row"><span>${names[k]}</span><span style="display:flex;align-items:center;gap:8px;"><strong>${st[k]}</strong><button class="rpg-btn primary small" data-add-stat="${k}" ${h.statPoints <= 0 ? 'disabled' : ''}>+1</button></span></div>`;
+              return `<div class="stat-row"><span>${names[k]}</span><span style="display:flex;align-items:center;gap:5px;"><strong>${st[k].toLocaleString()}</strong><button class="rpg-btn primary small" data-add-stat="${k}" data-amt="1" ${h.statPoints <= 0 ? 'disabled' : ''}>+1</button>${h.statPoints >= 10 ? `<button class="rpg-btn secondary small" data-add-stat="${k}" data-amt="10">+10</button>` : ''}</span></div>`;
             }).join('')}
           </div>
         </div>
@@ -3338,9 +3362,10 @@
       }
       body.querySelectorAll('[data-add-stat]').forEach((btn) => {
         btn.addEventListener('click', () => {
-          if (h.statPoints <= 0) return;
-          this.audio.playSfx('ui'); h.base[btn.dataset.addStat]++; h.statPoints--;
-          this.renderHeroModal(); this.refreshQuickBar();
+          const req = Math.min(h.statPoints, Number(btn.dataset.amt) || 1);
+          if (req <= 0) return;
+          this.audio.playSfx('ui'); h.base[btn.dataset.addStat] += req; h.statPoints -= req;
+          this.renderHeroModal(); this.refreshQuickBar(); this.saveGame(true);
         });
       });
     }
@@ -3505,23 +3530,96 @@
       const h = this.hero, cls = DATA.CLASSES[h.classId];
       this.ensureHeroExtras(h);
       const eq = h.equippedSkills;
+      const MAX_SKILL_LV = 50;
+      if (!this.skillViewFilter) this.skillViewFilter = 'all';
+
       const slotSummary = eq.map((skIdx, slot) => {
         const sk = cls.skills[skIdx];
         return `<span class="badge" style="color:${sk ? sk.color : '#fff'}">슬롯${slot + 1}: ${sk ? sk.name : '-'}</span>`;
       }).join(' ');
 
-      body.innerHTML = `
+      const MASTERY_DEFS = [
+        {
+          id: 'atkPct', icon: '⚔️', name: '파괴의 각인', color: '#fca5a5',
+          desc: '레벨당 공격력 · 마력 +4% 영구 증가 (무제한)',
+          cur: (lv) => `공격력·마력 +${lv * 4}%`
+        },
+        {
+          id: 'skillPct', icon: '🔥', name: '오의 극대화', color: '#fdba74',
+          desc: '레벨당 모든 액티브 스킬 피해 +6% 영구 증가 (무제한)',
+          cur: (lv) => `스킬 피해 +${lv * 6}%`
+        },
+        {
+          id: 'defHpPct', icon: '🛡️', name: '불멸의 가호', color: '#93c5fd',
+          desc: '레벨당 최대 HP +5% · 방어력 +4% 영구 증가 (무제한)',
+          cur: (lv) => `HP +${lv * 5}% · 방어 +${lv * 4}%`
+        },
+        {
+          id: 'critDmg', icon: '💥', name: '필살의 안광', color: '#fde047',
+          desc: '레벨당 치명타 피해 +6% · 치명타율 +1% (무제한)',
+          cur: (lv) => `치명피해 +${lv * 6}% · 치명률 +${lv}%`
+        },
+        {
+          id: 'cdrSpd', icon: '⚡', name: '신속의 바람', color: '#6ee7b7',
+          desc: '레벨당 쿨감 +1.5%(최대 50%) · 이속 +2 · MP회복 +1.5/s',
+          cur: (lv) => `쿨감 -${Math.min(50, (lv * 1.5).toFixed(1))}% · 이속 +${Math.min(80, lv * 2)}`
+        },
+        {
+          id: 'lootExp', icon: '💎', name: '영웅의 탐욕', color: '#d8b4fe',
+          desc: '레벨당 몬스터 경험치 +5% · 골드 획득 +6% (무제한)',
+          cur: (lv) => `EXP +${lv * 5}% · 골드 +${lv * 6}%`
+        }
+      ];
+
+      const totalMasteryLv = MASTERY_DEFS.reduce((s, d) => s + (h.mastery[d.id] || 0), 0);
+      const filterBar = this.renderFilterBar([
+        { id: 'all', label: '전체', icon: '✨' },
+        { id: 'mastery', label: '초월 패시브 (무제한)', icon: '✦' },
+        { id: 'active', label: '직업 스킬 (Lv.50)', icon: '⚔️' }
+      ], this.skillViewFilter, 'data-skill-filter');
+
+      const masteryCard = `
         <div class="panel-card" style="margin-bottom:10px;">
-          <h3>전투 슬롯 장착 현황 (총 ${cls.skills.length}종 중 4개 선택)</h3>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">${slotSummary}</div>
+          <h3>✦ 성좌의 초월 패시브 <span class="badge" style="color:#fde047">SP ${h.skillPoints.toLocaleString()} · 총 Lv.${totalMasteryLv}</span></h3>
+          <div class="item-sub" style="margin-bottom:9px;">남는 스킬 포인트를 무제한으로 투자해 영구 능력치를 끝없이 강화할 수 있습니다.</div>
+          <div class="list-grid">
+            ${MASTERY_DEFS.map((md) => {
+              const lv = h.mastery[md.id] || 0;
+              const sp = h.skillPoints;
+              return `
+                <div class="item-row" style="flex-direction:column;align-items:stretch;gap:7px;">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                    <div class="item-head-flex">
+                      <div class="item-icon-box" style="--rar-col:${md.color}">${md.icon}${lv > 0 ? `<span class="item-icon-enh">${lv}</span>` : ''}</div>
+                      <div class="item-info">
+                        <div class="item-title"><span style="color:${md.color}">${md.name}</span><span class="badge">Lv.${lv}</span></div>
+                        <div class="stat-chip-row"><span class="stat-chip">${md.cur(lv)}</span></div>
+                        <div class="item-sub">${md.desc}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="display:flex;justify-content:flex-end;gap:5px;flex-wrap:wrap;">
+                    <button class="rpg-btn primary small" data-up-mastery="${md.id}" data-amt="1" ${sp < 1 ? 'disabled' : ''}>+1</button>
+                    <button class="rpg-btn secondary small" data-up-mastery="${md.id}" data-amt="10" ${sp < 2 ? 'disabled' : ''}>+${sp >= 2 ? Math.min(10, sp) : 10}</button>
+                    <button class="rpg-btn secondary small" data-up-mastery="${md.id}" data-amt="all" ${sp < 1 ? 'disabled' : ''}>전부 (${sp})</button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
         </div>
+      `;
+
+      const activeCard = `
         <div class="panel-card">
-          <h3>${cls.name} 스킬 트리 <span class="badge">포인트 ${h.skillPoints}</span></h3>
+          <h3>${cls.name} 스킬 트리 (최대 Lv.${MAX_SKILL_LV}) <span class="badge" style="color:#fde047">SP ${h.skillPoints.toLocaleString()}</span></h3>
           <div class="list-grid">
             ${cls.skills.map((sk, idx) => {
               const lv = h.skillLevels[idx] || 0;
-              const canUp = h.lv >= sk.unlockLv && h.skillPoints > 0 && lv < 5;
+              const remain = MAX_SKILL_LV - lv;
+              const canUp = h.lv >= sk.unlockLv && h.skillPoints > 0 && remain > 0;
               const eqSlot = eq.indexOf(idx);
+              const multPct = lv > 0 ? Math.round((lv <= 5 ? (1 + (lv - 1) * 0.22) : (1.88 + (lv - 5) * 0.10)) * 100) : 100;
               const slotBtns = lv > 0 ? [0, 1, 2, 3].map((sl) => {
                 const isHere = eqSlot === sl;
                 return `<button class="rpg-btn ${isHere ? 'primary' : 'secondary'}" style="padding:4px 7px;font-size:10px;" data-equip-skill="${idx}" data-equip-slot="${sl}">${sl + 1}번${isHere ? '✓' : ''}</button>`;
@@ -3530,11 +3628,12 @@
                 <div class="item-row" style="flex-direction:column;align-items:stretch;gap:7px;${eqSlot >= 0 ? 'border-color:rgba(245,208,122,0.45);' : ''}">
                   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
                     <div class="item-info">
-                      <div class="item-title"><span style="color:${sk.color}">${sk.name}</span><span class="badge">${lv > 0 ? `Lv.${lv}/5` : `Lv.${sk.unlockLv} 해금`}</span><span style="color:#7dd3fc;font-size:11px;">MP ${sk.mp} · ${sk.cd}s</span></div>
+                      <div class="item-title"><span style="color:${sk.color}">${sk.name}</span><span class="badge">${lv > 0 ? `Lv.${lv}/${MAX_SKILL_LV}` : `Lv.${sk.unlockLv} 해금`}</span>${lv > 5 ? `<span class="cmp-tag up">초월 ${multPct}%</span>` : ''}<span style="color:#7dd3fc;font-size:11px;">MP ${sk.mp} · ${sk.cd}s</span></div>
                       <div class="item-sub">${sk.desc}</div>
                     </div>
                     <div class="item-actions">
-                      <button class="rpg-btn primary small" data-up-skill="${idx}" ${canUp ? '' : 'disabled'}>${lv >= 5 ? 'MAX' : (lv === 0 ? '습득' : '강화')}</button>
+                      <button class="rpg-btn primary small" data-up-skill="${idx}" data-amt="1" ${canUp ? '' : 'disabled'}>${lv >= MAX_SKILL_LV ? 'MAX' : (lv === 0 ? '습득' : '+1')}</button>
+                      ${canUp && h.skillPoints >= 2 && remain >= 2 ? `<button class="rpg-btn secondary small" data-up-skill="${idx}" data-amt="10">+${Math.min(10, remain, h.skillPoints)}</button>` : ''}
                     </div>
                   </div>
                   ${lv > 0 ? `<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;"><span style="font-size:10.5px;color:#b4bdd6;font-weight:700;">전투 슬롯:</span>${slotBtns}</div>` : ''}
@@ -3544,21 +3643,65 @@
           </div>
         </div>
       `;
+
+      body.innerHTML = `
+        <div class="panel-card" style="margin-bottom:10px;">
+          <h3>전투 슬롯 장착 현황 <span class="badge" style="color:#fde047">보유 SP ${h.skillPoints.toLocaleString()}</span></h3>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">${slotSummary}</div>
+          ${filterBar}
+        </div>
+        ${(this.skillViewFilter === 'all' || this.skillViewFilter === 'mastery') ? masteryCard : ''}
+        ${(this.skillViewFilter === 'all' || this.skillViewFilter === 'active') ? activeCard : ''}
+      `;
+
+      body.querySelectorAll('[data-skill-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          this.skillViewFilter = btn.dataset.skillFilter;
+          this.audio.playSfx('ui');
+          this.renderSkillsTab(body);
+        });
+      });
+
+      body.querySelectorAll('[data-up-mastery]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const key = btn.dataset.upMastery;
+          const raw = btn.dataset.amt;
+          const req = raw === 'all' ? h.skillPoints : Math.min(h.skillPoints, Number(raw) || 1);
+          if (req <= 0) return;
+          h.mastery[key] = (h.mastery[key] || 0) + req;
+          h.skillPoints -= req;
+          const stNow = this.getHeroStats();
+          h.hp = Math.min(stNow.maxHp, h.hp);
+          h.mp = Math.min(stNow.maxMp, h.mp);
+          this.audio.playSfx('enhanceOk');
+          this.renderHeroModal();
+          this.refreshQuickBar();
+          this.saveGame(true);
+        });
+      });
+
       body.querySelectorAll('[data-up-skill]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const idx = Number(btn.dataset.upSkill);
-          if (h.skillPoints <= 0 || h.skillLevels[idx] >= 5) return;
-          h.skillLevels[idx]++; h.skillPoints--;
-          this.audio.playSfx('enhanceOk'); this.buildSkillSlotUi(); this.renderHeroModal(); this.refreshQuickBar(); this.saveGame(true);
+          const cur = h.skillLevels[idx] || 0;
+          const req = Math.min(h.skillPoints, MAX_SKILL_LV - cur, Number(btn.dataset.amt) || 1);
+          if (req <= 0) return;
+          h.skillLevels[idx] = cur + req;
+          h.skillPoints -= req;
+          this.audio.playSfx('enhanceOk');
+          this.buildSkillSlotUi();
+          this.renderHeroModal();
+          this.refreshQuickBar();
+          this.saveGame(true);
         });
       });
+
       body.querySelectorAll('[data-equip-skill]').forEach((btn) => {
         btn.addEventListener('click', () => {
           const skIdx = Number(btn.dataset.equipSkill);
           const targetSlot = Number(btn.dataset.equipSlot);
           const prevSlot = h.equippedSkills.indexOf(skIdx);
           if (prevSlot >= 0) {
-            // Swap cleanly with existing slot so no duplicate skills exist!
             const oldInTarget = h.equippedSkills[targetSlot];
             h.equippedSkills[targetSlot] = skIdx;
             h.equippedSkills[prevSlot] = oldInTarget;
