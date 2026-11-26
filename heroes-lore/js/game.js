@@ -502,16 +502,21 @@
         const flScale = 0.72 + fl * 0.11 + Math.pow(1.032, fl) * 0.25;
         if (isBossFl) {
           const bPool = DATA.TOWER_BOSSES || [];
+          const cIdx = clamp(Math.floor((fl - 1) / 10), 0, (DATA.CONTINENTS ? DATA.CONTINENTS.length - 1 : 0));
+          const apexId = DATA.CONTINENTS && DATA.CONTINENTS[cIdx] && DATA.CONTINENTS[cIdx].bosses && DATA.CONTINENTS[cIdx].bosses[0];
           const bDef = bPool[Math.floor((fl / 5 - 1) % bPool.length)] || { name: '탑의 수호자', sprite: 'vargas' };
-          this.spawnMonster(bDef.sprite, 11.5 * TILE, 6.5 * TILE, 0, flScale * 0.9, `[${fl}층 보스] ${bDef.name}`, fl + 4);
+          const bossSprite = (fl % 10 === 0 && apexId && DATA.MONSTERS[apexId]) ? apexId : bDef.sprite;
+          this.spawnMonster(bossSprite, 11.5 * TILE, 6.5 * TILE, 0, flScale * 0.9, `[${fl}층 보스] ${bDef.name}`, fl + 4);
         } else {
-          const mobPool = ['slime_blue', 'boar', 'coral_crab', 'pirate_skel', 'goblin', 'goblin_shaman', 'wyvern', 'lava_golem', 'skeleton', 'golem', 'dark_mage', 'fallen_knight', 'abyss_assassin'];
-          const maxIdx = clamp(Math.floor(fl / 7) + 3, 3, mobPool.length);
-          const minIdx = clamp(maxIdx - 5, 0, mobPool.length - 1);
+          const cIdx = clamp(Math.floor((fl - 1) / 10), 0, (DATA.CONTINENTS ? DATA.CONTINENTS.length - 1 : 0));
+          const contMobs = DATA.CONTINENTS && DATA.CONTINENTS[cIdx] && DATA.CONTINENTS[cIdx].mobs;
+          const mobPool = (contMobs && contMobs.length > 0)
+            ? contMobs
+            : ['slime_blue', 'boar', 'coral_crab', 'pirate_skel', 'goblin', 'goblin_shaman', 'wyvern', 'lava_golem', 'skeleton', 'golem', 'dark_mage', 'fallen_knight', 'abyss_assassin'];
           const pts = [[6.5, 6.5], [16.5, 6.5], [8.5, 9.5], [14.5, 9.5], [11.5, 5.5]];
           const count = fl >= 30 ? 5 : 4;
           for (let i = 0; i < count; i++) {
-            const pick = mobPool[randInt(minIdx, maxIdx - 1)];
+            const pick = mobPool[(fl * 2 + i * 3) % mobPool.length];
             this.spawnMonster(pick, pts[i][0] * TILE, pts[i][1] * TILE, i, flScale, null, fl + 2);
           }
         }
@@ -2119,54 +2124,195 @@
             : ((biome === 'desert' || biome === 'coast') ? tiles.desertPath
               : ((biome === 'sky' || biome === 'eternal') ? tiles.skyPath
                 : (biome === 'void' ? tiles.voidPath : null)))));
+      const biomeLandKey = biome === 'snow' ? 'snow'
+        : ((biome === 'canyon' || biome === 'dragon') ? 'redRock'
+          : (biome === 'swamp' ? 'swamp'
+            : ((biome === 'desert' || biome === 'coast') ? 'sand'
+              : (biome === 'sky' ? 'skyFloor'
+                : (biome === 'void' ? 'voidFloor'
+                  : (biome === 'forest' ? 'darkGrass' : 'grass'))))));
 
       const rowsH = map.layout.length;
       const colsW = map.layout[0].length;
-      const txStart = Math.max(0, Math.floor((this.camX - TILE) / TILE));
-      const txEnd = Math.min(colsW - 1, Math.ceil((this.camX + this.viewW + TILE) / TILE));
-      const tyStart = Math.max(0, Math.floor((this.camY - TILE) / TILE));
-      const tyEnd = Math.min(rowsH - 1, Math.ceil((this.camY + this.viewH + TILE) / TILE));
+      const txStart = Math.max(0, Math.floor((this.camX - TILE * 2) / TILE));
+      const txEnd = Math.min(colsW - 1, Math.ceil((this.camX + this.viewW + TILE * 2) / TILE));
+      const tyStart = Math.max(0, Math.floor((this.camY - TILE * 2) / TILE));
+      const tyEnd = Math.min(rowsH - 1, Math.ceil((this.camY + this.viewH + TILE * 2) / TILE));
       const tileAt = (x, y) => (y >= 0 && y < rowsH && x >= 0 && x < colsW) ? map.layout[y][x] : null;
-      const isRoadCh = (c) => c === 'p' || c === 'c';
+      const isRoadLike = (c) => c === 'p' || c === 'c' || c === 'F' || c === '=';
       const isCastWall = (c) => c && (c === 'T' || c === 'D' || c === 'P' || c === 'M' || c === 'C' || c === 'I' || c === 'V' || c === 'W' || c === 'R' || c === '#' || c === 'X' || c === 'B');
       const mapSeed = (map.zoneNum || 0) * 131 + (map.continentId || 0) * 37 + map.id.charCodeAt(0);
+
+      const roundPath = (x, y, w, h, tl, tr, br, bl) => {
+        ctx.beginPath();
+        ctx.moveTo(x + tl, y);
+        ctx.lineTo(x + w - tr, y);
+        if (tr) ctx.quadraticCurveTo(x + w, y, x + w, y + tr);
+        ctx.lineTo(x + w, y + h - br);
+        if (br) ctx.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
+        ctx.lineTo(x + bl, y + h);
+        if (bl) ctx.quadraticCurveTo(x, y + h, x, y + h - bl);
+        ctx.lineTo(x, y + tl);
+        if (tl) ctx.quadraticCurveTo(x, y, x + tl, y);
+        ctx.closePath();
+      };
+
+      const grandFountains = [];
+      const grandHouses = [];
+
+      // Detect 3x3 town houses so we draw cohesive cottages instead of raw blocks
+      const isHouseCell = (tx, ty) => {
+        const c = tileAt(tx, ty);
+        if (c !== 'R' && c !== 'W' && c !== 'd') return false;
+        for (let oy = 0; oy <= 2; oy++) {
+          for (let ox = 0; ox <= 2; ox++) {
+            const rx = tx - ox, ry = ty - oy;
+            if (tileAt(rx, ry) === 'R' && tileAt(rx + 1, ry) === 'R' && tileAt(rx + 2, ry) === 'R' &&
+                tileAt(rx, ry + 1) === 'W' && tileAt(rx + 1, ry + 2) === 'd') {
+              return true;
+            }
+          }
+        }
+        return false;
+      };
 
       for (let ty = tyStart; ty <= tyEnd; ty++) {
         const row = map.layout[ty];
         for (let tx = txStart; tx <= txEnd; tx++) {
           const ch = row[tx], px = tx * TILE, py = ty * TILE;
-          let base = pickV('grass', tx, ty);
+          let base = pickV(biomeLandKey, tx, ty);
           if (ch === ';' || ch === 'D') base = pickV('darkGrass', tx, ty);
           else if (ch === 's' || ch === 'P') base = pickV('sand', tx, ty);
-          else if (ch === 'r' || ch === 'C' || ch === 'L') base = pickV('redRock', tx, ty);
+          else if (ch === 'r' || ch === 'C') base = pickV('redRock', tx, ty);
           else if (ch === 'b' || ch === 'B') base = tiles.citadelFloor;
           else if (ch === '_' || ch === '*' || ch === '#') base = tiles.ruinFloor;
           else if (ch === 'a' || ch === 'X') base = tiles.altarFloor;
-          else if (ch === 'c' || ch === 'F') base = biomeRoad || tiles.cobble;
           else if (ch === 'n' || ch === 'I') base = pickV('snow', tx, ty);
           else if (ch === 'k' || ch === 'K') base = pickV('skyFloor', tx, ty);
           else if (ch === 'm' || ch === 'M') base = pickV('swamp', tx, ty);
           else if (ch === 'v' || ch === 'V') base = pickV('voidFloor', tx, ty);
           ctx.drawImage(base, px, py, TILE + 0.4, TILE + 0.4);
 
+          // Collect cohesive 3x3 houses & 2x2 fountains (drawn in architectural pass below)
+          if (ch === 'R' && tileAt(tx - 1, ty) !== 'R' && tileAt(tx + 1, ty) === 'R' && tileAt(tx + 2, ty) === 'R' &&
+              tileAt(tx, ty + 1) === 'W' && tileAt(tx + 1, ty + 2) === 'd') {
+            grandHouses.push({ tx, ty });
+            continue;
+          }
+          if (isHouseCell(tx, ty)) continue;
+
+          if (ch === 'F') {
+            // Draw road plaza underneath fountain
+            const rd = biomeRoad || tiles.cobble;
+            ctx.drawImage(rd, px, py, TILE + 0.4, TILE + 0.4);
+            if (tileAt(tx - 1, ty) !== 'F' && tileAt(tx, ty - 1) !== 'F') {
+              grandFountains.push({ tx, ty, is2x2: tileAt(tx + 1, ty) === 'F' && tileAt(tx, ty + 1) === 'F' });
+            }
+            continue;
+          }
+
+          // Organic Rounded Auto-Tiled Roads ('p' and 'c')
+          if (ch === 'p' || ch === 'c') {
+            const n = tileAt(tx, ty - 1), s = tileAt(tx, ty + 1), w = tileAt(tx - 1, ty), e = tileAt(tx + 1, ty);
+            const rN = isRoadLike(n), rS = isRoadLike(s), rW = isRoadLike(w), rE = isRoadLike(e);
+            const R = 8.5;
+            const tl = (!rN && !rW) ? R : 0;
+            const tr = (!rN && !rE) ? R : 0;
+            const br = (!rS && !rE) ? R : 0;
+            const bl = (!rS && !rW) ? R : 0;
+            const padT = rN ? 0 : 1.4, padB = rS ? 0 : 1.4, padL = rW ? 0 : 1.4, padR = rE ? 0 : 1.4;
+            const roadTex = ch === 'c' ? (biomeRoad || tiles.cobble) : (biomeRoad || tiles.path);
+            ctx.save();
+            roundPath(px + padL, py + padT, TILE + 0.4 - padL - padR, TILE + 0.4 - padT - padB, tl, tr, br, bl);
+            ctx.clip();
+            ctx.drawImage(roadTex, px, py, TILE + 0.4, TILE + 0.4);
+            ctx.restore();
+            // Subtle sculpted curb ONLY along exposed outer road edges (0 interior seams!)
+            if (!rN || !rS || !rW || !rE) {
+              const x0 = px + padL, y0 = py + padT, x1 = px + TILE - padR, y1 = py + TILE - padB;
+              ctx.save();
+              ctx.strokeStyle = (biome === 'snow' || biome === 'sky') ? 'rgba(100,130,175,0.34)' : 'rgba(24,18,12,0.28)';
+              ctx.lineWidth = 1.25;
+              ctx.lineCap = 'round';
+              ctx.beginPath();
+              if (!rN) { ctx.moveTo(x0 + tl, y0); ctx.lineTo(x1 - tr, y0); }
+              if (!rS) { ctx.moveTo(x0 + bl, y1); ctx.lineTo(x1 - br, y1); }
+              if (!rW) { ctx.moveTo(x0, y0 + tl); ctx.lineTo(x0, y1 - bl); }
+              if (!rE) { ctx.moveTo(x1, y0 + tr); ctx.lineTo(x1, y1 - br); }
+              if (tl > 0) { ctx.moveTo(x0, y0 + tl); ctx.quadraticCurveTo(x0, y0, x0 + tl, y0); }
+              if (tr > 0) { ctx.moveTo(x1 - tr, y0); ctx.quadraticCurveTo(x1, y0, x1, y0 + tr); }
+              if (br > 0) { ctx.moveTo(x1, y1 - br); ctx.quadraticCurveTo(x1, y1, x1 - br, y1); }
+              if (bl > 0) { ctx.moveTo(x0 + bl, y1); ctx.quadraticCurveTo(x0, y1, x0, y1 - bl); }
+              ctx.stroke();
+              ctx.restore();
+            }
+            // Drop shadow cast onto road by walls/trees/buildings above & left
+            if (isCastWall(n)) {
+              const sg = ctx.createLinearGradient(px, py, px, py + 7);
+              sg.addColorStop(0, 'rgba(6,10,22,0.32)'); sg.addColorStop(1, 'rgba(6,10,22,0)');
+              ctx.fillStyle = sg; ctx.fillRect(px, py, TILE, 7);
+            }
+            if (isCastWall(w)) {
+              const sg = ctx.createLinearGradient(px, py, px + 5, py);
+              sg.addColorStop(0, 'rgba(6,10,22,0.2)'); sg.addColorStop(1, 'rgba(6,10,22,0)');
+              ctx.fillStyle = sg; ctx.fillRect(px, py, 5, TILE);
+            }
+            continue;
+          }
+
+          // Organic Rounded Shoreline Water ('~') & Lava ('L')
+          if (ch === '~' || ch === 'L') {
+            const isWater = ch === '~';
+            const same = (c) => isWater ? (c === '~' || c === '=') : (c === 'L');
+            const n = tileAt(tx, ty - 1), s = tileAt(tx, ty + 1), w = tileAt(tx - 1, ty), e = tileAt(tx + 1, ty);
+            const sN = same(n), sS = same(s), sW = same(w), sE = same(e);
+            const R = 9.5;
+            const tl = (!sN && !sW) ? R : 0, tr = (!sN && !sE) ? R : 0;
+            const br = (!sS && !sE) ? R : 0, bl = (!sS && !sW) ? R : 0;
+            const padT = sN ? 0 : 2.2, padB = sS ? 0 : 2.0, padL = sW ? 0 : 2.0, padR = sE ? 0 : 2.0;
+            const tex = isWater ? (waterFrame ? tiles.water1 : tiles.water0) : (waterFrame ? (tiles.lava1 || tiles.lava) : (tiles.lava0 || tiles.lava));
+            // Outer bank ring
+            if (!sN || !sS || !sW || !sE) {
+              ctx.save();
+              roundPath(px + Math.max(0, padL - 1.5), py + Math.max(0, padT - 1.5), TILE - Math.max(0, padL - 1.5) - Math.max(0, padR - 1.5), TILE - Math.max(0, padT - 1.5) - Math.max(0, padB - 1.5), tl ? tl + 1.5 : 0, tr ? tr + 1.5 : 0, br ? br + 1.5 : 0, bl ? bl + 1.5 : 0);
+              ctx.fillStyle = isWater
+                ? (biome === 'snow' ? 'rgba(224,242,254,0.75)' : (biome === 'swamp' ? 'rgba(20,44,36,0.75)' : 'rgba(232,216,174,0.62)'))
+                : 'rgba(48,14,10,0.78)';
+              ctx.fill();
+              ctx.restore();
+            }
+            ctx.save();
+            roundPath(px + padL, py + padT, TILE + 0.4 - padL - padR, TILE + 0.4 - padT - padB, tl, tr, br, bl);
+            ctx.clip();
+            ctx.drawImage(tex, px, py, TILE + 0.4, TILE + 0.4);
+            // Soft inner shoreline foam / magma glow
+            if (!sN) {
+              ctx.fillStyle = isWater ? (waterFrame ? 'rgba(224,242,254,0.5)' : 'rgba(186,230,253,0.36)') : 'rgba(253,186,116,0.45)';
+              ctx.fillRect(px, py + padT, TILE, 2.2);
+            }
+            // Occasional decorative lily pad on peaceful water
+            if (isWater && (biome === 'meadow' || biome === 'swamp') && (((tx * 73 + ty * 31) ^ mapSeed) & 15) === 0 && sN && sS && sW && sE) {
+              ctx.fillStyle = biome === 'swamp' ? '#15803d' : '#22c55e';
+              ctx.beginPath(); ctx.arc(px + 12, py + 12, 4.5, 0.3, Math.PI * 1.9); ctx.lineTo(px + 12, py + 12); ctx.closePath(); ctx.fill();
+              ctx.fillStyle = '#fda4af'; ctx.beginPath(); ctx.arc(px + 11, py + 10.5, 1.5, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+            continue;
+          }
+
           let overlay = null;
           if (ch === ',') overlay = tiles.flower;
-          else if (ch === 'p') overlay = biomeRoad || tiles.path;
-          else if (ch === 'c') overlay = biomeRoad || tiles.cobble;
-          else if (ch === '~') overlay = waterFrame ? tiles.water1 : tiles.water0;
           else if (ch === '=') overlay = tiles.bridge;
           else if (ch === 'T') overlay = tiles.tree;
           else if (ch === 'D') overlay = tiles.darkTree;
           else if (ch === 'R') overlay = tiles.houseRoof;
           else if (ch === 'W') overlay = tiles.houseWall;
           else if (ch === 'd') overlay = tiles.houseDoor;
-          else if (ch === 'F') overlay = waterFrame ? tiles.fountain1 : tiles.fountain0;
           else if (ch === '#') overlay = tiles.wall;
           else if (ch === '*') overlay = tiles.ruinRune;
           else if (ch === 'X') overlay = tiles.altarWall;
           else if (ch === 'P') overlay = tiles.palm;
           else if (ch === 'C') overlay = tiles.canyonWall;
-          else if (ch === 'L') overlay = waterFrame ? (tiles.lava1 || tiles.lava) : (tiles.lava0 || tiles.lava);
           else if (ch === 'B') overlay = tiles.citadelWall;
           else if (ch === 'I') overlay = tiles.iceWall;
           else if (ch === 'K') overlay = tiles.skyVoid;
@@ -2174,93 +2320,166 @@
           else if (ch === 'V') overlay = tiles.voidWall;
           if (overlay) ctx.drawImage(overlay, px, py, TILE + 0.4, TILE + 0.4);
 
-          // Organic Shoreline / Lava Crust / Floating Sky Island Cliff Rim
-          if (ch === '~') {
-            const n = tileAt(tx, ty - 1), s = tileAt(tx, ty + 1), w = tileAt(tx - 1, ty), e = tileAt(tx + 1, ty);
-            const isBank = (c) => c && c !== '~' && c !== '=';
-            const foam = waterFrame ? 'rgba(224,242,254,0.68)' : 'rgba(186,230,253,0.52)';
-            const shore = biome === 'snow' ? 'rgba(224,242,254,0.75)' : (biome === 'swamp' ? 'rgba(22,48,40,0.72)' : 'rgba(232,218,176,0.55)');
-            if (isBank(n)) { ctx.fillStyle = shore; ctx.fillRect(px, py, TILE, 3.2); ctx.fillStyle = foam; ctx.fillRect(px, py + 3, TILE, 1.5); }
-            if (isBank(s)) { ctx.fillStyle = shore; ctx.fillRect(px, py + TILE - 2.6, TILE, 2.6); }
-            if (isBank(w)) { ctx.fillStyle = shore; ctx.fillRect(px, py, 2.8, TILE); ctx.fillStyle = foam; ctx.fillRect(px + 2.6, py, 1.2, TILE); }
-            if (isBank(e)) { ctx.fillStyle = shore; ctx.fillRect(px + TILE - 2.8, py, 2.8, TILE); }
-          } else if (ch === 'L') {
-            const n = tileAt(tx, ty - 1), s = tileAt(tx, ty + 1), w = tileAt(tx - 1, ty), e = tileAt(tx + 1, ty);
-            const crust = 'rgba(48,14,10,0.72)', glow = 'rgba(253,186,116,0.45)';
-            if (n && n !== 'L') { ctx.fillStyle = crust; ctx.fillRect(px, py, TILE, 3); ctx.fillStyle = glow; ctx.fillRect(px, py + 3, TILE, 1.5); }
-            if (s && s !== 'L') { ctx.fillStyle = crust; ctx.fillRect(px, py + TILE - 2.6, TILE, 2.6); }
-            if (w && w !== 'L') { ctx.fillStyle = crust; ctx.fillRect(px, py, 2.8, TILE); }
-            if (e && e !== 'L') { ctx.fillStyle = crust; ctx.fillRect(px + TILE - 2.8, py, 2.8, TILE); }
-          } else if (ch === 'K') {
+          if (ch === 'K') {
             const n = tileAt(tx, ty - 1);
             if (n && n !== 'K') {
-              // 3D floating marble island cliff underside with gilded trim
               ctx.fillStyle = '#cbd5e1'; ctx.fillRect(px, py, TILE, 5.5);
               ctx.fillStyle = '#94a3b8'; ctx.fillRect(px, py + 5.5, TILE, 3.5);
-              ctx.fillStyle = 'rgba(253,224,71,0.75)'; ctx.fillRect(px, py, TILE, 1.4);
+              ctx.fillStyle = 'rgba(253,224,71,0.78)'; ctx.fillRect(px, py, TILE, 1.4);
             }
           } else if (!DATA.SOLID_TILES.has(ch)) {
-            // Soft 2.5D ambient occlusion drop shadows cast by walls/trees/buildings above & left
             const n = tileAt(tx, ty - 1), w = tileAt(tx - 1, ty);
             if (isCastWall(n)) {
               const sg = ctx.createLinearGradient(px, py, px, py + 7);
-              sg.addColorStop(0, 'rgba(6,10,22,0.34)');
-              sg.addColorStop(1, 'rgba(6,10,22,0)');
+              sg.addColorStop(0, 'rgba(6,10,22,0.34)'); sg.addColorStop(1, 'rgba(6,10,22,0)');
               ctx.fillStyle = sg; ctx.fillRect(px, py, TILE, 7);
             }
             if (isCastWall(w)) {
               const sg = ctx.createLinearGradient(px, py, px + 5, py);
-              sg.addColorStop(0, 'rgba(6,10,22,0.22)');
-              sg.addColorStop(1, 'rgba(6,10,22,0)');
+              sg.addColorStop(0, 'rgba(6,10,22,0.22)'); sg.addColorStop(1, 'rgba(6,10,22,0)');
               ctx.fillStyle = sg; ctx.fillRect(px, py, 5, TILE);
             }
-            // Soft inlaid curb border where road meets natural floor
-            if (isRoadCh(ch)) {
-              const s = tileAt(tx, ty + 1), e = tileAt(tx + 1, ty);
-              const curb = 'rgba(15,20,32,0.22)';
-              if (n && !isRoadCh(n) && !DATA.SOLID_TILES.has(n)) { ctx.fillStyle = curb; ctx.fillRect(px, py, TILE, 1.4); }
-              if (s && !isRoadCh(s) && !DATA.SOLID_TILES.has(s)) { ctx.fillStyle = curb; ctx.fillRect(px, py + TILE - 1.4, TILE, 1.4); }
-              if (w && !isRoadCh(w) && !DATA.SOLID_TILES.has(w)) { ctx.fillStyle = curb; ctx.fillRect(px, py, 1.4, TILE); }
-              if (e && !isRoadCh(e) && !DATA.SOLID_TILES.has(e)) { ctx.fillStyle = curb; ctx.fillRect(px + TILE - 1.4, py, 1.4, TILE); }
-            } else {
-              // Deterministic handcrafted scenic micro-props on open ground
-              const h = (((tx * 92837111) ^ (ty * 689287499) ^ (mapSeed * 283923481)) >>> 0);
-              if (ch === '.' && h % 11 === 0) {
-                const col = (h & 4) ? '#fef08a' : ((h & 8) ? '#fda4af' : '#e0f2fe');
-                ctx.fillStyle = col;
-                ctx.beginPath();
-                ctx.arc(px + 7 + (h % 9), py + 8 + ((h >> 4) % 8), 1.6, 0, Math.PI * 2);
-                ctx.arc(px + 13 + (h % 6), py + 13 + ((h >> 5) % 6), 1.3, 0, Math.PI * 2);
-                ctx.fill();
-              } else if (ch === 'n' && h % 10 === 0) {
-                const sx = px + 6 + (h % 12), sy = py + 6 + ((h >> 4) % 12);
-                ctx.fillStyle = 'rgba(255,255,255,0.88)';
-                ctx.fillRect(sx - 2, sy, 4, 1); ctx.fillRect(sx, sy - 2, 1, 4);
-              } else if (ch === 'm' && h % 10 === 0) {
-                const sx = px + 7 + (h % 10), sy = py + 10 + ((h >> 4) % 8);
-                ctx.fillStyle = (h & 4) ? 'rgba(52,211,153,0.72)' : 'rgba(192,132,252,0.72)';
-                ctx.beginPath(); ctx.arc(sx, sy, 2.2, Math.PI, Math.PI * 2); ctx.fill();
-              } else if (ch === 'r' && h % 12 === 0) {
-                const sx = px + 8 + (h % 9), sy = py + 9 + ((h >> 4) % 8);
-                ctx.fillStyle = 'rgba(251,146,60,0.52)';
-                ctx.beginPath(); ctx.ellipse(sx, sy, 2.6, 1.3, 0.3, 0, Math.PI * 2); ctx.fill();
-              } else if (ch === 's' && h % 12 === 0) {
-                const sx = px + 8 + (h % 9), sy = py + 9 + ((h >> 4) % 8);
-                ctx.fillStyle = (h & 4) ? '#fda4af' : '#fef3c7';
-                ctx.beginPath(); ctx.arc(sx, sy, 1.8, 0, Math.PI * 2); ctx.fill();
-              } else if (ch === 'k' && h % 11 === 0) {
-                const sx = px + 12, sy = py + 12;
-                ctx.strokeStyle = 'rgba(234,179,8,0.34)'; ctx.lineWidth = 0.9;
-                ctx.beginPath(); ctx.moveTo(sx - 4, sy); ctx.lineTo(sx, sy - 4); ctx.lineTo(sx + 4, sy); ctx.lineTo(sx, sy + 4); ctx.closePath(); ctx.stroke();
-              } else if (ch === 'v' && h % 8 === 0) {
-                const sx = px + 5 + (h % 14), sy = py + 5 + ((h >> 4) % 14);
-                const tw = 0.4 + 0.5 * Math.sin(this.time * 3 + h);
-                ctx.fillStyle = `rgba(186,230,253,${tw.toFixed(2)})`;
-                ctx.beginPath(); ctx.arc(sx, sy, 1.3, 0, Math.PI * 2); ctx.fill();
-              }
+            // Deterministic handcrafted scenic micro-props on open ground
+            const h = (((tx * 92837111) ^ (ty * 689287499) ^ (mapSeed * 283923481)) >>> 0);
+            if (ch === '.' && h % 10 === 0) {
+              const col = (h & 4) ? '#fef08a' : ((h & 8) ? '#fda4af' : '#e0f2fe');
+              ctx.fillStyle = col;
+              ctx.beginPath();
+              ctx.arc(px + 7 + (h % 9), py + 8 + ((h >> 4) % 8), 1.6, 0, Math.PI * 2);
+              ctx.arc(px + 13 + (h % 6), py + 13 + ((h >> 5) % 6), 1.3, 0, Math.PI * 2);
+              ctx.fill();
+            } else if (ch === 'n' && h % 10 === 0) {
+              const sx = px + 6 + (h % 12), sy = py + 6 + ((h >> 4) % 12);
+              ctx.fillStyle = 'rgba(255,255,255,0.88)';
+              ctx.fillRect(sx - 2, sy, 4, 1); ctx.fillRect(sx, sy - 2, 1, 4);
+            } else if (ch === 'm' && h % 10 === 0) {
+              const sx = px + 7 + (h % 10), sy = py + 10 + ((h >> 4) % 8);
+              ctx.fillStyle = (h & 4) ? 'rgba(52,211,153,0.72)' : 'rgba(192,132,252,0.72)';
+              ctx.beginPath(); ctx.arc(sx, sy, 2.2, Math.PI, Math.PI * 2); ctx.fill();
+            } else if (ch === 'r' && h % 12 === 0) {
+              const sx = px + 8 + (h % 9), sy = py + 9 + ((h >> 4) % 8);
+              ctx.fillStyle = 'rgba(251,146,60,0.52)';
+              ctx.beginPath(); ctx.ellipse(sx, sy, 2.6, 1.3, 0.3, 0, Math.PI * 2); ctx.fill();
+            } else if (ch === 's' && h % 12 === 0) {
+              const sx = px + 8 + (h % 9), sy = py + 9 + ((h >> 4) % 8);
+              ctx.fillStyle = (h & 4) ? '#fda4af' : '#fef3c7';
+              ctx.beginPath(); ctx.arc(sx, sy, 1.8, 0, Math.PI * 2); ctx.fill();
+            } else if (ch === 'k' && h % 11 === 0) {
+              const sx = px + 12, sy = py + 12;
+              ctx.strokeStyle = 'rgba(234,179,8,0.34)'; ctx.lineWidth = 0.9;
+              ctx.beginPath(); ctx.moveTo(sx - 4, sy); ctx.lineTo(sx, sy - 4); ctx.lineTo(sx + 4, sy); ctx.lineTo(sx, sy + 4); ctx.closePath(); ctx.stroke();
+            } else if (ch === 'v' && h % 8 === 0) {
+              const sx = px + 5 + (h % 14), sy = py + 5 + ((h >> 4) % 14);
+              const tw = 0.4 + 0.5 * Math.sin(this.time * 3 + h);
+              ctx.fillStyle = `rgba(186,230,253,${tw.toFixed(2)})`;
+              ctx.beginPath(); ctx.arc(sx, sy, 1.3, 0, Math.PI * 2); ctx.fill();
             }
           }
         }
+      }
+
+      // Cohesive 3x3 Biome-Themed RPG Town Cottages & Pavilions!
+      const housePalette = {
+        meadow:  { roofA: '#c2410c', roofB: '#7c2d12', wallA: '#f5ead6', wallB: '#d6c4a3', trim: '#78350f', win: '#fef08a' },
+        coast:   { roofA: '#0284c7', roofB: '#0c4a6e', wallA: '#f8fafc', wallB: '#dbeafe', trim: '#0369a1', win: '#fde68a' },
+        canyon:  { roofA: '#7f1d1d', roofB: '#450a0a', wallA: '#57433c', wallB: '#3b2b26', trim: '#fb923c', win: '#fdba74' },
+        snow:    { roofA: '#e0f2fe', roofB: '#93c5fd', wallA: '#d6c3ab', wallB: '#a89074', trim: '#475569', win: '#fef08a' },
+        desert:  { roofA: '#d97706', roofB: '#92400e', wallA: '#f6e4bc', wallB: '#ddc18b', trim: '#b45309', win: '#fde047' },
+        sky:     { roofA: '#38bdf8', roofB: '#1d4ed8', wallA: '#ffffff', wallB: '#e2e8f0', trim: '#eab308', win: '#fef9c3' },
+        swamp:   { roofA: '#581c87', roofB: '#3b0764', wallA: '#475569', wallB: '#334155', trim: '#34d399', win: '#6ee7b7' },
+        dragon:  { roofA: '#9f1239', roofB: '#4c0519', wallA: '#44403c', wallB: '#292524', trim: '#fbbf24', win: '#fda4af' },
+        void:    { roofA: '#4338ca', roofB: '#1e1b4b', wallA: '#312e81', wallB: '#1e1b4b', trim: '#38bdf8', win: '#bae6fd' },
+        eternal: { roofA: '#eab308', roofB: '#a16207', wallA: '#fffbeb', wallB: '#fef3c7', trim: '#d97706', win: '#fef08a' }
+      }[biome] || { roofA: '#c2410c', roofB: '#7c2d12', wallA: '#f5ead6', wallB: '#d6c4a3', trim: '#78350f', win: '#fef08a' };
+
+      for (const hb of grandHouses) {
+        const hx = hb.tx * TILE, hy = hb.ty * TILE, hw = TILE * 3, hh = TILE * 3;
+        ctx.save();
+        // Ground shadow
+        ctx.fillStyle = 'rgba(6,10,22,0.34)';
+        roundPath(hx + 3, hy + hh - 6, hw + 2, 10, 4, 4, 5, 5); ctx.fill();
+        // Main house body
+        const wg = ctx.createLinearGradient(hx, hy + 24, hx, hy + hh);
+        wg.addColorStop(0, housePalette.wallA); wg.addColorStop(1, housePalette.wallB);
+        ctx.fillStyle = wg;
+        roundPath(hx + 4, hy + 24, hw - 8, hh - 26, 2, 2, 4, 4); ctx.fill();
+        ctx.strokeStyle = 'rgba(15,23,42,0.55)'; ctx.lineWidth = 1.3; ctx.stroke();
+        // Timber corner columns
+        ctx.fillStyle = housePalette.trim;
+        ctx.fillRect(hx + 5, hy + 26, 3, hh - 28);
+        ctx.fillRect(hx + hw - 8, hy + 26, 3, hh - 28);
+        // Roof eaves shadow
+        ctx.fillStyle = 'rgba(10,14,26,0.28)';
+        ctx.fillRect(hx + 4, hy + 27, hw - 8, 5);
+        // Pitched Roof
+        const rg = ctx.createLinearGradient(hx, hy, hx, hy + 30);
+        rg.addColorStop(0, housePalette.roofA); rg.addColorStop(1, housePalette.roofB);
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.moveTo(hx - 2, hy + 28); ctx.lineTo(hx + 10, hy + 4); ctx.lineTo(hx + hw - 10, hy + 4); ctx.lineTo(hx + hw + 2, hy + 28);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(15,23,42,0.68)'; ctx.lineWidth = 1.5; ctx.stroke();
+        // Roof ridge highlight & shingle lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(hx + 11, hy + 7); ctx.lineTo(hx + hw - 11, hy + 7); ctx.stroke();
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(hx + 6, hy + 15); ctx.lineTo(hx + hw - 6, hy + 15);
+        ctx.moveTo(hx + 2, hy + 22); ctx.lineTo(hx + hw - 2, hy + 22);
+        ctx.stroke();
+        // Glowing arched windows (left & right)
+        [hx + 13, hx + hw - 23].forEach((wx) => {
+          ctx.fillStyle = housePalette.win;
+          roundPath(wx, hy + 36, 10, 11, 5, 5, 1, 1); ctx.fill();
+          ctx.strokeStyle = housePalette.trim; ctx.lineWidth = 1.3; ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(wx + 5, hy + 36); ctx.lineTo(wx + 5, hy + 47); ctx.moveTo(wx, hy + 42); ctx.lineTo(wx + 10, hy + 42); ctx.stroke();
+        });
+        // Arched wooden front door + awning
+        ctx.fillStyle = '#5c3416';
+        roundPath(hx + hw / 2 - 7.5, hy + hh - 21, 15, 19, 7, 7, 1, 1); ctx.fill();
+        ctx.strokeStyle = housePalette.trim; ctx.lineWidth = 1.4; ctx.stroke();
+        ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(hx + hw / 2 + 4, hy + hh - 10, 1.4, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+
+      // Single Grand 2x2 Ornate Marble Town Fountain (replaces 4 tiny duplicate fountains!)
+      for (const ft of grandFountains) {
+        const cx = (ft.tx + (ft.is2x2 ? 1 : 0.5)) * TILE;
+        const cy = (ft.ty + (ft.is2x2 ? 1 : 0.5)) * TILE;
+        const rad = ft.is2x2 ? 21 : 11;
+        ctx.save();
+        // Ground shadow
+        ctx.fillStyle = 'rgba(6,10,22,0.34)';
+        ctx.beginPath(); ctx.ellipse(cx, cy + 3, rad + 2, rad * 0.88, 0, 0, Math.PI * 2); ctx.fill();
+        // Sculpted marble outer basin
+        const rimG = ctx.createRadialGradient(cx - 5, cy - 6, 4, cx, cy, rad);
+        rimG.addColorStop(0, '#f8fafc'); rimG.addColorStop(0.75, '#cbd5e1'); rimG.addColorStop(1, '#64748b');
+        ctx.fillStyle = rimG;
+        ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(253,224,71,0.55)'; ctx.lineWidth = 1.2; ctx.stroke();
+        // Shimmering turquoise pool
+        const poolG = ctx.createRadialGradient(cx - 3, cy - 3, 2, cx, cy, rad - 4);
+        poolG.addColorStop(0, '#a5f3fc'); poolG.addColorStop(0.6, '#0ea5e9'); poolG.addColorStop(1, '#0369a1');
+        ctx.fillStyle = poolG;
+        ctx.beginPath(); ctx.arc(cx, cy, rad - 3.6, 0, Math.PI * 2); ctx.fill();
+        // Animated expanding water ripples
+        const rp = (this.time * 0.85) % 1;
+        ctx.strokeStyle = `rgba(224,242,254,${(1 - rp) * 0.72})`; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(cx, cy, 4 + rp * (rad - 9), 0, Math.PI * 2); ctx.stroke();
+        // Central marble pedestal & 4 arcing water jets
+        ctx.fillStyle = '#f1f5f9'; ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(cx, cy, rad * 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = 'rgba(224,242,254,0.88)'; ctx.lineWidth = 1.4;
+        for (let a = 0; a < 4; a++) {
+          const ang = (a * Math.PI) / 2 + 0.4;
+          const ex = cx + Math.cos(ang) * (rad - 7), ey = cy + Math.sin(ang) * (rad - 7);
+          const lift = 6 + Math.sin(this.time * 6 + a) * 1.4;
+          ctx.beginPath(); ctx.moveTo(cx, cy - 2); ctx.quadraticCurveTo((cx + ex) / 2, (cy + ey) / 2 - lift, ex, ey); ctx.stroke();
+        }
+        // Golden crest finial
+        ctx.fillStyle = '#fde047';
+        ctx.beginPath(); ctx.arc(cx, cy - 3, 2.8, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
       }
 
       // Cozy Glowing Town Plaza Street Lanterns (all 10 Towns!)
@@ -2652,9 +2871,13 @@
     }
 
     drawMonster(ctx, m) {
-      const def = DATA.MONSTERS[m.typeId], frames = this.sprites.monsters[m.typeId];
+      const def = DATA.MONSTERS[m.typeId];
+      if (!def) return;
+      const frames = this.sprites.monsters[m.typeId]
+        || (window.HEROES_LORE_MONSTER_ART && window.HEROES_LORE_MONSTER_ART.getFrames(m.typeId))
+        || this.sprites.monsters.slime_green;
       const spr = frames[Math.floor(m.anim) % frames.length];
-      const drawSize = def.isFinalBoss ? 58 : (def.isBoss ? 46 : Math.max(30, def.size + 8));
+      const drawSize = def.isFinalBoss ? 58 : (def.isBoss ? 48 : Math.max(30, def.size + 9));
 
       // Boss Ground Magic Seal Circle
       if (def.isBoss) {
@@ -2688,19 +2911,47 @@
       }
       ctx.restore();
 
-      if (!def.isBoss && m.hp < m.maxHp) {
-        const bw = 26, bh = 3.8, bx = m.x - bw / 2, by = m.y - drawSize / 2 - 5;
+      const hasHpBar = !def.isBoss && m.hp < m.maxHp;
+      if (hasHpBar) {
+        const bw = 28, bh = 4, bx = m.x - bw / 2, by = m.y - drawSize / 2 - 6;
         this.roundPill(ctx, bx, by, bw, bh, 2);
-        ctx.fillStyle = 'rgba(10, 12, 18, 0.82)'; ctx.fill();
+        ctx.fillStyle = 'rgba(10, 12, 18, 0.84)'; ctx.fill();
         const fw = Math.max(0, (bw - 1.6) * (m.hp / m.maxHp));
         if (fw > 0.5) {
           this.roundPill(ctx, bx + 0.8, by + 0.8, fw, bh - 1.6, 1.5);
           ctx.fillStyle = '#fb7185'; ctx.fill();
         }
       }
+
+      // Crisp miniature nameplate for nearby, damaged, or boss monsters
+      const h = this.hero;
+      const distToHero = h ? Math.hypot(m.x - h.x, m.y - h.y) : 999;
+      if (def.isBoss || hasHpBar || distToHero < 145) {
+        const dispName = m.customName || def.name;
+        const lvTxt = `Lv.${m.customLv || def.lv}`;
+        const label = def.isBoss ? `👑 ${dispName}` : `${lvTxt} ${dispName}`;
+        ctx.save();
+        ctx.font = def.isBoss ? '800 7.2px "Pretendard", sans-serif' : '700 6.5px "Pretendard", sans-serif';
+        const tw = ctx.measureText(label).width;
+        const pw = tw + 8, ph = 10.5;
+        const px = m.x - pw / 2;
+        const py = m.y - drawSize / 2 - (hasHpBar ? 19 : 14);
+        this.roundPill(ctx, px, py, pw, ph, 4);
+        ctx.fillStyle = def.isBoss ? 'rgba(69, 10, 10, 0.82)' : 'rgba(9, 14, 28, 0.72)';
+        ctx.fill();
+        ctx.strokeStyle = def.isBoss ? 'rgba(251, 191, 36, 0.65)' : 'rgba(148, 163, 184, 0.28)';
+        ctx.lineWidth = 0.7;
+        ctx.stroke();
+        ctx.fillStyle = def.isBoss ? '#fde68a' : '#e2e8f0';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, m.x, py + ph * 0.54);
+        ctx.restore();
+      }
+
       if (m.stunTimer > 0) {
         ctx.fillStyle = '#fde047'; ctx.font = '800 10px sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText('★', m.x, m.y - drawSize / 2 - 8);
+        ctx.fillText('★', m.x, m.y - drawSize / 2 - (hasHpBar ? 23 : 18));
       }
     }
 
@@ -2882,7 +3133,7 @@
     }
 
     formatEquipName(eq) {
-      const def = DATA.ITEMS[eq.itemId], rar = DATA.RARITY[def.rarity];
+      const def = DATA.ITEMS[eq.itemId], rar = DATA.RARITY[def.rarity] || { color: '#f8fafc' };
       return `<span style="color:${rar.color}">${eq.enh > 0 ? `+${eq.enh} ` : ''}${def.name}</span>`;
     }
 
@@ -2904,12 +3155,99 @@
       return parts.join(' · ');
     }
 
+    getItemMeta(it) {
+      if (!it) return { cat: 'material', label: '기타', icon: '📦', bg: 'rgba(148,163,184,0.16)', border: 'rgba(148,163,184,0.38)', fg: '#cbd5e1' };
+      const t = it.type;
+      if (t === 'weapon') return { cat: 'weapon', label: '무기', icon: '⚔️', bg: 'rgba(239,68,68,0.18)', border: 'rgba(248,113,113,0.48)', fg: '#fca5a5' };
+      if (t === 'armor') return { cat: 'armor', label: '갑옷', icon: '🛡️', bg: 'rgba(59,130,246,0.18)', border: 'rgba(96,165,250,0.48)', fg: '#93c5fd' };
+      if (t === 'helm') return { cat: 'helm', label: '투구', icon: '🪖', bg: 'rgba(168,85,247,0.18)', border: 'rgba(192,132,252,0.5)', fg: '#d8b4fe' };
+      if (t === 'accessory') return { cat: 'accessory', label: '장신구', icon: '💍', bg: 'rgba(245,158,11,0.18)', border: 'rgba(251,191,36,0.52)', fg: '#fde68a' };
+      if (t === 'consumable') {
+        let icon = '🧪';
+        if (it.subtype === 'mp') icon = '💧';
+        else if (it.subtype === 'full') icon = '✨';
+        else if (it.subtype === 'town') icon = '📜';
+        else if (it.subtype === 'exp') icon = '📖';
+        else if (it.subtype && it.subtype.startsWith('buff')) icon = '⚡';
+        return { cat: 'consumable', label: '소비', icon, bg: 'rgba(16,185,129,0.18)', border: 'rgba(52,211,153,0.48)', fg: '#6ee7b7' };
+      }
+      let mIcon = '💎';
+      if (it.id === 'mat_enhance') mIcon = '🔮';
+      else if (it.id === 'mat_star_dust') mIcon = '🌠';
+      else if (it.id === 'mat_sky_feather') mIcon = '🪶';
+      else if (it.id === 'mat_dragon_scale') mIcon = '🐉';
+      else if (it.id === 'mat_eternal_petal') mIcon = '🌸';
+      else if (it.id === 'mat_magma_core') mIcon = '🔥';
+      else if (it.id === 'mat_frost_crystal') mIcon = '❄️';
+      else if (it.id === 'mat_sun_relic') mIcon = '☀️';
+      return { cat: 'material', label: '재료', icon: mIcon, bg: 'rgba(6,182,212,0.18)', border: 'rgba(34,211,238,0.48)', fg: '#67e8f9' };
+    }
+
+    renderItemIcon(it, enh = 0) {
+      const meta = this.getItemMeta(it);
+      const rar = (it && DATA.RARITY[it.rarity]) ? DATA.RARITY[it.rarity] : { color: '#94a3b8' };
+      return `<div class="item-icon-box" style="--rar-col:${rar.color}">${meta.icon}${enh > 0 ? `<span class="item-icon-enh">+${enh}</span>` : ''}</div>`;
+    }
+
+    renderCatPill(it) {
+      const meta = this.getItemMeta(it);
+      return `<span class="cat-pill" style="background:${meta.bg};border:1px solid ${meta.border};color:${meta.fg};">${meta.icon} ${meta.label}</span>`;
+    }
+
+    renderStatChips(eq) {
+      const b = this.getEquipBonus(eq), chips = [];
+      if (b.atk) chips.push(`<span class="stat-chip">⚔️ 공격 +${b.atk}</span>`);
+      if (b.def) chips.push(`<span class="stat-chip">🛡️ 방어 +${b.def}</span>`);
+      if (b.hp) chips.push(`<span class="stat-chip">❤️ HP +${b.hp}</span>`);
+      if (b.mp) chips.push(`<span class="stat-chip">💙 MP +${b.mp}</span>`);
+      if (b.str) chips.push(`<span class="stat-chip">💪 힘 +${b.str}</span>`);
+      if (b.agi) chips.push(`<span class="stat-chip">💨 민첩 +${b.agi}</span>`);
+      if (b.vit) chips.push(`<span class="stat-chip">💚 체력 +${b.vit}</span>`);
+      if (b.int) chips.push(`<span class="stat-chip">✨ 지능 +${b.int}</span>`);
+      if (b.crit) chips.push(`<span class="stat-chip">💥 치명 +${b.crit}%</span>`);
+      if (b.lifesteal) chips.push(`<span class="stat-chip">🩸 흡혈 +${b.lifesteal}%</span>`);
+      if (b.spd) chips.push(`<span class="stat-chip">⚡ 이속 +${b.spd}</span>`);
+      if (b.mpRegen) chips.push(`<span class="stat-chip">💧 회복 +${b.mpRegen}/s</span>`);
+      if (b.skillDmg) chips.push(`<span class="stat-chip">🔥 스킬 +${b.skillDmg}%</span>`);
+      return chips.length ? `<div class="stat-chip-row">${chips.join('')}</div>` : '';
+    }
+
+    getEquipScore(eq) {
+      if (!eq) return 0;
+      const b = this.getEquipBonus(eq);
+      return Math.round(
+        (b.atk || 0) * 14 + (b.def || 0) * 12 + (b.hp || 0) * 0.9 + (b.mp || 0) * 0.6 +
+        ((b.str || 0) + (b.agi || 0) + (b.vit || 0) + (b.int || 0)) * 18 +
+        (b.crit || 0) * 24 + (b.lifesteal || 0) * 22 + (b.skillDmg || 0) * 16 + (b.spd || 0) * 3
+      );
+    }
+
+    renderEquipCmp(eq) {
+      const def = eq && DATA.ITEMS[eq.itemId];
+      if (!def || !['weapon', 'armor', 'helm', 'accessory'].includes(def.type)) return '';
+      const cur = this.hero && this.hero.equip ? this.hero.equip[def.type] : null;
+      if (!cur) return '<span class="cmp-tag up">NEW</span>';
+      const diff = this.getEquipScore(eq) - this.getEquipScore(cur);
+      if (diff > 0) return `<span class="cmp-tag up">▲ +${diff.toLocaleString()}</span>`;
+      if (diff < 0) return `<span class="cmp-tag down">▼ ${diff.toLocaleString()}</span>`;
+      return '';
+    }
+
+    renderFilterBar(cats, activeId, attrName, counts) {
+      return `<div class="cat-filter-row">${cats.map((c) => {
+        const cnt = counts ? counts[c.id] : null;
+        const active = activeId === c.id ? ' active' : '';
+        return `<button type="button" class="cat-filter-btn${active}" ${attrName}="${c.id}">${c.icon ? `${c.icon} ` : ''}${c.label}${cnt != null ? ` <span style="opacity:0.75;font-size:10px;">(${cnt})</span>` : ''}</button>`;
+      }).join('')}</div>`;
+    }
+
     renderStatusTab(body) {
       const h = this.hero, st = this.getHeroStats();
       const cls = DATA.CLASSES[h.classId];
       const power = Math.round(st.atk * 14 + st.magicAtk * 10 + st.def * 12 + st.maxHp * 0.9 + st.crit * 25);
       const season = this.getStorySeason();
       const set = this.sprites.heroes[h.classId];
+      const totalMobs = Object.keys(DATA.MONSTERS || {}).length;
       body.innerHTML = `
         <div class="hero-showcase-banner">
           <div class="hero-showcase-portrait" id="statusPortraitSlot"></div>
@@ -2919,7 +3257,7 @@
               <span class="badge">Lv.${h.lv}</span>
               ${h.title ? `<span class="badge" style="color:#7dd3fc;border-color:rgba(125,211,252,0.45)">${h.title}</span>` : ''}
             </div>
-            <div style="font-size:11.5px;color:#93c5fd;font-weight:700;margin-top:3px;">${cls ? cls.role : ''} · 제${season}부 진행 중</div>
+            <div style="font-size:11.5px;color:#93c5fd;font-weight:700;margin-top:3px;">${cls ? cls.role : ''} · 제${season}부 진행 중 · 몬스터 ${totalMobs}종</div>
             <div style="margin-top:6px;font-size:12px;font-weight:800;color:#fde68a;">전투력 ${power.toLocaleString()} <span style="color:#94a3b8;font-weight:600;">· 심연의 탑 ${h.towerBest || 0}층</span></div>
           </div>
         </div>
@@ -2962,29 +3300,132 @@
     }
 
     renderBagTab(body) {
-      const h = this.hero, slotNames = { weapon: '무기', armor: '갑옷', helm: '투구', accessory: '장신구' };
-      const equipHtml = Object.keys(slotNames).map((slot) => {
+      const h = this.hero;
+      const slots = ['weapon', 'armor', 'helm', 'accessory'];
+      const slotEmptyMeta = {
+        weapon: { type: 'weapon', rarity: 'common' },
+        armor: { type: 'armor', rarity: 'common' },
+        helm: { type: 'helm', rarity: 'common' },
+        accessory: { type: 'accessory', rarity: 'common' }
+      };
+
+      if (!this.bagEqFilter) this.bagEqFilter = 'all';
+      if (!this.bagItemFilter) this.bagItemFilter = 'all';
+
+      const equipHtml = slots.map((slot) => {
         const eq = h.equip[slot];
-        return `<div class="item-row"><div class="item-info"><div class="item-title"><span class="badge">${slotNames[slot]}</span> ${eq ? this.formatEquipName(eq) : '<span style="color:#6d6b75">비어 있음</span>'}</div><div class="item-sub">${eq ? this.formatEquipStats(eq) : '장비를 착용하세요.'}</div></div></div>`;
+        const def = eq ? DATA.ITEMS[eq.itemId] : slotEmptyMeta[slot];
+        return `
+          <div class="item-row">
+            <div class="item-head-flex">
+              ${this.renderItemIcon(def, eq ? (eq.enh || 0) : 0)}
+              <div class="item-info">
+                <div class="item-title">${this.renderCatPill(def)} ${eq ? this.formatEquipName(eq) : '<span style="color:#6d6b75">비어 있음</span>'}</div>
+                ${eq ? this.renderStatChips(eq) : '<div class="item-sub">가방에서 해당 부위 장비를 착용하세요.</div>'}
+              </div>
+            </div>
+          </div>
+        `;
       }).join('');
 
-      const bagEqHtml = h.bagEquip.length === 0
-        ? '<div class="item-sub">보유 중인 여분 장비가 없습니다.</div>'
-        : h.bagEquip.map((eq, idx) => `<div class="item-row"><div class="item-info"><div class="item-title">${this.formatEquipName(eq)}</div><div class="item-sub">${this.formatEquipStats(eq)}</div></div><div class="item-actions"><button class="rpg-btn primary small" data-equip-idx="${idx}">착용</button></div></div>`).join('');
+      const eqCounts = { all: h.bagEquip.length, weapon: 0, armor: 0, helm: 0, accessory: 0 };
+      const indexedEq = h.bagEquip.map((eq, idx) => {
+        const def = DATA.ITEMS[eq.itemId];
+        if (def && eqCounts[def.type] != null) eqCounts[def.type]++;
+        return { eq, idx, def };
+      });
+      const eqSlotOrder = { weapon: 0, armor: 1, helm: 2, accessory: 3 };
+      const filteredEq = indexedEq
+        .filter((e) => e.def && (this.bagEqFilter === 'all' || e.def.type === this.bagEqFilter))
+        .sort((a, b) => (eqSlotOrder[a.def.type] - eqSlotOrder[b.def.type]) || (this.getEquipScore(b.eq) - this.getEquipScore(a.eq)));
 
-      const bagItemEntries = Object.entries(h.bagItems).filter(([, qty]) => qty > 0);
-      const bagItemHtml = bagItemEntries.length === 0
-        ? '<div class="item-sub">보유 중인 소비/재료 아이템이 없습니다.</div>'
-        : bagItemEntries.map(([id, qty]) => {
-          const it = DATA.ITEMS[id];
-          return `<div class="item-row"><div class="item-info"><div class="item-title"><span style="color:${DATA.RARITY[it.rarity].color}">${it.name}</span> <span class="badge">x${qty}</span></div><div class="item-sub">${it.desc}</div></div><div class="item-actions">${it.type === 'consumable' ? `<button class="rpg-btn primary small" data-use-item="${id}">사용</button>` : ''}</div></div>`;
-        }).join('');
+      const eqFilterHtml = this.renderFilterBar([
+        { id: 'all', label: '전체', icon: '✨' },
+        { id: 'weapon', label: '무기', icon: '⚔️' },
+        { id: 'armor', label: '갑옷', icon: '🛡️' },
+        { id: 'helm', label: '투구', icon: '🪖' },
+        { id: 'accessory', label: '장신구', icon: '💍' }
+      ], this.bagEqFilter, 'data-bag-eq-filter', eqCounts);
+
+      const bagEqHtml = filteredEq.length === 0
+        ? `<div class="item-sub">${h.bagEquip.length === 0 ? '보유 중인 여분 장비가 없습니다.' : '선택한 분류에 해당하는 장비가 없습니다.'}</div>`
+        : filteredEq.map(({ eq, idx, def }) => `
+            <div class="item-row">
+              <div class="item-head-flex">
+                ${this.renderItemIcon(def, eq.enh || 0)}
+                <div class="item-info">
+                  <div class="item-title">${this.renderCatPill(def)} ${this.formatEquipName(eq)} ${this.renderEquipCmp(eq)}</div>
+                  ${this.renderStatChips(eq)}
+                </div>
+              </div>
+              <div class="item-actions"><button class="rpg-btn primary small" data-equip-idx="${idx}">착용</button></div>
+            </div>
+          `).join('');
+
+      const bagItemEntries = Object.entries(h.bagItems)
+        .filter(([id, qty]) => qty > 0 && DATA.ITEMS[id])
+        .map(([id, qty]) => ({ id, qty, it: DATA.ITEMS[id] }));
+      const itemCounts = {
+        all: bagItemEntries.length,
+        consumable: bagItemEntries.filter((e) => e.it.type === 'consumable').length,
+        material: bagItemEntries.filter((e) => e.it.type !== 'consumable').length
+      };
+      const filteredItems = bagItemEntries.filter((e) =>
+        this.bagItemFilter === 'all' ||
+        (this.bagItemFilter === 'consumable' ? e.it.type === 'consumable' : e.it.type !== 'consumable')
+      );
+      const itemFilterHtml = this.renderFilterBar([
+        { id: 'all', label: '전체', icon: '📦' },
+        { id: 'consumable', label: '소비', icon: '🧪' },
+        { id: 'material', label: '재료', icon: '💎' }
+      ], this.bagItemFilter, 'data-bag-item-filter', itemCounts);
+
+      const bagItemHtml = filteredItems.length === 0
+        ? '<div class="item-sub">해당 분류에 보유 중인 아이템이 없습니다.</div>'
+        : filteredItems.map(({ id, qty, it }) => `
+            <div class="item-row">
+              <div class="item-head-flex">
+                ${this.renderItemIcon(it)}
+                <div class="item-info">
+                  <div class="item-title">${this.renderCatPill(it)} <span style="color:${DATA.RARITY[it.rarity].color}">${it.name}</span> <span class="badge">x${qty}</span></div>
+                  <div class="item-sub">${it.desc}</div>
+                </div>
+              </div>
+              <div class="item-actions">${it.type === 'consumable' ? `<button class="rpg-btn primary small" data-use-item="${id}">사용</button>` : ''}</div>
+            </div>
+          `).join('');
 
       body.innerHTML = `
-        <div class="panel-card" style="margin-bottom:10px;"><h3>장착 중인 장비</h3><div class="list-grid">${equipHtml}</div></div>
-        <div class="panel-card" style="margin-bottom:10px;"><h3>가방 — 장비 (${h.bagEquip.length})</h3><div class="list-grid">${bagEqHtml}</div></div>
-        <div class="panel-card"><h3>가방 — 소비 및 재료</h3><div class="list-grid">${bagItemHtml}</div></div>
+        <div class="panel-card" style="margin-bottom:10px;">
+          <h3>장착 중인 장비 <span class="badge">무기 · 갑옷 · 투구 · 장신구</span></h3>
+          <div class="list-grid">${equipHtml}</div>
+        </div>
+        <div class="panel-card" style="margin-bottom:10px;">
+          <h3>가방 — 장비 <span class="badge">${h.bagEquip.length}개</span></h3>
+          ${eqFilterHtml}
+          <div class="list-grid">${bagEqHtml}</div>
+        </div>
+        <div class="panel-card">
+          <h3>가방 — 소비 · 재료 <span class="badge">${bagItemEntries.length}종</span></h3>
+          ${itemFilterHtml}
+          <div class="list-grid">${bagItemHtml}</div>
+        </div>
       `;
+
+      body.querySelectorAll('[data-bag-eq-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          this.bagEqFilter = btn.dataset.bagEqFilter;
+          this.audio.playSfx('ui');
+          this.renderBagTab(body);
+        });
+      });
+      body.querySelectorAll('[data-bag-item-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          this.bagItemFilter = btn.dataset.bagItemFilter;
+          this.audio.playSfx('ui');
+          this.renderBagTab(body);
+        });
+      });
 
       body.querySelectorAll('[data-equip-idx]').forEach((btn) => {
         btn.addEventListener('click', () => {
@@ -3771,9 +4212,21 @@
       this.renderModalTabs([{ id: 'buy', label: '잡화 구매' }, { id: 'sell', label: '아이템 판매' }], (id) => { this.modalTab = id; this.renderShopModal(); });
       const body = this.el.modalBody, h = this.hero;
       if (this.modalTab === 'buy') {
-        body.innerHTML = `<div class="panel-card"><h3>잡화상인 미나 · <span style="color:#fde047">${h.gold.toLocaleString()} G</span></h3><div class="list-grid">${DATA.SHOP_GENERAL.map((id) => {
+        body.innerHTML = `<div class="panel-card"><h3>잡화상인 미나 <span class="badge" style="color:#fde047">${h.gold.toLocaleString()} G</span></h3><div class="list-grid">${DATA.SHOP_GENERAL.map((id) => {
           const it = DATA.ITEMS[id];
-          return `<div class="item-row"><div class="item-info"><div class="item-title"><span style="color:${DATA.RARITY[it.rarity].color}">${it.name}</span> <span class="badge">보유 ${h.bagItems[id] || 0}</span></div><div class="item-sub">${it.desc}</div></div><div class="item-actions"><button class="rpg-btn primary small" data-buy="${id}" ${h.gold < it.price ? 'disabled' : ''}>${it.price}G</button></div></div>`;
+          if (!it) return '';
+          return `
+            <div class="item-row">
+              <div class="item-head-flex">
+                ${this.renderItemIcon(it)}
+                <div class="item-info">
+                  <div class="item-title">${this.renderCatPill(it)} <span style="color:${DATA.RARITY[it.rarity].color}">${it.name}</span> <span class="badge">보유 ${h.bagItems[id] || 0}</span></div>
+                  <div class="item-sub">${it.desc}</div>
+                </div>
+              </div>
+              <div class="item-actions"><button class="rpg-btn primary small" data-buy="${id}" ${h.gold < it.price ? 'disabled' : ''}>${it.price.toLocaleString()}G</button></div>
+            </div>
+          `;
         }).join('')}</div></div>`;
         body.querySelectorAll('[data-buy]').forEach((btn) => {
           btn.addEventListener('click', () => {
@@ -3789,6 +4242,7 @@
 
     renderSellView(body, feedback = '', onRerender) {
       const h = this.hero;
+      if (!this.sellFilter) this.sellFilter = 'all';
 
       // 1. Group identical spare equipment by (itemId + enh)
       const eqGroups = [];
@@ -3799,7 +4253,7 @@
           const it = DATA.ITEMS[eq.itemId];
           if (!it) return;
           const unitPrice = Math.round(it.price * 0.5 + (eq.enh || 0) * 40);
-          const grp = { key, itemId: eq.itemId, enh: eq.enh || 0, sample: eq, count: 0, unitPrice, name: it.name };
+          const grp = { key, itemId: eq.itemId, enh: eq.enh || 0, sample: eq, item: it, count: 0, unitPrice, name: it.name };
           eqMap.set(key, grp);
           eqGroups.push(grp);
         }
@@ -3815,14 +4269,28 @@
           return { id, item: it, count: qty, unitPrice };
         });
 
-      const buildQtyRow = ({ rowKey, titleHtml, subHtml, count, unitPrice, kind }) => {
+      const sellCounts = { all: eqGroups.length + itemGroups.length, weapon: 0, armor: 0, helm: 0, accessory: 0, consumable: 0, material: 0 };
+      eqGroups.forEach((g) => { if (sellCounts[g.item.type] != null) sellCounts[g.item.type]++; });
+      itemGroups.forEach((g) => {
+        if (g.item.type === 'consumable') sellCounts.consumable++;
+        else sellCounts.material++;
+      });
+
+      const f = this.sellFilter;
+      const filteredEq = eqGroups.filter((g) => f === 'all' || g.item.type === f);
+      const filteredItems = itemGroups.filter((g) => f === 'all' || (f === 'consumable' ? g.item.type === 'consumable' : (f === 'material' && g.item.type !== 'consumable')));
+
+      const buildQtyRow = ({ rowKey, item, enh = 0, titleHtml, extraHtml, count, unitPrice, kind }) => {
         const initQty = 1;
         return `
           <div class="item-row" style="flex-direction:column;align-items:stretch;gap:7px;" data-sell-row="${rowKey}" data-sell-kind="${kind}" data-max="${count}" data-unit="${unitPrice}">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
-              <div class="item-info">
-                <div class="item-title">${titleHtml} <span class="badge">보유 ${count}개</span> <span style="font-size:11px;color:#fde68a;">개당 ${unitPrice.toLocaleString()}G</span></div>
-                <div class="item-sub">${subHtml}</div>
+              <div class="item-head-flex">
+                ${this.renderItemIcon(item, enh)}
+                <div class="item-info">
+                  <div class="item-title">${this.renderCatPill(item)} ${titleHtml} <span class="badge">x${count}</span> <span style="font-size:11px;color:#fde68a;">개당 ${unitPrice.toLocaleString()}G</span></div>
+                  ${extraHtml}
+                </div>
               </div>
               ${count === 1 ? `<div class="item-actions"><button class="rpg-btn primary small" data-exec-sell="${rowKey}">판매 (+${unitPrice.toLocaleString()}G)</button></div>` : ''}
             </div>
@@ -3841,40 +4309,62 @@
         `;
       };
 
-      const eqHtml = eqGroups.length === 0
-        ? '<div class="item-sub">판매할 여분 장비가 없습니다.</div>'
-        : eqGroups.map((g) => buildQtyRow({
+      const eqHtml = filteredEq.length === 0
+        ? '<div class="item-sub">판매할 해당 분류 장비가 없습니다.</div>'
+        : filteredEq.map((g) => buildQtyRow({
             rowKey: `eq:${g.key}`,
+            item: g.item,
+            enh: g.enh,
             titleHtml: this.formatEquipName(g.sample),
-            subHtml: this.formatEquipStats(g.sample),
+            extraHtml: this.renderStatChips(g.sample),
             count: g.count,
             unitPrice: g.unitPrice,
             kind: 'equip'
           })).join('');
 
-      const matHtml = itemGroups.length === 0
-        ? '<div class="item-sub">판매할 소비/재료 아이템이 없습니다.</div>'
-        : itemGroups.map((g) => buildQtyRow({
+      const matHtml = filteredItems.length === 0
+        ? '<div class="item-sub">판매할 해당 분류 소비/재료 아이템이 없습니다.</div>'
+        : filteredItems.map((g) => buildQtyRow({
             rowKey: `it:${g.id}`,
+            item: g.item,
             titleHtml: `<span style="color:${DATA.RARITY[g.item.rarity].color}">${g.item.name}</span>`,
-            subHtml: g.item.desc,
+            extraHtml: `<div class="item-sub">${g.item.desc}</div>`,
             count: g.count,
             unitPrice: g.unitPrice,
             kind: 'item'
           })).join('');
 
+      const filterBarHtml = this.renderFilterBar([
+        { id: 'all', label: '전체', icon: '✨' },
+        { id: 'weapon', label: '무기', icon: '⚔️' },
+        { id: 'armor', label: '갑옷', icon: '🛡️' },
+        { id: 'helm', label: '투구', icon: '🪖' },
+        { id: 'accessory', label: '장신구', icon: '💍' },
+        { id: 'consumable', label: '소비', icon: '🧪' },
+        { id: 'material', label: '재료', icon: '💎' }
+      ], f, 'data-sell-filter', sellCounts);
+
+      const showEqSection = f === 'all' || ['weapon', 'armor', 'helm', 'accessory'].includes(f);
+      const showItemSection = f === 'all' || ['consumable', 'material'].includes(f);
+
       body.innerHTML = `
         ${feedback ? `<div style="margin-bottom:10px;padding:8px 12px;border-radius:10px;background:rgba(234,185,92,0.16);border:1px solid rgba(245,208,122,0.5);color:#fde68a;font-weight:800;font-size:12px;">${feedback}</div>` : ''}
         <div class="panel-card" style="margin-bottom:10px;">
-          <h3>여분 장비 묶음 판매 <span class="badge" style="color:#fde047">${h.gold.toLocaleString()} G</span></h3>
-          <div class="item-sub" style="margin-bottom:8px;">같은 종류·강화 수치의 장비는 개수를 지정해 한 번에 판매할 수 있습니다.</div>
-          <div class="list-grid">${eqHtml}</div>
+          <h3>아이템 분류별 판매 <span class="badge" style="color:#fde047">${h.gold.toLocaleString()} G</span></h3>
+          ${filterBarHtml}
+          <div class="item-sub">같은 종류·강화 수치의 장비와 재료는 수량을 지정해 한 번에 판매할 수 있습니다.</div>
         </div>
-        <div class="panel-card">
-          <h3>재료 · 소비 아이템 수량 판매</h3>
-          <div class="list-grid">${matHtml}</div>
-        </div>
+        ${showEqSection ? `<div class="panel-card" style="margin-bottom:10px;"><h3>여분 장비 묶음 판매</h3><div class="list-grid">${eqHtml}</div></div>` : ''}
+        ${showItemSection ? `<div class="panel-card"><h3>재료 · 소비 아이템 수량 판매</h3><div class="list-grid">${matHtml}</div></div>` : ''}
       `;
+
+      body.querySelectorAll('[data-sell-filter]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          this.sellFilter = btn.dataset.sellFilter;
+          this.audio.playSfx('ui');
+          this.renderSellView(body, '', onRerender);
+        });
+      });
 
       const syncRowBtn = (rowKey, normalize = true) => {
         const row = body.querySelector(`[data-sell-row="${CSS.escape(rowKey)}"]`);
@@ -4001,11 +4491,24 @@
         const enhCost = (e) => 60 + e * 85;
         const rows = ['weapon', 'armor', 'helm', 'accessory'].map((slot) => {
           const eq = h.equip[slot]; if (!eq) return '';
+          const def = DATA.ITEMS[eq.itemId];
           const enh = eq.enh || 0, maxed = enh >= MAX_ENH, rate = maxed ? 0 : enhRate(enh), costGold = enhCost(enh);
           const canDo = !maxed && stones >= 1 && h.gold >= costGold;
-          return `<div class="item-row"><div class="item-info"><div class="item-title">${this.formatEquipName(eq)} ${maxed ? '<span class="badge">MAX</span>' : `<span class="badge">성공 ${rate}%</span>`}</div><div class="item-sub">${this.formatEquipStats(eq)} ${!maxed ? `· ${costGold.toLocaleString()}G + 강화석 1` : ''}</div></div><div class="item-actions"><button class="rpg-btn primary small" data-enh-slot="${slot}" ${canDo ? '' : 'disabled'}>${maxed ? '최대' : `+${enh + 1}`}</button></div></div>`;
+          return `
+            <div class="item-row">
+              <div class="item-head-flex">
+                ${this.renderItemIcon(def, enh)}
+                <div class="item-info">
+                  <div class="item-title">${this.renderCatPill(def)} ${this.formatEquipName(eq)} ${maxed ? '<span class="badge">MAX</span>' : `<span class="badge">성공 ${rate}%</span>`}</div>
+                  ${this.renderStatChips(eq)}
+                  ${!maxed ? `<div class="item-sub">필요: <strong style="color:#fde68a">${costGold.toLocaleString()}G</strong> + 강화석 1</div>` : ''}
+                </div>
+              </div>
+              <div class="item-actions"><button class="rpg-btn primary small" data-enh-slot="${slot}" ${canDo ? '' : 'disabled'}>${maxed ? '최대' : `+${enh + 1}`}</button></div>
+            </div>
+          `;
         }).join('');
-        body.innerHTML = `<div class="panel-card"><h3>대장장이 볼칸 · <span style="color:#fde047">${h.gold.toLocaleString()}G</span> · 강화석 <span style="color:#4ade80">${stones}</span></h3>${feedback ? `<div style="margin-bottom:8px;padding:7px 10px;border-radius:7px;background:rgba(229,188,101,0.12);border:1px solid rgba(229,188,101,0.4);color:#fde047;font-weight:700;">${feedback}</div>` : ''}<div class="item-sub" style="margin-bottom:8px;">최대 +25 초월 강화! 실패해도 장비는 파괴되지 않습니다. +3/+5/+7/+10/+15/+20 무기는 검기 색상이 진화합니다.</div><div class="list-grid">${rows}</div></div>`;
+        body.innerHTML = `<div class="panel-card"><h3>대장장이 볼칸 · <span style="color:#fde047">${h.gold.toLocaleString()}G</span> · 강화석 <span style="color:#4ade80">${stones}</span></h3>${feedback ? `<div style="margin-bottom:8px;padding:7px 10px;border-radius:9px;background:rgba(229,188,101,0.14);border:1px solid rgba(229,188,101,0.45);color:#fde047;font-weight:700;">${feedback}</div>` : ''}<div class="item-sub" style="margin-bottom:8px;">최대 +25 초월 강화! 실패해도 장비는 파괴되지 않습니다. +3/+5/+7/+10/+15/+20 무기는 검기 색상이 진화합니다.</div><div class="list-grid">${rows}</div></div>`;
 
         const markEnhanceQuest = () => {
           if (h.questState === 'active') {
@@ -4036,16 +4539,57 @@
           });
         });
       } else if (this.modalTab === 'craft') {
-        const rows = DATA.RECIPES.map((rc) => {
+        if (!this.smithCraftFilter) this.smithCraftFilter = 'all';
+        const cf = this.smithCraftFilter;
+        const cCounts = { all: DATA.RECIPES.length, weapon: 0, armor: 0, helm: 0, accessory: 0 };
+        DATA.RECIPES.forEach((rc) => {
           const res = DATA.ITEMS[rc.result];
+          if (res && cCounts[res.type] != null) cCounts[res.type]++;
+        });
+        const filteredRecipes = DATA.RECIPES.filter((rc) => {
+          const res = DATA.ITEMS[rc.result];
+          return res && (cf === 'all' || res.type === cf);
+        });
+        const filterHtml = this.renderFilterBar([
+          { id: 'all', label: '전체', icon: '✨' },
+          { id: 'weapon', label: '무기', icon: '⚔️' },
+          { id: 'armor', label: '갑옷', icon: '🛡️' },
+          { id: 'helm', label: '투구', icon: '🪖' },
+          { id: 'accessory', label: '장신구', icon: '💍' }
+        ], cf, 'data-craft-filter', cCounts);
+
+        const rows = filteredRecipes.map((rc) => {
+          const res = DATA.ITEMS[rc.result];
+          const previewEq = { itemId: rc.result, enh: 0 };
           const matStatus = rc.materials.map((m) => {
             const have = h.bagItems[m.id] || 0;
-            return `<span style="color:${have >= m.qty ? '#4ade80' : '#f87171'}">${DATA.ITEMS[m.id].name} ${have}/${m.qty}</span>`;
+            const mIt = DATA.ITEMS[m.id];
+            return `<span style="color:${have >= m.qty ? '#4ade80' : '#f87171'}">${mIt ? mIt.name : m.id} ${have}/${m.qty}</span>`;
           }).join(' · ');
           const canCraft = h.gold >= rc.gold && rc.materials.every((m) => (h.bagItems[m.id] || 0) >= m.qty);
-          return `<div class="item-row"><div class="item-info"><div class="item-title"><span style="color:${DATA.RARITY[res.rarity].color}">${res.name}</span> <span class="badge">${rc.gold}G</span></div><div class="item-sub">${this.formatEquipStats({ itemId: rc.result, enh: 0 })}</div><div class="item-sub">재료: ${matStatus}</div></div><div class="item-actions"><button class="rpg-btn primary small" data-craft="${rc.id}" ${canCraft ? '' : 'disabled'}>조합</button></div></div>`;
+          return `
+            <div class="item-row">
+              <div class="item-head-flex">
+                ${this.renderItemIcon(res)}
+                <div class="item-info">
+                  <div class="item-title">${this.renderCatPill(res)} <span style="color:${DATA.RARITY[res.rarity].color}">${res.name}</span> ${this.renderEquipCmp(previewEq)} <span class="badge">${rc.gold.toLocaleString()}G</span></div>
+                  ${this.renderStatChips(previewEq)}
+                  <div class="item-sub">재료: ${matStatus}</div>
+                </div>
+              </div>
+              <div class="item-actions"><button class="rpg-btn primary small" data-craft="${rc.id}" ${canCraft ? '' : 'disabled'}>조합</button></div>
+            </div>
+          `;
         }).join('');
-        body.innerHTML = `<div class="panel-card"><h3>장비 조합 · <span style="color:#fde047">${h.gold.toLocaleString()} G</span></h3>${feedback ? `<div style="margin-bottom:8px;padding:7px 10px;border-radius:7px;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.4);color:#4ade80;font-weight:700;">${feedback}</div>` : ''}<div class="list-grid">${rows}</div></div>`;
+        body.innerHTML = `<div class="panel-card"><h3>장비 조합 <span class="badge" style="color:#fde047">${h.gold.toLocaleString()} G</span></h3>${feedback ? `<div style="margin-bottom:8px;padding:7px 10px;border-radius:9px;background:rgba(52,211,153,0.12);border:1px solid rgba(52,211,153,0.4);color:#4ade80;font-weight:700;">${feedback}</div>` : ''}${filterHtml}<div class="list-grid">${rows || '<div class="item-sub">해당 분류의 조합식이 없습니다.</div>'}</div></div>`;
+
+        body.querySelectorAll('[data-craft-filter]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            this.smithCraftFilter = btn.dataset.craftFilter;
+            this.audio.playSfx('ui');
+            this.renderSmithModal();
+          });
+        });
 
         body.querySelectorAll('[data-craft]').forEach((btn) => {
           btn.addEventListener('click', () => {
@@ -4066,10 +4610,50 @@
           });
         });
       } else {
-        body.innerHTML = `<div class="panel-card"><h3>장비 상점 · <span style="color:#fde047">${h.gold.toLocaleString()} G</span></h3><div class="list-grid">${DATA.SHOP_BLACKSMITH.map((id) => {
+        if (!this.smithGearFilter) this.smithGearFilter = 'all';
+        const gf = this.smithGearFilter;
+        const gCounts = { all: DATA.SHOP_BLACKSMITH.length, weapon: 0, armor: 0, helm: 0, accessory: 0 };
+        DATA.SHOP_BLACKSMITH.forEach((id) => {
           const it = DATA.ITEMS[id];
-          return `<div class="item-row"><div class="item-info"><div class="item-title"><span style="color:${DATA.RARITY[it.rarity].color}">${it.name}</span></div><div class="item-sub">${this.formatEquipStats({ itemId: id, enh: 0 })}</div></div><div class="item-actions"><button class="rpg-btn primary small" data-buy-gear="${id}" ${h.gold < it.price ? 'disabled' : ''}>${it.price}G</button></div></div>`;
-        }).join('')}</div></div>`;
+          if (it && gCounts[it.type] != null) gCounts[it.type]++;
+        });
+        const filteredGear = DATA.SHOP_BLACKSMITH.filter((id) => {
+          const it = DATA.ITEMS[id];
+          return it && (gf === 'all' || it.type === gf);
+        });
+        const filterHtml = this.renderFilterBar([
+          { id: 'all', label: '전체', icon: '✨' },
+          { id: 'weapon', label: '무기', icon: '⚔️' },
+          { id: 'armor', label: '갑옷', icon: '🛡️' },
+          { id: 'helm', label: '투구', icon: '🪖' },
+          { id: 'accessory', label: '장신구', icon: '💍' }
+        ], gf, 'data-gear-filter', gCounts);
+
+        body.innerHTML = `<div class="panel-card"><h3>장비 상점 <span class="badge" style="color:#fde047">${h.gold.toLocaleString()} G</span></h3>${filterHtml}<div class="list-grid">${filteredGear.map((id) => {
+          const it = DATA.ITEMS[id];
+          const previewEq = { itemId: id, enh: 0 };
+          return `
+            <div class="item-row">
+              <div class="item-head-flex">
+                ${this.renderItemIcon(it)}
+                <div class="item-info">
+                  <div class="item-title">${this.renderCatPill(it)} <span style="color:${DATA.RARITY[it.rarity].color}">${it.name}</span> ${this.renderEquipCmp(previewEq)}</div>
+                  ${this.renderStatChips(previewEq)}
+                </div>
+              </div>
+              <div class="item-actions"><button class="rpg-btn primary small" data-buy-gear="${id}" ${h.gold < it.price ? 'disabled' : ''}>${it.price.toLocaleString()}G</button></div>
+            </div>
+          `;
+        }).join('') || '<div class="item-sub">해당 분류의 판매 장비가 없습니다.</div>'}</div></div>`;
+
+        body.querySelectorAll('[data-gear-filter]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            this.smithGearFilter = btn.dataset.gearFilter;
+            this.audio.playSfx('ui');
+            this.renderSmithModal();
+          });
+        });
+
         body.querySelectorAll('[data-buy-gear]').forEach((btn) => {
           btn.addEventListener('click', () => {
             const id = btn.dataset.buyGear, it = DATA.ITEMS[id];

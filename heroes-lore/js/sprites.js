@@ -1219,55 +1219,93 @@
       const ctx = c.getContext('2d');
       const cx = 70;
 
-      // Flowing back hair for Aria
-      if (kind === 'aria') {
+      // Flowing back hair for Aria & Shopkeeper Mina
+      if (kind === 'aria' || kind === 'shop') {
         ctx.beginPath();
-        ctx.moveTo(44, 38); ctx.bezierCurveTo(36, 70, 38, 102, 48, 114);
-        ctx.lineTo(92, 114); ctx.bezierCurveTo(102, 102, 104, 70, 96, 38); ctx.closePath();
-        ctx.fillStyle = linGrad(ctx, 40, 38, 100, 114, [[0, '#c2410c'], [1, '#7c2d12']]);
-        ctx.fill(); ctx.strokeStyle = '#29150c'; ctx.lineWidth = 2.2; ctx.stroke();
+        ctx.moveTo(43, 38); ctx.bezierCurveTo(35, 70, 37, 102, 47, 114);
+        ctx.lineTo(93, 114); ctx.bezierCurveTo(103, 102, 105, 70, 97, 38); ctx.closePath();
+        ctx.fillStyle = kind === 'aria'
+          ? linGrad(ctx, 40, 38, 100, 114, [[0, '#ea580c'], [1, '#7c2d12']])
+          : linGrad(ctx, 40, 38, 100, 114, [[0, '#f59e0b'], [1, '#92400e']]);
+        ctx.fill(); ctx.strokeStyle = '#29150c'; ctx.lineWidth = 2.0; ctx.stroke();
       }
 
-      // Robe / Outfit
+      // Boots peeking beneath cloak
+      ctx.fillStyle = '#3b2416';
+      rrect(ctx, 49, 118, 16, 12, 5); ctx.fill(); ctx.strokeStyle = '#181414'; ctx.lineWidth = 2.0; ctx.stroke();
+      rrect(ctx, 75, 118, 16, 12, 5); ctx.fill(); ctx.stroke();
+
+      // Robe / Outfit with sculpted shoulders & hem
       ctx.beginPath();
-      ctx.moveTo(46, 66); ctx.lineTo(94, 66); ctx.lineTo(102, 124); ctx.lineTo(38, 124); ctx.closePath();
+      ctx.moveTo(46, 68); ctx.quadraticCurveTo(cx, 62, 94, 68);
+      ctx.lineTo(102, 120); ctx.quadraticCurveTo(cx, 126, 38, 120); ctx.closePath();
       ctx.fillStyle = kind === 'elder'
-        ? linGrad(ctx, 40, 66, 100, 124, [[0, '#8c5e3a'], [1, '#4a2f1a']])
+        ? linGrad(ctx, 40, 66, 100, 124, [[0, '#9a6842'], [0.5, '#734a2b'], [1, '#432815']])
         : kind === 'shop'
-        ? linGrad(ctx, 40, 66, 100, 124, [[0, '#e11d48'], [1, '#881337']])
+        ? linGrad(ctx, 40, 66, 100, 124, [[0, '#f43f5e'], [0.5, '#be123c'], [1, '#7f1d1d']])
         : kind === 'aria'
-        ? linGrad(ctx, 40, 66, 100, 124, [[0, '#10b981'], [1, '#065f46']])
+        ? linGrad(ctx, 40, 66, 100, 124, [[0, '#34d399'], [0.5, '#059669'], [1, '#064e3b']])
         : kind === 'kyle'
-        ? linGrad(ctx, 40, 66, 100, 124, [[0, '#2563eb'], [1, '#1e3a8a']])
-        : linGrad(ctx, 40, 66, 100, 124, [[0, '#57534e'], [1, '#292524']]);
+        ? linGrad(ctx, 40, 66, 100, 124, [[0, '#3b82f6'], [0.5, '#1d4ed8'], [1, '#1e3a8a']])
+        : linGrad(ctx, 40, 66, 100, 124, [[0, '#78716c'], [0.5, '#44403c'], [1, '#1c1917']]);
       ctx.fill();
-      ctx.strokeStyle = '#181414'; ctx.lineWidth = 2.6; ctx.stroke();
+      ctx.strokeStyle = '#181414'; ctx.lineWidth = 2.2; ctx.stroke();
 
-      // Center Apron / Stole / Armor Vest
-      rrect(ctx, 56, 68, 28, 54, 6);
-      ctx.fillStyle = kind === 'elder' ? '#d9a441'
-        : kind === 'shop' ? '#fff7ed'
-        : kind === 'aria' ? '#fef3c7'
-        : kind === 'kyle' ? '#cbd5e1'
-        : '#78350f';
+      // Center Apron / Stole / Armor Vest with shaded folds
+      rrect(ctx, 56, 69, 28, 52, 6);
+      ctx.fillStyle = kind === 'elder'
+        ? linGrad(ctx, 56, 69, 84, 121, [[0, '#fde68a'], [1, '#b45309']])
+        : kind === 'shop'
+        ? linGrad(ctx, 56, 69, 84, 121, [[0, '#ffffff'], [1, '#fed7aa']])
+        : kind === 'aria'
+        ? linGrad(ctx, 56, 69, 84, 121, [[0, '#fefce8'], [1, '#fde68a']])
+        : kind === 'kyle'
+        ? linGrad(ctx, 56, 69, 84, 121, [[0, '#f1f5f9'], [1, '#94a3b8']])
+        : linGrad(ctx, 56, 69, 84, 121, [[0, '#92400e'], [1, '#451a03']]);
       ctx.fill();
 
-      // Head
+      // Waist Belt + Gold Buckle & Shoulder Mantle Collar
+      ctx.fillStyle = '#3b2416';
+      rrect(ctx, 44, 92, 52, 7, 3); ctx.fill();
+      ctx.fillStyle = '#fbbf24';
+      rrect(ctx, 64, 91, 12, 9, 2.5); ctx.fill();
       ctx.beginPath();
-      ctx.arc(cx, 44, 24, 0, Math.PI * 2);
-      ctx.fillStyle = linGrad(ctx, cx, 20, cx, 68, [[0, '#ffedd5'], [1, '#f3ba88']]);
-      ctx.fill(); ctx.strokeStyle = '#291c18'; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.moveTo(46, 68); ctx.quadraticCurveTo(cx, 78, 94, 68);
+      ctx.lineTo(90, 77); ctx.quadraticCurveTo(cx, 85, 50, 77); ctx.closePath();
+      ctx.fillStyle = 'rgba(255,250,235,0.22)'; ctx.fill();
 
-      // Hair
+      // Head with soft chin & warm skin shading
       ctx.beginPath();
-      ctx.arc(cx, 38, 25, Math.PI * 0.95, Math.PI * 2.05);
-      ctx.lineTo(94, 46); ctx.quadraticCurveTo(cx, 34, 46, 46); ctx.closePath();
-      ctx.fillStyle = kind === 'elder' ? '#e2e8f0'
-        : kind === 'shop' ? '#f59e0b'
-        : kind === 'aria' ? '#ea580c'
-        : kind === 'kyle' ? '#334155'
-        : '#b91c1c';
-      ctx.fill(); ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 2.4; ctx.stroke();
+      ctx.arc(cx, 44, 23, 0, Math.PI * 2);
+      ctx.fillStyle = linGrad(ctx, cx, 20, cx, 67, [[0, '#fff3e2'], [0.65, '#f9cfa6'], [1, '#e8ac7a']]);
+      ctx.fill(); ctx.strokeStyle = '#3b241a'; ctx.lineWidth = 2.1; ctx.stroke();
+
+      // Soft anime cheek blush & gentle smile
+      ctx.fillStyle = 'rgba(244, 114, 182, 0.28)';
+      ctx.beginPath(); ctx.ellipse(55, 54, 4.2, 2.4, 0, 0, Math.PI * 2); ctx.ellipse(85, 54, 4.2, 2.4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#8b4a3a'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.arc(cx, 54.5, 3.6, 0.2, Math.PI - 0.2); ctx.stroke();
+
+      // Layered Anime Hair & Bangs
+      const hairGrad = kind === 'elder'
+        ? linGrad(ctx, cx, 14, cx, 50, [[0, '#ffffff'], [1, '#94a3b8']])
+        : kind === 'shop'
+        ? linGrad(ctx, cx, 14, cx, 50, [[0, '#fde047'], [1, '#d97706']])
+        : kind === 'aria'
+        ? linGrad(ctx, cx, 14, cx, 50, [[0, '#fb923c'], [1, '#c2410c']])
+        : kind === 'kyle'
+        ? linGrad(ctx, cx, 14, cx, 50, [[0, '#64748b'], [1, '#1e293b']])
+        : linGrad(ctx, cx, 14, cx, 50, [[0, '#ef4444'], [1, '#7f1d1d']]);
+      ctx.beginPath();
+      ctx.arc(cx, 38, 24.5, Math.PI * 0.92, Math.PI * 2.08);
+      ctx.lineTo(94, 49); ctx.lineTo(86, 40); ctx.lineTo(79, 47);
+      ctx.lineTo(70, 37); ctx.lineTo(61, 47); ctx.lineTo(54, 40); ctx.lineTo(46, 49);
+      ctx.closePath();
+      ctx.fillStyle = hairGrad;
+      ctx.fill(); ctx.strokeStyle = '#1c1917'; ctx.lineWidth = 2.0; ctx.stroke();
+      // Hair sheen arc
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 2.2;
+      ctx.beginPath(); ctx.arc(cx, 36, 17, Math.PI * 1.18, Math.PI * 1.82); ctx.stroke();
 
       // Eyes
       const eyeHi = kind === 'shop' ? '#fb7185' : (kind === 'aria' ? '#34d399' : (kind === 'kyle' ? '#38bdf8' : '#64748b'));
