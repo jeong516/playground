@@ -4677,7 +4677,92 @@
     }
   }
 
+  function initPwaInstall() {
+    if (global.__pwaInitDone) return;
+    global.__pwaInitDone = true;
+
+    const isHttp = location.protocol === 'http:' || location.protocol === 'https:';
+    if (isHttp && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
+    const btnTitle = document.getElementById('btnInstallApp');
+    const btnSettings = document.getElementById('btnInstallAppSettings');
+    const guide = document.getElementById('pwaGuideScreen');
+    const guideSteps = document.getElementById('pwaGuideSteps');
+    const btnCloseGuide = document.getElementById('btnClosePwaGuide');
+
+    const isStandalone = () =>
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+      window.navigator.standalone === true;
+
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    let deferredPrompt = null;
+
+    const showButtons = () => {
+      if (isStandalone()) return;
+      if (btnTitle) btnTitle.classList.remove('hidden');
+      if (btnSettings) btnSettings.classList.remove('hidden');
+    };
+    const hideButtons = () => {
+      if (btnTitle) btnTitle.classList.add('hidden');
+      if (btnSettings) btnSettings.classList.add('hidden');
+    };
+
+    if (isHttp && !isStandalone()) {
+      // Show install button immediately on HTTP/HTTPS browsers (native prompt when available, clear 2-step guide on iOS Safari)
+      showButtons();
+      if (isIOS && guideSteps) {
+        guideSteps.innerHTML = `
+          <div class="pwa-step"><span>1</span><p>Safari 하단의 <strong>공유 버튼 [⎋]</strong>을 눌러주세요.</p></div>
+          <div class="pwa-step"><span>2</span><p>메뉴를 살짝 올려 <strong>「홈 화면에 추가」</strong> → <strong>「추가」</strong>를 누르면 앱처럼 전체화면으로 즐길 수 있습니다!</p></div>
+        `;
+      }
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (btnTitle) btnTitle.textContent = '📲 앱으로 바로 설치';
+      showButtons();
+    });
+
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+      hideButtons();
+      if (guide) guide.classList.add('hidden');
+      if (global.game && global.game.hero) {
+        global.game.addFloatText(global.game.hero.x, global.game.hero.y - 34, '📲 웹앱 설치 완료!', '#4ade80', true);
+      }
+    });
+
+    const triggerInstall = async () => {
+      const pop = document.getElementById('settingsPopover');
+      if (pop) pop.classList.add('hidden');
+      if (deferredPrompt) {
+        try {
+          deferredPrompt.prompt();
+          const res = await deferredPrompt.userChoice;
+          if (res && res.outcome === 'accepted') hideButtons();
+          deferredPrompt = null;
+          return;
+        } catch (_) {}
+      }
+      if (guide) guide.classList.remove('hidden');
+    };
+
+    if (btnTitle) btnTitle.addEventListener('click', triggerInstall);
+    if (btnSettings) btnSettings.addEventListener('click', triggerInstall);
+    if (btnCloseGuide && guide) {
+      btnCloseGuide.addEventListener('click', () => guide.classList.add('hidden'));
+      guide.addEventListener('click', (e) => { if (e.target === guide) guide.classList.add('hidden'); });
+    }
+  }
+
   function bootGame() {
+    initPwaInstall();
     if (global.game) return;
     try { global.game = new HeroesLoreGame(); } catch (err) { console.error('Boot error:', err); }
   }

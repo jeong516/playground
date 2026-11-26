@@ -3,13 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="theme-color" content="#0d0f14" />
+  <meta name="apple-mobile-web-app-title" content="영웅서기" />
+  <meta name="theme-color" content="#0b1020" />
   <title>영웅서기: 솔티아의 바람</title>
   <meta name="description" content="최신 스마트폰 풀스크린 최적화 액션 RPG 영웅서기: 솔티아의 바람" />
-  <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=19" />
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icon-180.png" />
+  <link rel="manifest" href="manifest.json?v=20" />
+  <link rel="stylesheet" href="style.css?v=20" />
 </head>
 <body>
   <div id="appViewport" class="app-viewport">
@@ -135,6 +139,10 @@
           <span>지금 저장하기</span>
           <strong>SAVE</strong>
         </button>
+        <button id="btnInstallAppSettings" class="pop-item hidden" type="button">
+          <span>📲 앱으로 설치</span>
+          <strong>APP</strong>
+        </button>
       </div>
 
       <!-- Floating Transparent Touch Gamepad (Overlays Full-Screen World) -->
@@ -212,11 +220,25 @@
         <div class="title-kicker">HEROES LORE · GRAND CHRONICLE</div>
         <h1 class="title-display">영웅서기</h1>
         <p class="title-tagline">솔티아의 바람</p>
-        <div class="title-edition-sub">218개 월드맵 · 225종 몬스터 · 200장 대연대기</div>
+        <div class="title-edition-sub">218개 월드맵 · 229종 몬스터 · 200장 대연대기</div>
       </div>
       <div class="title-bottom-dock">
         <button id="btnNewGame" class="cta-btn primary" type="button">새 모험 시작</button>
         <button id="btnContinue" class="cta-btn ghost" type="button" disabled>이어하기</button>
+        <button id="btnInstallApp" class="cta-btn install-pwa hidden" type="button">📲 홈 화면에 앱으로 설치</button>
+      </div>
+    </div>
+
+    <!-- PWA Install Guide Overlay (for iOS Safari & browsers without native install prompt) -->
+    <div id="pwaGuideScreen" class="overlay-screen hidden" role="dialog" aria-modal="true">
+      <div class="result-card pwa-guide-card">
+        <div class="title-kicker">INSTALL AS APP</div>
+        <h2 class="result-title" style="font-size:21px;">홈 화면에 앱으로 설치</h2>
+        <div id="pwaGuideSteps" class="pwa-guide-steps">
+          <div class="pwa-step"><span>1</span><p>브라우저 하단(또는 상단)의 <strong>공유 버튼 [⎋]</strong> 또는 <strong>메뉴 [⋮]</strong>를 눌러주세요.</p></div>
+          <div class="pwa-step"><span>2</span><p>목록에서 <strong>「홈 화면에 추가」</strong> 또는 <strong>「앱 설치」</strong>를 선택하면 전체화면 앱으로 실행됩니다!</p></div>
+        </div>
+        <button id="btnClosePwaGuide" class="cta-btn primary" type="button" style="width:100%;">확인</button>
       </div>
     </div>
 
@@ -279,12 +301,12 @@
   <!-- Hidden desktop skill container fallback kept empty for compatibility -->
   <div id="skillSlots" style="display:none"></div>
 
-  <script src="js/audio.js?v=19"></script>
-  <script src="js/sprites.js?v=19"></script>
-  <script src="js/data.js?v=19"></script>
-  <script src="js/story.js?v=19"></script>
-  <script src="js/expansion.js?v=19"></script>
-  <script src="js/monsters.js?v=19"></script>
-  <script src="js/game.js?v=19"></script>
+  <script src="js/audio.js?v=20"></script>
+  <script src="js/sprites.js?v=20"></script>
+  <script src="js/data.js?v=20"></script>
+  <script src="js/story.js?v=20"></script>
+  <script src="js/expansion.js?v=20"></script>
+  <script src="js/monsters.js?v=20"></script>
+  <script src="js/game.js?v=20"></script>
 </body>
 </html>

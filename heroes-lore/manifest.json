@@ -1,10 +1,35 @@
 {
+  "id": "./",
   "name": "영웅서기: 솔티아의 바람",
   "short_name": "영웅서기",
-  "description": "추억의 피처폰 액션 RPG 영웅서기 모바일 웹앱",
-  "start_url": "./index.html",
+  "description": "218개 월드맵 · 229종 몬스터 · 200장 대연대기 모바일 액션 RPG",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#141210",
-  "theme_color": "#141210",
-  "orientation": "portrait"
+  "display_override": ["standalone", "fullscreen"],
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "orientation": "portrait",
+  "categories": ["games", "entertainment"],
+  "icons": [
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }
